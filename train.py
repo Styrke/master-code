@@ -11,5 +11,5 @@ with tf.Session() as sess:
     init = tf.initialize_all_variables()
     sess.run(init)
 
-    inp = np.array([[1,0,2],[2,0,1]])
+    inp = np.array([[1, 0, 2], [2, 0, 1]])
     print sess.run(out, feed_dict={input: inp})
