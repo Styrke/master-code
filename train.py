@@ -9,8 +9,7 @@ with tf.Session() as sess:
     out = model.inference(alphabet_size=3, input=input, lengths=lengths)
 
     # initialize parameters
-    init = tf.initialize_all_variables()
-    sess.run(init)
+    tf.initialize_all_variables().run()
 
     inp = np.array([[1, 0, 2],
                     [2, 0, 1]])
