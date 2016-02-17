@@ -5,41 +5,29 @@ from tensorflow.python.ops import control_flow_ops
 
 BATCH_SIZE = 2
 EMBEDDING_SIZE = 3
-ENCODER_HIDDEN_SIZE = 10
-ENCODER_OUTPUT_SIZE = 10
+MAX_SEQ_LENGTH = 5
 
 
-def inference(alphabet_size, input):
+def inference(alphabet_size, input, lengths):
     # character embeddings
-    embeddings = tf.random_uniform(shape=[alphabet_size, EMBEDDING_SIZE])
-    embedded = tf.gather(embeddings, input)
+    # embeddings = tf.random_uniform(shape=[alphabet_size, EMBEDDING_SIZE])
+    # embedded = tf.gather(embeddings, input)
+    embedded = input
 
-    shape = tf.shape(embedded)
-    length = shape[1]  # number of loop iterations
+    pad_size = tf.reshape(MAX_SEQ_LENGTH - tf.shape(embedded)[1], [1, 1])
+    paddings = tf.pad(pad_size, np.array([[1, 0], [1, 0]]))
+    rnn_pad = tf.pad(embedded,
+                     paddings)
 
-    W_ih = tf.truncated_normal([EMBEDDING_SIZE, ENCODER_HIDDEN_SIZE])
-    W_hh = tf.truncated_normal([ENCODER_HIDDEN_SIZE, ENCODER_HIDDEN_SIZE])
-    W_ho = tf.truncated_normal([ENCODER_HIDDEN_SIZE, ENCODER_OUTPUT_SIZE])
+    inputs = tf.split(1, MAX_SEQ_LENGTH, rnn_pad)
+    outputs = list()
 
-    # Define loop condition and loop body
-    def cond(i, inputs, hidden, output):
-        return tf.less(i, length)
+    for i in xrange(MAX_SEQ_LENGTH):
+        outputs.append(tf.select(tf.less(i, lengths),
+                                 inputs[i],
+                                 tf.zeros([2, 1], dtype=tf.int32)))
 
-    def body(i, inputs, hidden, output):
-        input = inputs.read(i)
-        hidden = tf.tanh(tf.matmul(hidden, W_hh) + tf.matmul(input, W_ih))
-        output = tf.matmul(hidden, W_ho)
-        return [tf.add(i, 1), inputs, hidden, output]
-
-    # Initialize loop variables
-    i = tf.constant(1)
-    # transpose so the TensorArray divides the tensor by the time dimension
-    transp = tf.transpose(embedded, perm=[1, 0, 2])
-    inputs = TensorArray(tf.float32, length).unpack(transp)
-    hidden = tf.zeros([BATCH_SIZE, ENCODER_HIDDEN_SIZE])
-    output = tf.constant(1.)
-
-    loop_vars = [i, inputs, hidden, output]
-    [i, inputs, hidden, output] = control_flow_ops.While(cond, body, loop_vars)
+    output = tf.pack(outputs)
+    # output = paddings
 
     return output
