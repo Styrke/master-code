@@ -32,27 +32,29 @@ def inference(alphabet_size, input, lengths):
         outputs.append(output)
 
     outputs = tf.transpose(tf.pack(outputs), perm=[1, 0, 2])
-    indices = tf.concat(1, [tf.constant(np.array([[0], [1]], dtype=np.int32)),
-                            tf.reshape(lengths-1, [2, 1])])
-    output = tf.gather(outputs, indices)
-    # output = paddings
+    indices = tf.reshape(lengths-1, [2, 1])
+    output = _grid_gather(outputs, indices)
 
-    return outputs, _grid_gather(outputs, indices)
+    return output
 
 
 def _grid_gather(params, indices):
     indices_shape = tf.shape(indices)
     params_shape = tf.shape(params)
 
+    # reshape params
     flat_params_dim0 = tf.reduce_prod(params_shape[:2])
     flat_params_dim0_exp = tf.expand_dims(flat_params_dim0, 0)
     flat_params_shape = tf.concat(0, [flat_params_dim0_exp, params_shape[2:]])
     flat_params = tf.reshape(params, flat_params_shape)
 
+    # fix indices
     rng = tf.expand_dims(tf.range(flat_params_dim0, delta=params_shape[1]), 1)
-    ones = tf.transpose(tf.ones_like(rng))
+    ones_shape = tf.concat(0, [tf.expand_dims(tf.constant(1), 0),
+                               tf.expand_dims(indices_shape[1], 0)])
+    ones = tf.ones(ones_shape, dtype=tf.int32)
     rng_array = tf.matmul(rng, ones)
-
     indices = indices + rng_array
 
+    # gather and return
     return tf.gather(flat_params, indices)
