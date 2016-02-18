@@ -34,7 +34,7 @@ def get_batch(batch_size=3):
         in_mat[i, 0:lengths[i]] = encoded[i]
         mask[i, 0:lengths[i]] = np.ones(lengths[i])
     out = [encode(digit) for digit in targets]
-    return targets, in_mat, mask
+    return targets, in_mat, mask, lengths
 
 # run this file to see an example of the generated data:
 if __name__ == '__main__':
