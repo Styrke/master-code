@@ -8,7 +8,11 @@ with tf.Session() as sess:
     input = tf.placeholder(tf.int32, name='input')
     lengths = tf.placeholder(tf.int32, name='lengths')
     labels = tf.placeholder(tf.int64, name='labels')
-    out = tf.squeeze(model.inference(alphabet_size=15, input=input, lengths=lengths), name='output')
+    out = tf.squeeze(
+            model.inference(alphabet_size=15, 
+                            input=input, 
+                            lengths=lengths), 
+            name='output')
 
     with tf.name_scope('xent'):
       loss = model.loss(out, labels)
@@ -19,7 +23,10 @@ with tf.Session() as sess:
 
     with tf.name_scope('correct_predictions'):
       # compute accuracy
-      accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(out, 1), labels), dtype=tf.float32), name='prediction_accuracy')
+      accuracy = tf.reduce_mean(
+                  tf.cast(tf.equal(tf.argmax(out, 1), labels), 
+                          dtype=tf.float32), 
+                  name='prediction_accuracy')
       _ = tf.scalar_summary('accuracy', accuracy)
 
     # optimize
@@ -31,7 +38,8 @@ with tf.Session() as sess:
 
     for i in xrange(100):
         targets, inputs, _, lens = get_batch(32)
-        res = sess.run([loss, accuracy, optimizer, merged], feed_dict={input: inputs, lengths: lens, labels: targets})
+        res = sess.run([loss, accuracy, optimizer, merged], 
+                       feed_dict={input: inputs, lengths: lens, labels: targets})
         if i % 10 == 0:
             print res[1], np.mean(res[0])
         writer.add_summary(res[3], i)
