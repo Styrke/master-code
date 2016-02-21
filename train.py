@@ -8,12 +8,12 @@ with tf.Session() as sess:
     # list of sequences' length
     seq_lens = tf.placeholder(tf.int32, name='seq_lengths')
 
-    X = tf.placeholder(tf.int32, name='input')
-    t = tf.placeholder(tf.int32, name='target_truth')
+    X = tf.placeholder(tf.int32, shape=[32, 5], name='input')
+    t = tf.placeholder(tf.int32, shape=[32, 5], name='target_truth')
     # predict
     _, loss = model.inference(
-                  alphabet_size=15, 
-                  input=X, 
+                  alphabet_size=15,
+                  input=X,
                   target=t)
 
     # initialize parameters
@@ -23,7 +23,7 @@ with tf.Session() as sess:
 
     for i in xrange(100):
         train_t, train_X, _, lens = get_batch(32)
-        feed_dict = {X: train_X, t: train_t}
+        feed_dict = {X: train_X, t: train_X}
         res = sess.run([loss, optimizer], 
                        feed_dict=feed_dict)
         print res[1], np.mean(res[0])

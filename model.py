@@ -22,8 +22,8 @@ def inference(alphabet_size, input, target):
     # encoder_inputs
     x_embedded = tf.gather(embeddings, input)
     encoder_inputs = tf.split(
-            split_dim=1, 
-            num_split=MAX_IN_SEQ_LENGTH, 
+            split_dim=1,
+            num_split=MAX_IN_SEQ_LENGTH,
             value=x_embedded,
             name='encoder_embeddings')
     encoder_inputs = [tf.squeeze(x) for x in encoder_inputs]
@@ -31,23 +31,22 @@ def inference(alphabet_size, input, target):
     # decoder_inputs
     t_embedded = tf.gather(embeddings, target)
     decoder_inputs = tf.split(
-            split_dim=1, 
-            num_split=MAX_OUT_SEQ_LENGTH, 
+            split_dim=1,
+            num_split=MAX_OUT_SEQ_LENGTH,
             value=t_embedded,
             name='decoder_embeddings')
     decoder_inputs = [tf.squeeze(x) for x in decoder_inputs]
 
-    cell = rnn_cell.GRUCell(RNN_UNITS)
-    print cell
+    cell = rnn_cell.BasicRNNCell(RNN_UNITS)
 
     outputs, _ = seq2seq.basic_rnn_seq2seq(
-            encoder_inputs, 
-            decoder_inputs, 
+            encoder_inputs,
+            decoder_inputs,
             cell)
 
     targets = tf.split(
-            split_dim=1, 
-            num_split=MAX_OUT_SEQ_LENGTH, 
+            split_dim=1,
+            num_split=MAX_OUT_SEQ_LENGTH,
             value=target,
             name='truth')
     weights = tf.ones_like(
@@ -56,12 +55,8 @@ def inference(alphabet_size, input, target):
             name='loss_weights')
     weights = [weights] * MAX_OUT_SEQ_LENGTH
 
-    print weights
-    print targets
-    print outputs
-
     loss = seq2seq.sequence_loss(
-                outputs, 
+                outputs,
                 targets,
                 weights,
                 MAX_OUT_SEQ_LENGTH)
