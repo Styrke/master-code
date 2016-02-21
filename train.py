@@ -21,9 +21,10 @@ with tf.Session() as sess:
 
     optimizer = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
 
-    for i in xrange(100):
+    for i in xrange(1000):
         train_t, train_X, _, lens = get_batch(32)
         feed_dict = {X: train_X, t: train_X}
-        res = sess.run([loss, optimizer], 
+        res = sess.run([loss, optimizer],
                        feed_dict=feed_dict)
-        print res[1], np.mean(res[0])
+        if i % 10 == 0:
+            print 'Iteration %i Loss: %f' % (i, np.mean(res[0]))
