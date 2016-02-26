@@ -2,61 +2,66 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops.tensor_array_ops import TensorArray
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import seq2seq
+from tensorflow.python.ops import rnn_cell
 
 EMBEDDING_SIZE = 3
-MAX_SEQ_LENGTH = 5
 
-RNN_HID_UNITS = 10
-RNN_OUT_UNITS = 10
+MAX_IN_SEQ_LENGTH = 5
+MAX_OUT_SEQ_LENGTH = 5
 
-def inference(alphabet_size, input, lengths):
-    batch_size = tf.expand_dims(tf.shape(input)[0], 0, name='get_batch_size')
+RNN_UNITS = 15
 
+def inference(alphabet_size, input, target):
     # character embeddings
-    embeddings = tf.Variable(tf.random_uniform([alphabet_size,
-                                                EMBEDDING_SIZE]),
-                             name='embeddings')
-    embedded = tf.gather(embeddings, input)
+    embeddings = tf.Variable(
+            tf.random_uniform(
+                [alphabet_size, EMBEDDING_SIZE]),
+            name='embeddings')
 
-    # Pad the input so we are sure that we have something of the right length
-    pad_size = MAX_SEQ_LENGTH - tf.shape(embedded)[1]
-    pad_size = tf.reshape(pad_size, [1, 1], name='pad_size')
-    paddings = tf.pad(pad_size, np.array([[1, 1], [1, 0]]), name='paddings')
-    rnn_pad = tf.pad(embedded, paddings, name='rnn_pad')
+    # encoder_inputs
+    x_embedded = tf.gather(embeddings, input)
+    encoder_inputs = tf.split(
+            split_dim=1,
+            num_split=MAX_IN_SEQ_LENGTH,
+            value=x_embedded,
+            name='encoder_embeddings')
+    encoder_inputs = [tf.squeeze(x) for x in encoder_inputs]
 
-    # Split the input into a list of tensors (one element per timestep)
-    inputs = tf.split(1, MAX_SEQ_LENGTH, rnn_pad, name='split_input_per_timestep')
-    inputs = [tf.squeeze(input_) for input_ in inputs]
+    # decoder_inputs
+    t_embedded = tf.gather(embeddings, target)
+    decoder_inputs = tf.split(
+            split_dim=1,
+            num_split=MAX_OUT_SEQ_LENGTH,
+            value=t_embedded,
+            name='decoder_embeddings')
+    decoder_inputs = [tf.squeeze(x) for x in decoder_inputs]
 
-    zeros_shape = tf.concat(0, [batch_size, tf.constant(EMBEDDING_SIZE, shape=[1])])
-    zeros = tf.zeros(zeros_shape, dtype=tf.float32, name='bias')
+    cell = rnn_cell.BasicRNNCell(RNN_UNITS)
 
-    W_ih = tf.Variable(tf.truncated_normal([EMBEDDING_SIZE, RNN_HID_UNITS]), name='W_ih')
-    W_hh = tf.Variable(tf.truncated_normal([RNN_HID_UNITS, RNN_HID_UNITS]), name='W_hh')
-    W_ho = tf.Variable(tf.truncated_normal([RNN_HID_UNITS, RNN_OUT_UNITS]), name='W_ho')
-    b_h = tf.Variable(tf.zeros([RNN_HID_UNITS]), name='b_h')
-    b_o = tf.Variable(tf.zeros([RNN_OUT_UNITS]), name='b_o')
+    outputs, _ = seq2seq.basic_rnn_seq2seq(
+            encoder_inputs,
+            decoder_inputs,
+            cell)
 
-    outputs = list()  # prepare to receive output
-    state_shape = tf.concat(0, [batch_size, tf.constant(RNN_HID_UNITS, shape=[1])], name='state_shape')
-    state = tf.zeros(state_shape, name='state')
+    targets = tf.split(
+            split_dim=1,
+            num_split=MAX_OUT_SEQ_LENGTH,
+            value=target,
+            name='truth')
+    weights = tf.ones_like(
+            targets[0],
+            dtype=tf.float32,
+            name='loss_weights')
+    weights = [weights] * MAX_OUT_SEQ_LENGTH
 
-    for i in xrange(MAX_SEQ_LENGTH):
-        state = tf.tanh(tf.matmul(inputs[i], W_ih, name='input_Whi') + tf.matmul(state, W_hh, name='state_Whh') + b_h, name='state_calc')
-        output = tf.matmul(state, W_ho, name='output_mult') + b_o
-        outputs.append(output)
+    loss = seq2seq.sequence_loss(
+                outputs,
+                targets,
+                weights,
+                MAX_OUT_SEQ_LENGTH)
 
-    outputs = tf.transpose(tf.pack(outputs), perm=[1, 0, 2], name='transpose_output')
-    indices_shape = tf.concat(0, [batch_size, [1]], name='indices_shape')
-    indices = tf.reshape(lengths-1, indices_shape, name='indices_reshape')
-    output = _grid_gather(outputs, indices)
-
-    return output
-
-
-def loss(logits, targets):
-    return tf.nn.sparse_softmax_cross_entropy_with_logits(logits, targets)
-
+    return outputs, loss
 
 def _grid_gather(params, indices):
     indices_shape = tf.shape(indices, name='indices_shape')
