@@ -58,15 +58,8 @@ def get_dictionary_char(lang='en'):
     return {character: idx for idx, character in enumerate(alphabet)}
 
 
-def char_encoding(sentence, alphadict):
-    # gets the encoding e.g. a = 180
-    def encode(c):
-        return alphadict[c]
-
-    # concatenating each char in the string to
-    # np.array.shape(len(sentence), len(alphadict))
-    encoding = [encode(c) for c in sentence]
-    return encoding
+def encode(sentence, alphadict):
+    return [alphadict[c] for c in sentence]
 
 
 def spaces(sentence):
@@ -80,15 +73,21 @@ def char_length(in_string):
 
 
 class TextBatchGenerator(BatchGenerator):
+    def __init__(self, sample_generator, batch_info):
+        # call superclass constructor
+        super(TextBatchGenerator, self).__init__(sample_generator, batch_info)
+
+        # get alphabet dictionary for each language
+        self.alphadict = dict()
+        self.alphadict[0] = get_dictionary_char()
+        self.alphadict[1] = get_dictionary_char('fr')
+
     def _preprocess_sample(self):
-        char_dict = dict()
-        char_dict[0] = get_dictionary_char()
-        char_dict[1] = get_dictionary_char('fr')
         for sample_idx, sample in enumerate(self.samples):
             my_s = []
 
             for elem_idx, elem in enumerate(sample):
-                my_s.append(char_encoding(elem, char_dict[elem_idx]))  # code chars
+                my_s.append(encode(elem, self.alphadict[elem_idx]))  # code chars
                 my_s.append(spaces(elem))  # spaces (only needed for source lang)
                 my_s.append(char_length(elem))  # char lengths
 
