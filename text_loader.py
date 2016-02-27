@@ -66,13 +66,13 @@ def char_encoding(sentence, alphadict):
     # concatenating each char in the string to
     # np.array.shape(len(sentence), len(alphadict))
     encoding = [encode(c) for c in sentence]
-    return np.array(encoding)
+    return encoding
 
 
 def spaces(sentence):
     spaces = [idx-1 for idx, c in enumerate(sentence) if c == " "]
     spaces.append(len(sentence)-1)
-    return np.array(spaces)
+    return spaces
 
 
 def char_length(in_string):
@@ -98,12 +98,12 @@ class TextBatchGenerator(BatchGenerator):
     def _make_batch_holder(self, mlen_t_X, mln_s_X, mlen_t_t, mlen_s_t):
         batch_size = self.batch_info.batch_size
         self.batch = dict()
-        self.batch['x_encoded'] = np.zeros((batch_size, mlen_t_X, 1))
-        self.batch['x_len'] = np.zeros((batch_size, 1))
-        self.batch['x_spaces'] = np.zeros((batch_size, mln_s_X, 1))
-        self.batch['x_spaces_len'] = np.zeros((batch_size, 1))
-        self.batch['t_encoded'] = np.zeros((batch_size, mlen_t_t, 1))
-        self.batch['t_len'] = np.zeros((batch_size, 1))
+        self.batch['x_encoded'] = np.zeros([batch_size, mlen_t_X])
+        self.batch['x_len'] = np.zeros([batch_size])
+        self.batch['x_spaces'] = np.zeros([batch_size, mln_s_X])
+        self.batch['x_spaces_len'] = np.zeros([batch_size])
+        self.batch['t_encoded'] = np.zeros([batch_size, mlen_t_t])
+        self.batch['t_len'] = np.zeros([batch_size])
 
         # pass # should make a "holder", e.g.
         # self.batch.append(np.zeros((batch_size, max_length,
@@ -122,10 +122,7 @@ class TextBatchGenerator(BatchGenerator):
         print mlen_s_t
         self._make_batch_holder(mlen_t_X, mlen_s_X, mlen_t_t, mlen_s_t)
         for sample_idx, (t_X, s_X, l_X, t_t, s_t, l_t) in enumerate(self.samples):
-            t_X = np.array([t_X], dtype='float32').T  # to shape (len,1)
             l_s_X = len(s_X)
-            s_X = np.array([s_X], dtype='float32').T
-            t_t = np.array([t_t], dtype='float32').T
             self.batch['x_encoded'][sample_idx][:l_X] = t_X
             self.batch['x_len'][sample_idx] = l_X
             self.batch['x_spaces'][sample_idx][:l_s_X] = s_X
@@ -133,8 +130,9 @@ class TextBatchGenerator(BatchGenerator):
             self.batch['t_encoded'][sample_idx][:l_t] = t_t
             self.batch['t_len'][sample_idx] = l_t
 
-#            assert False
-            #            self.batch[0][sample_idx] =
+        # add feature dimension as last part of the shape (alrojo insists)
+        for key, array in self.batch.iteritems():
+            self.batch[key] = np.expand_dims(array, axis=-1)
 
         self.samples = []  # resetting
         return self.batch
@@ -158,7 +156,7 @@ if __name__ == '__main__':
     for batch in text_batch_gen.gen_batch():
         print i
         i += 1
-        if i == 5:
-            break
+        break
 
-    print batch.keys()
+    for key, item in batch.iteritems():
+        print key, item.shape
