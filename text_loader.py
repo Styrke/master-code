@@ -20,24 +20,23 @@ class TextLoadMethod(LoadMethod):
         self._prepare_data()
 
     def _load_data(self):
-        print "loading data ..."
+        print "loading X data ..."
         with open("data/train/europarl-v7.fr-en.en", "r") as f:
             self.train_X = f.read().split("\n")
-        print "train X loaded ..."
+        print "loading t data ..."
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
             self.train_t = f.read().split("\n")
-        print "train t loaded"
         self.samples = zip(self.train_X, self.train_t)
 
     def _preprocess_data(self):
-        print "preprocessing data ..."
+        print "sorting data ..."
         self.samples = sorted(self.samples,
                               key=lambda (X, t): len(X)*10000 + len(t))
-        print "data sorted ..."
-        # remove samples not of interest
+
+        print "removing very long and very short samples ..."
         self.samples = remove_samples(self.samples)
-        print "samples of no interest removed"
-        print len(self.samples)
+
+        print '%i samples left in the data set' % len(self.samples)
 
     def _prepare_data(self):
         print "prepare_data started"
