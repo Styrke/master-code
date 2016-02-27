@@ -89,25 +89,24 @@ class TextBatchGenerator(BatchGenerator):
 
             for elem_idx, elem in enumerate(sample):
                 my_s.append(char_encoding(elem, char_dict[elem_idx]))  # code chars
-                my_s.append(spaces(elem))  # spaces
+                my_s.append(spaces(elem))  # spaces (only needed for source lang)
                 my_s.append(char_length(elem))  # char lengths
 
             # + sample # concats with original sample
             self.samples[sample_idx] = tuple(my_s)
 
     def _make_batch_holder(self, mlen_t_X, mln_s_X, mlen_t_t, mlen_s_t):
-        self.batch = []
-        self.batch.append(np.zeros((self.batch_info.batch_size, mlen_t_X, 1)))
-        self.batch.append(np.zeros((self.batch_info.batch_size, 1)))
-        self.batch.append(np.zeros((self.batch_info.batch_size, mln_s_X, 1)))
-        self.batch.append(np.zeros((self.batch_info.batch_size, 1)))
-        self.batch.append(np.zeros((self.batch_info.batch_size, mlen_t_t, 1)))
-        self.batch.append(np.zeros((self.batch_info.batch_size, 1)))
-        self.batch.append(np.zeros((self.batch_info.batch_size, mlen_s_t, 1)))
-        self.batch.append(np.zeros((self.batch_info.batch_size, 1)))
+        batch_size = self.batch_info.batch_size
+        self.batch = dict()
+        self.batch['x_encoded'] = np.zeros((batch_size, mlen_t_X, 1))
+        self.batch['x_len'] = np.zeros((batch_size, 1))
+        self.batch['x_spaces'] = np.zeros((batch_size, mln_s_X, 1))
+        self.batch['x_spaces_len'] = np.zeros((batch_size, 1))
+        self.batch['t_encoded'] = np.zeros((batch_size, mlen_t_t, 1))
+        self.batch['t_len'] = np.zeros((batch_size, 1))
 
         # pass # should make a "holder", e.g.
-        # self.batch.append(np.zeros((self.batch_info.batch_size, max_length,
+        # self.batch.append(np.zeros((batch_size, max_length,
         # encoding_size) and .append a np.zeros for sequences_lengths, spaces
         # etc.
 
@@ -127,16 +126,12 @@ class TextBatchGenerator(BatchGenerator):
             l_s_X = len(s_X)
             s_X = np.array([s_X], dtype='float32').T
             t_t = np.array([t_t], dtype='float32').T
-            l_s_t = len(s_t)
-            s_t = np.array([s_t], dtype='float32').T
-            self.batch[0][sample_idx][:l_X] = t_X
-            self.batch[1][sample_idx] = l_X
-            self.batch[2][sample_idx][:l_s_X] = s_X
-            self.batch[3][sample_idx] = l_s_X
-            self.batch[4][sample_idx][:l_t] = t_t
-            self.batch[5][sample_idx] = l_t
-            self.batch[6][sample_idx][:l_s_t] = s_t
-            self.batch[7][sample_idx] = l_s_t
+            self.batch['x_encoded'][sample_idx][:l_X] = t_X
+            self.batch['x_len'][sample_idx] = l_X
+            self.batch['x_spaces'][sample_idx][:l_s_X] = s_X
+            self.batch['x_spaces_len'][sample_idx] = l_s_X
+            self.batch['t_encoded'][sample_idx][:l_t] = t_t
+            self.batch['t_len'][sample_idx] = l_t
 
 #            assert False
             #            self.batch[0][sample_idx] =
@@ -166,4 +161,4 @@ if __name__ == '__main__':
         if i == 5:
             break
 
-    print batch[0].shape
+    print batch.keys()
