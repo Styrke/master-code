@@ -4,6 +4,7 @@ from tensorflow.python.ops.tensor_array_ops import TensorArray
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
+from tensorflow.python.ops import rnn
 
 EMBEDDING_SIZE = 3
 
@@ -39,10 +40,13 @@ def inference(alphabet_size, input, target):
 
     cell = rnn_cell.BasicRNNCell(RNN_UNITS)
 
-    outputs, _ = seq2seq.basic_rnn_seq2seq(
-            encoder_inputs,
-            decoder_inputs,
-            cell)
+    # encoder
+    enc_outputs, enc_state = rnn.rnn(cell, encoder_inputs, dtype=tf.float32)
+
+    # decoder
+    dec_outputs, dec_state = seq2seq.rnn_decoder(decoder_inputs, enc_state, cell)
+
+    outputs = dec_outputs
 
     targets = tf.split(
             split_dim=1,
