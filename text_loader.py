@@ -73,7 +73,7 @@ def char_length(in_string):
 
 
 class TextBatchGenerator(BatchGenerator):
-    def __init__(self, sample_generator, batch_info):
+    def __init__(self, sample_generator, batch_info, add_feature_dim=False):
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(sample_generator, batch_info)
 
@@ -81,6 +81,8 @@ class TextBatchGenerator(BatchGenerator):
         self.alphadict = dict()
         self.alphadict[0] = get_dictionary_char()
         self.alphadict[1] = get_dictionary_char('fr')
+
+        self.add_feature_dim = add_feature_dim
 
     def _preprocess_sample(self):
         for sample_idx, sample in enumerate(self.samples):
@@ -129,9 +131,10 @@ class TextBatchGenerator(BatchGenerator):
             self.batch['t_encoded'][sample_idx][:l_t] = t_t
             self.batch['t_len'][sample_idx] = l_t
 
-        # add feature dimension as last part of the shape (alrojo insists)
-        for key, array in self.batch.iteritems():
-            self.batch[key] = np.expand_dims(array, axis=-1)
+        if self.add_feature_dim:
+            # add feature dimension as last part of the shape (alrojo insists)
+            for key, array in self.batch.iteritems():
+                self.batch[key] = np.expand_dims(array, axis=-1)
 
         self.samples = []  # resetting
         return self.batch
