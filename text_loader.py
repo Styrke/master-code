@@ -29,14 +29,14 @@ class TextLoadMethod(LoadMethod):
         self.samples = zip(self.train_X, self.train_t)
 
     def _preprocess_data(self):
-        print "sorting data ..."
-        self.samples = sorted(self.samples,
-                              key=lambda (X, t): len(X)*10000 + len(t))
-
         print "removing very long and very short samples ..."
         self.samples = remove_samples(self.samples)
 
         print '%i samples left in the data set' % len(self.samples)
+
+        print "sorting data ..."
+        self.samples = sorted(self.samples,
+                              key=lambda (X, t): len(X)*10000 + len(t))
 
     def _prepare_data(self):
         print "prepare_data started"
