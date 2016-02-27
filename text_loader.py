@@ -6,10 +6,10 @@ import os
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
-    samples = [((x, l1), (t, l2)) for (x, l1), (t, l2) in samples if len(x) > 1 and len(x) <= 400]
+    samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 400]
 
     # remove target sentences that are too short or too long
-    samples = [((x, l1), (t, l2)) for (x, l1), (t, l2) in samples if len(t) > 1 and len(t) <= 450]
+    samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 450]
 
     return samples
 
@@ -23,19 +23,16 @@ class TextLoadMethod(LoadMethod):
         print "loading data ..."
         with open("data/train/europarl-v7.fr-en.en", "r") as f:
             self.train_X = f.read().split("\n")
-            language = ["en" for _ in range(len(self.train_X))] #this is bad coding ..!
-            self.train_X = zip(self.train_X, language)
         print "train X loaded ..."
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
             self.train_t = f.read().split("\n")
-            language = ["fr" for _ in range(len(self.train_t))]
-            self.train_t = zip(self.train_t, language)
         print "train t loaded"
         self.samples = zip(self.train_X, self.train_t)
 
     def _preprocess_data(self):
         print "preprocessing data ..."
-        self.samples = sorted(self.samples, key=lambda (X, t): len(X)*10000 + len(t))
+        self.samples = sorted(self.samples,
+                              key=lambda (X, t): len(X)*10000 + len(t))
         print "data sorted ..."
         # remove samples not of interest
         self.samples = remove_samples(self.samples)
@@ -86,13 +83,13 @@ def char_length(in_string):
 class TextBatchGenerator(BatchGenerator):
     def _preprocess_sample(self):
         char_dict = dict()
-        char_dict['en'] = get_dictionary_char()
-        char_dict['fr'] = get_dictionary_char('fr')
+        char_dict[0] = get_dictionary_char()
+        char_dict[1] = get_dictionary_char('fr')
         for sample_idx, sample in enumerate(self.samples):
             my_s = []
-            # samples should be tuple((train_X, "en") (train_t, "fr"))
-            for elem, lang in sample:
-                my_s.append(char_encoding(elem, char_dict[lang]))  # code chars
+
+            for elem_idx, elem in enumerate(sample):
+                my_s.append(char_encoding(elem, char_dict[elem_idx]))  # code chars
                 my_s.append(spaces(elem))  # spaces
                 my_s.append(char_length(elem))  # char lengths
 
