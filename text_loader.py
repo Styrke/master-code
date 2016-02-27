@@ -73,7 +73,8 @@ def char_length(in_string):
 
 
 class TextBatchGenerator(BatchGenerator):
-    def __init__(self, sample_generator, batch_info, add_feature_dim=False):
+    def __init__(self, sample_generator, batch_info, add_feature_dim=False,
+                 dynamic_array_sizes=False):
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(sample_generator, batch_info)
 
@@ -83,6 +84,7 @@ class TextBatchGenerator(BatchGenerator):
         self.alphadict[1] = get_dictionary_char('fr')
 
         self.add_feature_dim = add_feature_dim
+        self.dynamic_array_sizes = dynamic_array_sizes
 
     def _preprocess_sample(self):
         for sample_idx, sample in enumerate(self.samples):
@@ -96,32 +98,31 @@ class TextBatchGenerator(BatchGenerator):
             # + sample # concats with original sample
             self.samples[sample_idx] = tuple(my_s)
 
-    def _make_batch_holder(self, mlen_t_X, mln_s_X, mlen_t_t, mlen_s_t):
+    def _make_batch_holder(self, mlen_t_X, mlen_s_X, mlen_t_t):
+        """Initiate numpy arrays for the data in the batch"""
         batch_size = self.batch_info.batch_size
         self.batch = dict()
         self.batch['x_encoded'] = np.zeros([batch_size, mlen_t_X])
         self.batch['x_len'] = np.zeros([batch_size])
-        self.batch['x_spaces'] = np.zeros([batch_size, mln_s_X])
+        self.batch['x_spaces'] = np.zeros([batch_size, mlen_s_X])
         self.batch['x_spaces_len'] = np.zeros([batch_size])
         self.batch['t_encoded'] = np.zeros([batch_size, mlen_t_t])
         self.batch['t_len'] = np.zeros([batch_size])
 
-        # pass # should make a "holder", e.g.
-        # self.batch.append(np.zeros((batch_size, max_length,
-        # encoding_size) and .append a np.zeros for sequences_lengths, spaces
-        # etc.
-
     def _make_batch(self):
         self._preprocess_sample()
-        mlen_t_X = max(self.samples, key=lambda x: x[2])[2]
+
         mlen_s_X = len(max(self.samples, key=lambda x: len(x[1]))[1])
-        mlen_t_t = max(self.samples, key=lambda x: x[5])[5]
-        mlen_s_t = len(max(self.samples, key=lambda x: len(x[4]))[4])
-        print mlen_t_X
-        print mlen_s_X
-        print mlen_t_t
-        print mlen_s_t
-        self._make_batch_holder(mlen_t_X, mlen_s_X, mlen_t_t, mlen_s_t)
+        if self.dynamic_array_sizes:
+            # only make the arrays large enough to contain the longest sequence
+            # in the batch
+            mlen_t_X = max(self.samples, key=lambda x: x[2])[2]
+            mlen_t_t = max(self.samples, key=lambda x: x[5])[5]
+            self._make_batch_holder(mlen_t_X, mlen_s_X, mlen_t_t)
+        else:
+            # make maximum-size arrays whether or not its necessary
+            self._make_batch_holder(400, mlen_s_X, 450)
+
         for sample_idx, (t_X, s_X, l_X, t_t, s_t, l_t) in enumerate(self.samples):
             l_s_X = len(s_X)
             self.batch['x_encoded'][sample_idx][:l_X] = t_X
