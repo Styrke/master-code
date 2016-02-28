@@ -14,6 +14,8 @@ MAX_OUT_SEQ_LENGTH = 450
 RNN_UNITS = 15
 
 def inference(alphabet_size, input, input_lengths, target):
+    print 'Building model inference'
+
     # character embeddings
     embeddings = tf.Variable(
             tf.random_uniform(
@@ -45,9 +47,17 @@ def inference(alphabet_size, input, input_lengths, target):
                                      sequence_length=input_lengths)
 
     # decoder
-    dec_outputs, dec_state = seq2seq.rnn_decoder(decoder_inputs, enc_state, cell)
+    dec_outputs, dec_state = seq2seq.rnn_decoder(decoder_inputs,
+                                                 enc_state,
+                                                 cell)
 
     outputs = dec_outputs
+
+    return outputs
+
+
+def loss(logits, target):
+    print 'Building model loss'
 
     targets = tf.split(
             split_dim=1,
@@ -61,12 +71,19 @@ def inference(alphabet_size, input, input_lengths, target):
     weights = [weights] * MAX_OUT_SEQ_LENGTH
 
     loss = seq2seq.sequence_loss(
-                outputs,
+                logits,
                 targets,
                 weights,
                 MAX_OUT_SEQ_LENGTH)
 
-    return outputs, loss
+    return loss
+
+
+def training(loss, learning_rate):
+    print 'Building model training'
+
+    return tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+
 
 def _grid_gather(params, indices):
     indices_shape = tf.shape(indices, name='indices_shape')

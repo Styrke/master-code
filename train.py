@@ -15,16 +15,18 @@ with tf.Session() as sess:
     X_lengths = tf.placeholder(tf.int32, shape=[32])
 
     # predict
-    _, loss = model.inference(
+    output_logits = model.inference(
                   alphabet_size=200,
                   input=X,
                   input_lengths=X_lengths,
                   target=t)
 
+    loss = model.loss(output_logits, t)
+
+    train_op = model.training(loss, learning_rate=0.01)
+
     # initialize parameters
     tf.initialize_all_variables().run()
-
-    optimizer = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
 
     text_load_method = text_loader.TextLoadMethod()
     sample_info = SampleInfo(len(text_load_method.samples))
@@ -36,7 +38,7 @@ with tf.Session() as sess:
         feed_dict = {X: batch['x_encoded'],
                      t: batch['t_encoded'],
                      X_lengths: batch['x_len']}
-        res = sess.run([loss, optimizer],
+        res = sess.run([loss, train_op],
                        feed_dict=feed_dict)
 
         # if i % 10 == 0:
