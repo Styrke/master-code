@@ -13,7 +13,7 @@ MAX_OUT_SEQ_LENGTH = 450
 
 RNN_UNITS = 15
 
-def inference(alphabet_size, input, target):
+def inference(alphabet_size, input, input_lengths, target):
     # character embeddings
     embeddings = tf.Variable(
             tf.random_uniform(
@@ -41,7 +41,8 @@ def inference(alphabet_size, input, target):
     cell = rnn_cell.BasicRNNCell(RNN_UNITS)
 
     # encoder
-    enc_outputs, enc_state = rnn.rnn(cell, encoder_inputs, dtype=tf.float32)
+    enc_outputs, enc_state = rnn.rnn(cell, encoder_inputs, dtype=tf.float32,
+                                     sequence_length=input_lengths)
 
     # decoder
     dec_outputs, dec_state = seq2seq.rnn_decoder(decoder_inputs, enc_state, cell)

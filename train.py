@@ -12,10 +12,13 @@ with tf.Session() as sess:
 
     X = tf.placeholder(tf.int32, shape=[32, 400], name='input')
     t = tf.placeholder(tf.int32, shape=[32, 450], name='target_truth')
+    X_lengths = tf.placeholder(tf.int32, shape=[32])
+
     # predict
     _, loss = model.inference(
                   alphabet_size=200,
                   input=X,
+                  input_lengths=X_lengths,
                   target=t)
 
     # initialize parameters
@@ -31,9 +34,10 @@ with tf.Session() as sess:
 
     for i, batch in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {X: batch['x_encoded'],
-                     t: batch['t_encoded']}
+                     t: batch['t_encoded'],
+                     X_lengths: batch['x_len']}
         res = sess.run([loss, optimizer],
                        feed_dict=feed_dict)
-        
+
         # if i % 10 == 0:
         print 'Iteration %i Loss: %f' % (i, np.mean(res[0]))
