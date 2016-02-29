@@ -32,10 +32,10 @@ class TextLoadMethod(LoadMethod):
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
             self.train_t = f.read().split("\n")
 
-        self.samples=[]
-        for idx, (elem_X, elem_t) in enumerate(zip(self.train_X, self.train_t)): 
-            self.samples.append((elem_X + EOS, elem_t + EOS))
-        self.samples = zip(self.train_X, self.train_t)
+        self.samples = []
+        # append end-of-sequence to all sentences
+        for (x, t) in zip(self.train_X, self.train_t): 
+            self.samples.append((x + EOS, t + EOS))
 
     def _preprocess_data(self):
         print "removing very long and very short samples ..."
