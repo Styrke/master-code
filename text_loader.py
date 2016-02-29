@@ -82,6 +82,10 @@ def char_length(in_string):
     return len(in_string)
 
 
+def masking(sentence_length):
+    return [1 for _ in sentence]
+
+
 class TextBatchGenerator(BatchGenerator):
     def __init__(self, sample_generator, batch_info, add_feature_dim=False,
                  dynamic_array_sizes=False):
@@ -104,6 +108,7 @@ class TextBatchGenerator(BatchGenerator):
                 my_s.append(encode(elem, self.alphadict[elem_idx]))  # code chars
                 my_s.append(spaces(elem))  # spaces (only needed for source lang)
                 my_s.append(char_length(elem))  # char lengths
+                my_s.append(masking(elem))
 
             # + sample # concats with original sample
             self.samples[sample_idx] = tuple(my_s)
@@ -118,6 +123,7 @@ class TextBatchGenerator(BatchGenerator):
         self.batch['x_spaces_len'] = np.zeros([batch_size])
         self.batch['t_encoded'] = np.zeros([batch_size, mlen_t_t])
         self.batch['t_len'] = np.zeros([batch_size])
+        self.batch['t_mask'] = np.zeros([batch_size, mlen_t_t])
 
     def _make_batch(self):
         self._preprocess_sample()
@@ -127,13 +133,13 @@ class TextBatchGenerator(BatchGenerator):
             # only make the arrays large enough to contain the longest sequence
             # in the batch
             mlen_t_X = max(self.samples, key=lambda x: x[2])[2]
-            mlen_t_t = max(self.samples, key=lambda x: x[5])[5]
+            mlen_t_t = max(self.samples, key=lambda x: x[6])[6]
             self._make_batch_holder(mlen_t_X, mlen_s_X, mlen_t_t)
         else:
             # make maximum-size arrays whether or not its necessary
             self._make_batch_holder(400, 65, 450)
 
-        for sample_idx, (t_X, s_X, l_X, t_t, s_t, l_t) in enumerate(self.samples):
+        for sample_idx, (t_X, s_X, l_X, m_X, t_t, s_t, l_t, m_t) in enumerate(self.samples):
             l_s_X = len(s_X)
             self.batch['x_encoded'][sample_idx][:l_X] = t_X
             self.batch['x_len'][sample_idx] = l_X
@@ -141,6 +147,7 @@ class TextBatchGenerator(BatchGenerator):
             self.batch['x_spaces_len'][sample_idx] = l_s_X
             self.batch['t_encoded'][sample_idx][:l_t] = t_t
             self.batch['t_len'][sample_idx] = l_t
+            self.batch['t_mask'][sample_idx][:l_t] = m_t
 
         if self.add_feature_dim:
             # add feature dimension as last part of the shape (alrojo insists)
