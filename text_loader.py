@@ -85,7 +85,7 @@ def char_length(in_string):
     return len(in_string)
 
 
-def masking(sentence_length):
+def masking(sentence):
     return [1 for _ in sentence]
 
 
