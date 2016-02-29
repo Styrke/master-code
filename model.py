@@ -8,8 +8,8 @@ from tensorflow.python.ops import rnn
 
 EMBEDDING_SIZE = 3
 
-MAX_IN_SEQ_LENGTH = 400
-MAX_OUT_SEQ_LENGTH = 450
+MAX_IN_SEQ_LENGTH = 25
+MAX_OUT_SEQ_LENGTH = 25
 
 RNN_UNITS = 15
 
@@ -30,6 +30,7 @@ def inference(alphabet_size, input, input_lengths, target):
             value=x_embedded,
             name='encoder_embeddings')
     encoder_inputs = [tf.squeeze(x) for x in encoder_inputs]
+    [x.set_shape([None, EMBEDDING_SIZE]) for x in encoder_inputs]
 
     # decoder_inputs
     t_embedded = tf.gather(embeddings, target)
@@ -39,6 +40,7 @@ def inference(alphabet_size, input, input_lengths, target):
             value=t_embedded,
             name='decoder_embeddings')
     decoder_inputs = [tf.squeeze(x) for x in decoder_inputs]
+    [x.set_shape([None, EMBEDDING_SIZE]) for x in decoder_inputs]
 
     cell = rnn_cell.BasicRNNCell(RNN_UNITS)
 
