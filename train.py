@@ -13,6 +13,7 @@ with tf.Session() as sess:
     X = tf.placeholder(tf.int32, shape=[None, 25], name='input')
     t = tf.placeholder(tf.int32, shape=[None, 25], name='target_truth')
     X_lengths = tf.placeholder(tf.int32, shape=[None])
+    t_mask = tf.placeholder(tf.float32, shape=[None, 25])
 
     # predict
     output_logits = model.inference(
@@ -21,7 +22,7 @@ with tf.Session() as sess:
                   input_lengths=X_lengths,
                   target=t)
 
-    loss = model.loss(output_logits, t)
+    loss = model.loss(output_logits, t, t_mask)
 
     train_op = model.training(loss, learning_rate=0.01)
 
@@ -37,7 +38,8 @@ with tf.Session() as sess:
     for i, (batch, batch_size) in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {X: batch['x_encoded'],
                      t: batch['t_encoded'],
-                     X_lengths: batch['x_len']}
+                     X_lengths: batch['x_len'],
+                     t_mask: batch['t_mask']}
         res = sess.run([loss, train_op],
                        feed_dict=feed_dict)
 

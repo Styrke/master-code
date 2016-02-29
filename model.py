@@ -58,7 +58,7 @@ def inference(alphabet_size, input, input_lengths, target):
     return outputs
 
 
-def loss(logits, target):
+def loss(logits, target, target_mask):
     print 'Building model loss'
 
     targets = tf.split(
@@ -66,11 +66,11 @@ def loss(logits, target):
             num_split=MAX_OUT_SEQ_LENGTH,
             value=target,
             name='truth')
-    weights = tf.ones_like(
-            targets[0],
-            dtype=tf.float32,
-            name='loss_weights')
-    weights = [weights] * MAX_OUT_SEQ_LENGTH
+
+    weights = tf.split(split_dim=1,
+                       num_split=MAX_OUT_SEQ_LENGTH,
+                       value=target_mask)
+    weights = [tf.squeeze(weight) for weight in weights]
 
     loss = seq2seq.sequence_loss(
                 logits,
