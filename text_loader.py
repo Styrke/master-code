@@ -3,6 +3,7 @@ import numpy as np
 import gzip
 import os
 
+EOS = '<EOS>' # denotes end of sequence
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
@@ -33,7 +34,7 @@ class TextLoadMethod(LoadMethod):
 
         self.samples=[]
         for idx, (elem_X, elem_t) in enumerate(zip(self.train_X, self.train_t)): 
-            self.samples.append((elem_X + '<EOS>', elem_t + '<EOS>'))
+            self.samples.append((elem_X + EOS, elem_t + EOS))
         self.samples = zip(self.train_X, self.train_t)
 
     def _preprocess_data(self):
@@ -63,7 +64,7 @@ def get_dictionary_char(lang='en'):
         # Remove duplicate entries - This shouldn't make a difference. The
         # alphabet file should only contain unique characters
                                 # also addind '<EOS>'
-        alphabet = list(set(alphabet_raw)) + ['<EOS>']
+        alphabet = list(set(alphabet_raw)) + [EOS]
     return {character: idx for idx, character in enumerate(alphabet)}
 
 
