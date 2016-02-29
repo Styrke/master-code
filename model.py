@@ -8,8 +8,8 @@ from tensorflow.python.ops import rnn
 
 EMBEDDING_SIZE = 3
 
-MAX_IN_SEQ_LENGTH = 400
-MAX_OUT_SEQ_LENGTH = 450
+MAX_IN_SEQ_LENGTH = 25
+MAX_OUT_SEQ_LENGTH = 25
 
 RNN_UNITS = 15
 

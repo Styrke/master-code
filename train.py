@@ -10,8 +10,8 @@ with tf.Session() as sess:
     # list of sequences' length
     seq_lens = tf.placeholder(tf.int32, name='seq_lengths')
 
-    X = tf.placeholder(tf.int32, shape=[32, 400], name='input')
-    t = tf.placeholder(tf.int32, shape=[32, 450], name='target_truth')
+    X = tf.placeholder(tf.int32, shape=[32, 25], name='input')
+    t = tf.placeholder(tf.int32, shape=[32, 25], name='target_truth')
     X_lengths = tf.placeholder(tf.int32, shape=[32])
 
     # predict
