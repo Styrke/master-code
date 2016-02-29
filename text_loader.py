@@ -157,7 +157,6 @@ class TextBatchGenerator(BatchGenerator):
             for key, array in self.batch.iteritems():
                 self.batch[key] = np.expand_dims(array, axis=-1)
 
-        self.samples = []  # resetting
         return self.batch
 
 if __name__ == '__main__':
@@ -176,7 +175,7 @@ if __name__ == '__main__':
     text_batch_gen = TextBatchGenerator(sample_gen, batch_info)
 
     i = 0
-    for batch in text_batch_gen.gen_batch():
+    for (batch, _) in text_batch_gen.gen_batch():
         print i
         i += 1
         break

@@ -34,7 +34,7 @@ with tf.Session() as sess:
     batch_info = BatchInfo(batch_size=32)
     text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_info)
 
-    for i, batch in enumerate(text_batch_gen.gen_batch()):
+    for i, (batch, batch_size) in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {X: batch['x_encoded'],
                      t: batch['t_encoded'],
                      X_lengths: batch['x_len']}
