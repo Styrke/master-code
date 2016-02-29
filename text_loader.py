@@ -6,14 +6,14 @@ import os
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 400]
+    samples = [(x, t) for x, t in samples if len(x) > 2 and len(x) <= 400]
 
     # Remove input sentences that that has too many spaces. This is a strict
     # inequality because we add a separater at the end of the sequence as well.
     samples = [(x, t) for x, t in samples if x.count(' ') < 65]
 
     # remove target sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 450]
+    samples = [(x, t) for x, t in samples if len(t) > 2 and len(t) <= 450]
 
     return samples
 
@@ -30,6 +30,10 @@ class TextLoadMethod(LoadMethod):
         print "loading t data ..."
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
             self.train_t = f.read().split("\n")
+
+				self.samples=[]
+				for idx, (elem_X, elem_t) in enumerate(zip(self.train_X, self.train_t)):
+					self.samples.append((elem_X + '<EOS>', elem_t + '<EOS>'))
         self.samples = zip(self.train_X, self.train_t)
 
     def _preprocess_data(self):
@@ -58,7 +62,8 @@ def get_dictionary_char(lang='en'):
 
         # Remove duplicate entries - This shouldn't make a difference. The
         # alphabet file should only contain unique characters
-        alphabet = list(set(alphabet_raw))
+				# also addind '<EOS>'
+        alphabet = list(set(alphabet_raw)) + ('<EOS>')
     return {character: idx for idx, character in enumerate(alphabet)}
 
 
