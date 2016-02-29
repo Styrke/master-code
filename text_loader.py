@@ -7,14 +7,17 @@ EOS = '<EOS>' # denotes end of sequence
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(x) > 2 and len(x) <= 400]
+    samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 25]
 
     # Remove input sentences that that has too many spaces. This is a strict
     # inequality because we add a separater at the end of the sequence as well.
-    samples = [(x, t) for x, t in samples if x.count(' ') < 65]
+    samples = [(x, t) for x, t in samples if (x.count(' ') < 2 and
+                                              t.count(' ') < 6)]
 
     # remove target sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(t) > 2 and len(t) <= 450]
+    samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 25]
+
+    samples = list(set(samples))
 
     return samples
 
@@ -34,7 +37,7 @@ class TextLoadMethod(LoadMethod):
 
         self.samples = []
         # append end-of-sequence to all sentences
-        for (x, t) in zip(self.train_X, self.train_t): 
+        for (x, t) in zip(self.train_X, self.train_t):
             self.samples.append((x + EOS, t + EOS))
 
     def _preprocess_data(self):
@@ -137,7 +140,7 @@ class TextBatchGenerator(BatchGenerator):
             self._make_batch_holder(mlen_t_X, mlen_s_X, mlen_t_t)
         else:
             # make maximum-size arrays whether or not its necessary
-            self._make_batch_holder(400, 65, 450)
+            self._make_batch_holder(25, 2, 25)
 
         for sample_idx, (t_X, s_X, l_X, m_X, t_t, s_t, l_t, m_t) in enumerate(self.samples):
             l_s_X = len(s_X)
