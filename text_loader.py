@@ -8,6 +8,10 @@ def remove_samples(samples):
     # remove input sentences that are too short or too long
     samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 400]
 
+    # Remove input sentences that that has too many spaces. This is a strict
+    # inequality because we add a separater at the end of the sequence as well.
+    samples = [(x, t) for x, t in samples if x.count(' ') < 65]
+
     # remove target sentences that are too short or too long
     samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 450]
 
@@ -121,7 +125,7 @@ class TextBatchGenerator(BatchGenerator):
             self._make_batch_holder(mlen_t_X, mlen_s_X, mlen_t_t)
         else:
             # make maximum-size arrays whether or not its necessary
-            self._make_batch_holder(400, mlen_s_X, 450)
+            self._make_batch_holder(400, 65, 450)
 
         for sample_idx, (t_X, s_X, l_X, t_t, s_t, l_t) in enumerate(self.samples):
             l_s_X = len(s_X)
