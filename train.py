@@ -6,14 +6,11 @@ import text_loader
 from frostings.loader import *
 from gen_dummy_data import get_batch
 
-# list of sequences' length
-seq_lens = tf.placeholder(tf.int32, name='seq_lengths')
-
 # initialize placeholders for the computation graph
-X = tf.placeholder(tf.int32, shape=[None, 25], name='input')
-t = tf.placeholder(tf.int32, shape=[None, 25], name='target_truth')
-X_lengths = tf.placeholder(tf.int32, shape=[None])
-t_mask = tf.placeholder(tf.float32, shape=[None, 25])
+X = tf.placeholder(tf.int32, shape=[None, 25], name='x_input')
+t = tf.placeholder(tf.int32, shape=[None, 25], name='t_input')
+X_lengths = tf.placeholder(tf.int32, shape=[None], name='x_lengths')
+t_mask = tf.placeholder(tf.float32, shape=[None, 25], name='t_mask')
 
 # build model
 output_logits = model.inference(
@@ -43,6 +40,8 @@ def to_str(seq, alphadict):
 with tf.Session() as sess:
     # initialize parameters
     tf.initialize_all_variables().run()
+
+    writer = tf.train.SummaryWriter("train", sess.graph_def)
 
     for i, batch in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {

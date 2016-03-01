@@ -18,25 +18,33 @@ def inference(alphabet_size, input, input_lengths, target):
     print 'Building model inference'
 
     # character embeddings
-    embeddings = tf.Variable(tf.random_uniform([alphabet_size, EMBEDD_DIMS]))
+    embeddings = tf.Variable(
+        tf.random_uniform([alphabet_size, EMBEDD_DIMS]),
+        name='embeddings'
+    )
 
-    # encoder_inputs
-    x_embedded = tf.gather(embeddings, input)
-    encoder_inputs = tf.split(
-        split_dim=1,
-        num_split=MAX_X_SEQ_LEN,
-        value=x_embedded)
-    encoder_inputs = [tf.squeeze(x) for x in encoder_inputs]
-    [x.set_shape([None, EMBEDD_DIMS]) for x in encoder_inputs]
+    x_embedded = tf.gather(embeddings, input, name='embed_x')
+    t_embedded = tf.gather(embeddings, target, name='embed_t')
 
-    # decoder_inputs
-    t_embedded = tf.gather(embeddings, target)
-    decoder_inputs = tf.split(
-        split_dim=1,
-        num_split=MAX_T_SEQ_LEN,
-        value=t_embedded)
-    decoder_inputs = [tf.squeeze(x) for x in decoder_inputs]
-    [x.set_shape([None, EMBEDD_DIMS]) for x in decoder_inputs]
+    with tf.variable_scope('split_x_inputs'):
+        encoder_inputs = tf.split(
+            split_dim=1,
+            num_split=MAX_X_SEQ_LEN,
+            value=x_embedded)
+
+        encoder_inputs = [tf.squeeze(x) for x in encoder_inputs]
+
+        [x.set_shape([None, EMBEDD_DIMS]) for x in encoder_inputs]
+
+    with tf.variable_scope('split_t_inputs'):
+        decoder_inputs = tf.split(
+            split_dim=1,
+            num_split=MAX_T_SEQ_LEN,
+            value=t_embedded)
+
+        decoder_inputs = [tf.squeeze(x) for x in decoder_inputs]
+
+        [x.set_shape([None, EMBEDD_DIMS]) for x in decoder_inputs]
 
     cell = rnn_cell.BasicRNNCell(RNN_UNITS)
 
@@ -45,7 +53,8 @@ def inference(alphabet_size, input, input_lengths, target):
         cell=cell,
         inputs=encoder_inputs,
         dtype=tf.float32,
-        sequence_length=input_lengths)
+        sequence_length=input_lengths,
+        scope='rnn_encoder')
 
     # decoder
     dec_outputs, dec_state = seq2seq.rnn_decoder(
@@ -61,30 +70,35 @@ def inference(alphabet_size, input, input_lengths, target):
 def loss(logits, target, target_mask):
     print 'Building model loss'
 
-    targets = tf.split(split_dim=1, num_split=MAX_T_SEQ_LEN, value=target)
+    with tf.variable_scope('loss'):
+        targets = tf.split(split_dim=1, num_split=MAX_T_SEQ_LEN, value=target)
 
-    weights = tf.split(
-        split_dim=1,
-        num_split=MAX_T_SEQ_LEN,
-        value=target_mask)
+        with tf.variable_scope('split_t_mask'):
+            target_mask = tf.split(
+                split_dim=1,
+                num_split=MAX_T_SEQ_LEN,
+                value=target_mask)
 
-    weights = [tf.squeeze(weight) for weight in weights]
+            target_mask = [tf.squeeze(weight) for weight in target_mask]
 
-    loss = seq2seq.sequence_loss(
-        logits,
-        targets,
-        weights,
-        MAX_T_SEQ_LEN)
+        loss = seq2seq.sequence_loss(
+            logits,
+            targets,
+            target_mask,
+            MAX_T_SEQ_LEN)
 
     return loss
 
 
 def prediction(logits):
-    # logits is a list of tensors of shape [batch_size, alphabet_size]. We need
-    # a single tensor shape [batch_size, target_seq_len, alphabet_size]
-    packed_logits = tf.transpose(tf.pack(logits), perm=[1, 0, 2])
+    with tf.variable_scope('prediction'):
+        # logits is a list of tensors of shape [batch_size, alphabet_size]. We
+        # need a tensor shape [batch_size, target_seq_len, alphabet_size]
+        packed_logits = tf.transpose(tf.pack(logits), perm=[1, 0, 2])
 
-    return tf.argmax(packed_logits, dimension=2)
+        predictions = tf.argmax(packed_logits, dimension=2)
+
+    return predictions
 
 
 def training(loss, learning_rate):
