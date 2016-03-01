@@ -3,6 +3,7 @@ import numpy as np
 import gzip
 import os
 
+
 def remove_samples(samples):
     # remove input sentences that are too short or too long
     samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 25]
@@ -103,8 +104,8 @@ class TextBatchGenerator(BatchGenerator):
             my_s = []
 
             for elem_idx, elem in enumerate(sample):
-                my_s.append(encode(elem, self.alphadict[elem_idx]))  # code chars
-                my_s.append(spaces(elem))  # spaces (only needed for source lang)
+                my_s.append(encode(elem, self.alphadict[elem_idx]))  # encoded
+                my_s.append(spaces(elem))  # spaces
                 my_s.append(char_length(elem))  # char lengths
                 my_s.append(masking(elem))
 
@@ -169,11 +170,8 @@ if __name__ == '__main__':
     # Generates a batch, being a tuples
     text_batch_gen = TextBatchGenerator(sample_gen, batch_info)
 
-    i = 0
     for batch in text_batch_gen.gen_batch():
-        print i
-        i += 1
-        break
+        pass
 
     for key, item in batch.iteritems():
         print key, item.shape
