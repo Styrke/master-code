@@ -22,6 +22,18 @@ loss = model.loss(output_logits, t, t_mask)
 train_op = model.training(loss, learning_rate=0.01)
 prediction = model.prediction(output_logits)
 
+loss_summary = tf.scalar_summary('loss', loss)
+
+for var in tf.all_variables():
+    if var.name == 'rnn_encoder/BasicRNNCell/Linear/Matrix:0':
+        tf.histogram_summary('weights/encoder', var)
+    if var.name == 'rnn_decoder/BasicRNNCell/Linear/Matrix:0':
+        tf.histogram_summary('weights/decoder', var)
+    if var.name == 'rnn_encoder/BasicRNNCell/Linear/Bias:0':
+        tf.histogram_summary('bias/encoder', var)
+    if var.name == 'rnn_decoder/BasicRNNCell/Linear/Bias:0':
+        tf.histogram_summary('bias/decoder', var)
+
 # initialize data loader
 text_load_method = text_loader.TextLoadMethod()
 sample_info = SampleInfo(len(text_load_method.samples))
@@ -41,6 +53,7 @@ with tf.Session() as sess:
     # initialize parameters
     tf.initialize_all_variables().run()
 
+    summaries = tf.merge_all_summaries()
     writer = tf.train.SummaryWriter("train", sess.graph_def)
 
     for i, batch in enumerate(text_batch_gen.gen_batch()):
@@ -51,7 +64,8 @@ with tf.Session() as sess:
             t_mask: batch['t_mask']
         }
 
-        res = sess.run([loss, prediction, train_op], feed_dict=feed_dict)
+        fetches = [loss, prediction, summaries, train_op]
+        res = sess.run(fetches, feed_dict=feed_dict)
 
         # every 10 iterations print x-sentence ::: t-prediction ::: t-truth
         if i % 10 == 0:
@@ -61,6 +75,7 @@ with tf.Session() as sess:
                         to_str(res[1][j], out_alpha),
                         to_str(batch['t_encoded'][j], out_alpha)
                     )
+            writer.add_summary(res[2], i)
 
         # if i % 10 == 0:
         print 'Iteration %i Loss: %f' % (i, np.mean(res[0]))

@@ -22,6 +22,7 @@ def inference(alphabet_size, input, input_lengths, target):
         tf.random_uniform([alphabet_size, EMBEDD_DIMS]),
         name='embeddings'
     )
+    tf.histogram_summary('embeddings', embeddings)
 
     x_embedded = tf.gather(embeddings, input, name='embed_x')
     t_embedded = tf.gather(embeddings, target, name='embed_t')
