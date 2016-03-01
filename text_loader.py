@@ -170,7 +170,7 @@ if __name__ == '__main__':
     text_batch_gen = TextBatchGenerator(sample_gen, batch_info)
 
     i = 0
-    for (batch, _) in text_batch_gen.gen_batch():
+    for batch in text_batch_gen.gen_batch():
         print i
         i += 1
         break

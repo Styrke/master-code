@@ -43,7 +43,7 @@ with tf.Session() as sess:
     def to_str(seq, alphadict):
         return ''.join([alphadict[c] for c in seq])
 
-    for i, (batch, batch_size) in enumerate(text_batch_gen.gen_batch()):
+    for i, batch in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {X: batch['x_encoded'],
                      t: batch['t_encoded'],
                      X_lengths: batch['x_len'],
