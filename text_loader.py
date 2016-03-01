@@ -113,7 +113,7 @@ class TextBatchGenerator(BatchGenerator):
 
     def _make_batch_holder(self, mlen_t_X, mlen_s_X, mlen_t_t):
         """Initiate numpy arrays for the data in the batch"""
-        batch_size = self.batch_info.batch_size
+        batch_size = self.latest_batch_size
         self.batch = dict()
         self.batch['x_encoded'] = np.zeros([batch_size, mlen_t_X])
         self.batch['x_len'] = np.zeros([batch_size])
