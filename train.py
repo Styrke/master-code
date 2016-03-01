@@ -26,6 +26,8 @@ with tf.Session() as sess:
 
     train_op = model.training(loss, learning_rate=0.01)
 
+    prediction = model.prediction(output_logits)
+
     # initialize parameters
     tf.initialize_all_variables().run()
 
@@ -35,13 +37,28 @@ with tf.Session() as sess:
     batch_info = BatchInfo(batch_size=32)
     text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_info)
 
+    inp_alpha = {v: k for k, v in text_batch_gen.alphadict[0].iteritems()}
+    out_alpha = {v: k for k, v in text_batch_gen.alphadict[1].iteritems()}
+
+    def to_str(seq, alphadict):
+        return ''.join([alphadict[c] for c in seq])
+
     for i, (batch, batch_size) in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {X: batch['x_encoded'],
                      t: batch['t_encoded'],
                      X_lengths: batch['x_len'],
                      t_mask: batch['t_mask']}
-        res = sess.run([loss, train_op],
+        res = sess.run([loss, prediction, train_op],
                        feed_dict=feed_dict)
+
+        # every 10 iterations print x-sentence ::: t-prediction ::: t-truth
+        if i % 10 == 0:
+            for j in xrange(32):
+                print '%s ::: %s ::: %s' % (
+                        to_str(batch['x_encoded'][j], inp_alpha).ljust(25),
+                        to_str(res[1][j], out_alpha).ljust(25),
+                        to_str(batch['t_encoded'][j], out_alpha).ljust(25)
+                    )
 
         # if i % 10 == 0:
         print 'Iteration %i Loss: %f' % (i, np.mean(res[0]))

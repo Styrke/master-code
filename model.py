@@ -11,7 +11,7 @@ EMBEDDING_SIZE = 3
 MAX_IN_SEQ_LENGTH = 25
 MAX_OUT_SEQ_LENGTH = 25
 
-RNN_UNITS = 15
+RNN_UNITS = 202
 
 def inference(alphabet_size, input, input_lengths, target):
     print 'Building model inference'
@@ -79,6 +79,14 @@ def loss(logits, target, target_mask):
                 MAX_OUT_SEQ_LENGTH)
 
     return loss
+
+
+def prediction(logits):
+    # logits is a list of tensors of shape [batch_size, alphabet_size]. We need
+    # a single tensor shape [batch_size, target_seq_len, alphabet_size]
+    packed_logits = tf.transpose(tf.pack(logits), perm=[1, 0, 2])
+
+    return tf.argmax(packed_logits, dimension=2)
 
 
 def training(loss, learning_rate):
