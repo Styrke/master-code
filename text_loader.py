@@ -96,8 +96,21 @@ def get_alphabet(filename='data/train/alphabet', additions=[EOS]):
     return alphabet
 
 
-def encode(sentence, alphabet):
-    return [alphabet[c] for c in sentence]
+def encode_sequence(sentence, alphabet, append_EOS=True):
+    """ Return list of integer encoded sentence given by alphabet.
+        Will concatenate list with encoded EOS by default.
+
+        Keyword arguments:
+        sentence    -- string to encode
+        alphabet    -- dictionary over alphabet and encodings
+        append_EOS  -- whether or not to append '<EOS>' to encoding (default True)
+    """
+    encoding = [alphabet[c] for c in sentence]
+
+    if append_EOS:
+        encoding += [alphabet[EOS]]
+
+    return encoding
 
 
 def spaces(sentence):
@@ -131,20 +144,15 @@ class TextBatchGenerator(BatchGenerator):
             my_s = []
 
             for elem_idx, elem in enumerate(sample):
-                # concatenate list with single element to list
-                # of encoded sample, where the single element 
-                # is the EOS encoded
-                my_s.append(encode(elem, self.alphabet)\
-                            + [self.alphabet[EOS]])
-                # add dummy char to end that is not space
-                # such that we have single dummy char that
-                # represents EOS
+                my_s.append(encode_sequence(elem, self.alphabet))
+                # add dummy char to end that is not space such that
+                # we have single dummy char that represents EOS
                 elem += 'X'
                 my_s.append(spaces(elem))
                 my_s.append(char_length(elem))
                 my_s.append(masking(elem))
 
-            # + sample # concats with original sample
+            # + sample concats with original sample
             self.samples[sample_idx] = tuple(my_s)
 
     def _make_batch_holder(self, mlen_t_X, mlen_s_X, mlen_t_t):
