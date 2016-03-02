@@ -3,6 +3,7 @@ import numpy as np
 import gzip
 import os
 
+EOS = '<EOS>' # denotes end of sequence
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
@@ -95,6 +96,10 @@ class TextBatchGenerator(BatchGenerator):
         self.alphadict = dict()
         self.alphadict[0] = get_dictionary_char()
         self.alphadict[1] = get_dictionary_char('fr')
+
+        # append EOS string to dictionary of the alphabet
+        self.alphadict[0][EOS] = len(self.alphadict[0])
+        self.alphadict[1][EOS] = len(self.alphadict[1])
 
         self.add_feature_dim = add_feature_dim
         self.dynamic_array_sizes = dynamic_array_sizes
