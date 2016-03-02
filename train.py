@@ -19,7 +19,7 @@ output_logits = model.inference(
     input_lengths=X_lengths,
     target=t)
 loss = model.loss(output_logits, t, t_mask)
-train_op = model.training(loss, learning_rate=0.01)
+train_op, global_step = model.training(loss, learning_rate=0.01)
 prediction = model.prediction(output_logits)
 
 loss_summary = tf.scalar_summary('loss', loss)
@@ -37,7 +37,7 @@ for var in tf.all_variables():
 # initialize data loader
 text_load_method = text_loader.TextLoadMethod()
 sample_info = SampleInfo(len(text_load_method.samples))
-sample_gen = SampleGenerator(text_load_method, sample_info)
+sample_gen = SampleGenerator(text_load_method, sample_info, repeat=True)
 batch_info = BatchInfo(batch_size=32)
 text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_info)
 
@@ -45,16 +45,22 @@ text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_info)
 inp_alpha = {v: k for k, v in text_batch_gen.alphadict[0].iteritems()}
 out_alpha = {v: k for k, v in text_batch_gen.alphadict[1].iteritems()}
 
+saver = tf.train.Saver()
+
 
 def to_str(seq, alphadict):
     return ''.join([alphadict[c] for c in seq])
 
 with tf.Session() as sess:
-    # initialize parameters
-    tf.initialize_all_variables().run()
+    # restore or initialize parameters
+    latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
+    if latest_checkpoint:
+        saver.restore(sess, latest_checkpoint)
+    else:
+        tf.initialize_all_variables().run()
 
     summaries = tf.merge_all_summaries()
-    writer = tf.train.SummaryWriter("train", sess.graph_def)
+    writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
 
     for i, batch in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {
@@ -76,6 +82,9 @@ with tf.Session() as sess:
                         to_str(batch['t_encoded'][j], out_alpha)
                     )
             writer.add_summary(res[2], i)
+            saver.save(sess,
+                       'train/checkpoints/checkpoint',
+                       global_step=global_step)
 
         # if i % 10 == 0:
         print 'Iteration %i Loss: %f' % (i, np.mean(res[0]))
