@@ -1,4 +1,6 @@
 ## A collection of methods used in the master-code repository
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 
 # for usage in printing output
@@ -34,25 +36,17 @@ def get_normalized_embeddings(model):
         import tensorflow as tf
         norm = tf.sqrt(tf.reduce_sum(tf.square(
             model.embeddings), 1, keep_dims=True))
-        return embeddings / norm
+        return model.embeddings / norm
     except ImportError:
         print("Please install tensorflow")
 
 
 # T-sne
 def create_tsne(model, alphadict, plot_only=100, plx=20):
-    try:
-        from sklearn.manifold import TSNE
-        import matplotlib.pyplot as plt
-
-        normalized_embeddings = get_normalized_embeddings(model)
-        final_embeddings = normalized_embeddings.eval()
-        tsne = TSNE(perplexity=plx, n_components=2, init='pca', n_iter=5000)
-        low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only, :])
-        reverse_dictionary = reverse_dict(alphadict)
-        labels = [reverse_dictionary[i] for i in xrange(plot_only)]
-        plot_with_labels(low_dim_embs, labels)
-
-    except ImportError:
-        print("Please install sklearn and matplotlib to \
-            visualize embeddings")
+    normalized_embeddings = get_normalized_embeddings(model)
+    final_embeddings = normalized_embeddings.eval()
+    tsne = TSNE(perplexity=plx, n_components=2, init='pca', n_iter=5000)
+    low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only, :])
+    reverse_dictionary = alphadict#reverse_dict(alphadict)
+    labels = [reverse_dictionary[i] for i in xrange(plot_only)]
+    plot_with_labels(low_dim_embs, labels)
