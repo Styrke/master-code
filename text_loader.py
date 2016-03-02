@@ -3,6 +3,7 @@ import numpy as np
 import gzip
 import os
 
+EOS = '<EOS>' # denotes end of sequence
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
@@ -21,6 +22,16 @@ def remove_samples(samples):
     return samples
 
 
+def strip_whitespace(sentences, whitespace=' \t\n\r'):
+    """ strip whitespace from start and end of strings in given list
+        
+        Keyword arguments:
+        sentences  -- the list of strings
+        whitespace -- whitespace to strip (default ' \t\n\r')
+    """
+    return [sentence.strip(whitespace) for sentence in sentences]
+
+
 class TextLoadMethod(LoadMethod):
 
     def __init__(self):
@@ -29,10 +40,10 @@ class TextLoadMethod(LoadMethod):
     def _load_data(self):
         print "loading X data ..."
         with open("data/train/europarl-v7.fr-en.en", "r") as f:
-            self.train_X = f.read().split("\n")
+            self.train_X = strip_whitespace(f.read().split("\n"))
         print "loading t data ..."
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
-            self.train_t = f.read().split("\n")
+            self.train_t = strip_whitespace(f.read().split("\n"))
 
         self.samples = zip(self.train_X, self.train_t)
 
@@ -96,6 +107,10 @@ class TextBatchGenerator(BatchGenerator):
         self.alphadict[0] = get_dictionary_char()
         self.alphadict[1] = get_dictionary_char('fr')
 
+        # append EOS string to dictionary of the alphabet
+        self.alphadict[0][EOS] = len(self.alphadict[0])
+        self.alphadict[1][EOS] = len(self.alphadict[1])
+
         self.add_feature_dim = add_feature_dim
         self.dynamic_array_sizes = dynamic_array_sizes
 
@@ -104,9 +119,17 @@ class TextBatchGenerator(BatchGenerator):
             my_s = []
 
             for elem_idx, elem in enumerate(sample):
-                my_s.append(encode(elem, self.alphadict[elem_idx]))  # encoded
-                my_s.append(spaces(elem))  # spaces
-                my_s.append(char_length(elem))  # char lengths
+                # concatenate list with single element to list
+                # of encoded sample, where the single element 
+                # is the EOS encoded
+                my_s.append(encode(elem, self.alphadict[elem_idx])\
+                            + [self.alphadict[elem_idx][EOS]])
+                # add dummy char to end that is not space
+                # such that we have single dummy char that
+                # represents EOS
+                elem += 'X'
+                my_s.append(spaces(elem))
+                my_s.append(char_length(elem))
                 my_s.append(masking(elem))
 
             # + sample # concats with original sample
