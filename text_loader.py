@@ -66,16 +66,20 @@ class TextLoadMethod(LoadMethod):
 # prepare a dictionary for mapping characters to integer tokens
 
 
-def get_alphabet(lang='en'):
-    with open('alphabet.' + lang, 'r') as f:
-        # Convert Microsoft CRLF line endings
-        alphabet_raw = f.read().replace('\r\n', '\n').replace('\r', '\n')
+def get_alphabet(filename='/data/train/alphabet'):
+    """ Create and return dictionary of alphabet
+        with unique integer for each element
 
-        # Remove duplicate entries - This shouldn't make a difference. The
-        # alphabet file should only contain unique characters
-        alphabet = list(set(alphabet_raw))
+        Keyword arguments:
+        filename -- location of alphabet file (default '/data/train/alphabet')
+    """
+    with open(filename, 'r') as f:
+        # Make sure only one type of line ending is present
+        alphabet = f.read().replace('\r\n', '\n').replace('\r', '\n')
+        # Create list of alphabet
+        alphabet = list(set(alphabet))
 
-    return {character: idx for idx, character in enumerate(alphabet)}
+    return {char: i for i, char in enumerate(alphabet)}
 
 
 def encode(sentence, alphadict):
