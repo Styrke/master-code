@@ -62,16 +62,13 @@ class TextLoadMethod(LoadMethod):
         self._load_data()
         self._preprocess_data()
 
-# BATCH
-# prepare a dictionary for mapping characters to integer tokens
 
-
-def get_alphabet(filename='/data/train/alphabet'):
+def get_alphabet(filename='data/train/alphabet'):
     """ Create and return dictionary of alphabet
         with unique integer for each element
 
         Keyword arguments:
-        filename -- location of alphabet file (default '/data/train/alphabet')
+        filename -- location of alphabet file (default 'data/train/alphabet')
     """
     with open(filename, 'r') as f:
         # Make sure only one type of line ending is present
