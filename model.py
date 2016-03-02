@@ -105,7 +105,10 @@ def prediction(logits):
 def training(loss, learning_rate):
     print 'Building model training'
 
-    return tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+    global_step = tf.Variable(0, name='global_step', trainable=False)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    train_op = optimizer.minimize(loss, global_step=global_step)
+    return train_op, global_step
 
 
 def _grid_gather(params, indices):
