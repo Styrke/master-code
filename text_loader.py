@@ -119,9 +119,17 @@ class TextBatchGenerator(BatchGenerator):
             my_s = []
 
             for elem_idx, elem in enumerate(sample):
-                my_s.append(encode(elem, self.alphadict[elem_idx]))  # encoded
-                my_s.append(spaces(elem))  # spaces
-                my_s.append(char_length(elem))  # char lengths
+                # concatenate list with single element to list
+                # of encoded sample, where the single element 
+                # is the EOS encoded
+                my_s.append(encode(elem, self.alphadict[elem_idx])\
+                            + [self.alphadict[elem_idx][EOS]])
+                # add dummy char to end that is not space
+                # such that we have single dummy char that
+                # represents EOS
+                elem += 'X'
+                my_s.append(spaces(elem))
+                my_s.append(char_length(elem))
                 my_s.append(masking(elem))
 
             # + sample # concats with original sample
