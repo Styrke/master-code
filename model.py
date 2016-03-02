@@ -1,116 +1,114 @@
 import tensorflow as tf
 import numpy as np
-from tensorflow.python.ops.tensor_array_ops import TensorArray
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 
-EMBEDD_DIMS = 3  # number of dimensions for each char embedding
+class Model(object):
 
-MAX_X_SEQ_LEN = 25  # max length of x input sequence
-MAX_T_SEQ_LEN = 25  # max length of t truth sequence
+    def __init__(self, alphabet_size, embedd_dims=3, max_x_seq_len=25,
+        max_t_seq_len=25, rnn_units=170):
+        self.alphabet_size = alphabet_size
+        self.embedd_dims = embedd_dims
+        self.max_x_seq_len = max_x_seq_len
+        self.max_t_seq_len = max_t_seq_len
+        self.rnn_units = rnn_units
 
-RNN_UNITS = 170  # this should currently be equal to the output alphabet size
+    def build(self, Xs, X_len, ts):
+        print 'Building model'
 
+        self.embeddings = tf.Variable(
+            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
+            name='embeddings')
+        tf.histogram_summary('embeddings', self.embeddings)
 
-def inference(alphabet_size, input, input_lengths, target):
-    print 'Building model inference'
+        X_embedded = tf.gather(self.embeddings, Xs, name='embed_X')
+        t_embedded = tf.gather(self.embeddings, ts, name='embed_t')
 
-    # character embeddings
-    embeddings = tf.Variable(
-        tf.random_uniform([alphabet_size, EMBEDD_DIMS]),
-        name='embeddings'
-    )
-    tf.histogram_summary('embeddings', embeddings)
-
-    x_embedded = tf.gather(embeddings, input, name='embed_x')
-    t_embedded = tf.gather(embeddings, target, name='embed_t')
-
-    with tf.variable_scope('split_x_inputs'):
-        encoder_inputs = tf.split(
-            split_dim=1,
-            num_split=MAX_X_SEQ_LEN,
-            value=x_embedded)
-
-        encoder_inputs = [tf.squeeze(x) for x in encoder_inputs]
-
-        [x.set_shape([None, EMBEDD_DIMS]) for x in encoder_inputs]
-
-    with tf.variable_scope('split_t_inputs'):
-        decoder_inputs = tf.split(
-            split_dim=1,
-            num_split=MAX_T_SEQ_LEN,
-            value=t_embedded)
-
-        decoder_inputs = [tf.squeeze(x) for x in decoder_inputs]
-
-        [x.set_shape([None, EMBEDD_DIMS]) for x in decoder_inputs]
-
-    cell = rnn_cell.BasicRNNCell(RNN_UNITS)
-
-    # encoder
-    enc_outputs, enc_state = rnn.rnn(
-        cell=cell,
-        inputs=encoder_inputs,
-        dtype=tf.float32,
-        sequence_length=input_lengths,
-        scope='rnn_encoder')
-
-    # decoder
-    dec_outputs, dec_state = seq2seq.rnn_decoder(
-        decoder_inputs=decoder_inputs,
-        initial_state=enc_state,
-        cell=cell)
-
-    outputs = dec_outputs
-
-    return outputs
-
-
-def loss(logits, target, target_mask):
-    print 'Building model loss'
-
-    with tf.variable_scope('loss'):
-        targets = tf.split(split_dim=1, num_split=MAX_T_SEQ_LEN, value=target)
-
-        with tf.variable_scope('split_t_mask'):
-            target_mask = tf.split(
+        with tf.variable_scope('split_X_inputs'):
+            X_list = tf.split(
                 split_dim=1,
-                num_split=MAX_T_SEQ_LEN,
-                value=target_mask)
+                num_split=self.max_x_seq_len,
+                value=X_embedded)
 
-            target_mask = [tf.squeeze(weight) for weight in target_mask]
+            X_list = [tf.squeeze(X) for X in X_list]
 
-        loss = seq2seq.sequence_loss(
-            logits,
-            targets,
-            target_mask,
-            MAX_T_SEQ_LEN)
+            [X.set_shape([None, self.embedd_dims]) for X in X_list]
 
-    return loss
+        with tf.variable_scope('split_t_inputs'):
+            t_list = tf.split(
+                split_dim=1,
+                num_split=self.max_t_seq_len,
+                value=t_embedded)
+
+            t_list = [tf.squeeze(t) for t in t_list]
+
+            [t.set_shape([None, self.embedd_dims]) for t in t_list]
+
+        cell = rnn_cell.BasicRNNCell(self.rnn_units)
+
+        # encoder
+        enc_outputs, enc_state = rnn.rnn(
+            cell=cell,
+            inputs=X_list,
+            dtype=tf.float32,
+            sequence_length=X_len,
+            scope='rnn_encoder')
+
+        # decoder
+        dec_out, dec_state = seq2seq.rnn_decoder(
+            decoder_inputs=t_list,
+            initial_state=enc_state,
+            cell=cell)
+
+        self.out = dec_out
 
 
-def prediction(logits):
-    with tf.variable_scope('prediction'):
-        # logits is a list of tensors of shape [batch_size, alphabet_size]. We
-        # need a tensor shape [batch_size, target_seq_len, alphabet_size]
-        packed_logits = tf.transpose(tf.pack(logits), perm=[1, 0, 2])
+    def build_loss(self, ts, t_mask):
+        print 'Building model loss'
+        # TODO: build some fail safes, e.g. check if model has built
+        with tf.variable_scope('loss'):
+            ts = tf.split(
+                split_dim=1, num_split=self.max_t_seq_len, value=ts)
 
-        predictions = tf.argmax(packed_logits, dimension=2)
+            with tf.variable_scope('split_t_mask'):
+                t_mask = tf.split(
+                    split_dim=1,
+                    num_split=self.max_t_seq_len,
+                    value=t_mask)
 
-    return predictions
+                t_mask = [tf.squeeze(weight) for weight in t_mask]
+
+            loss = seq2seq.sequence_loss(
+                self.out,
+                ts,
+                t_mask,
+                self.max_t_seq_len)
+
+        self.loss = loss
 
 
-def training(loss, learning_rate):
-    print 'Building model training'
+    def build_prediction(self):
+        with tf.variable_scope('prediction'):
+            # logits is a list of tensors of shape [batch_size,
+            # alphabet_size]. We need a tensor shape [batch_size,
+            # target_seq_len, alphabet_size]
+            packed_logits = tf.transpose(tf.pack(self.out), perm=[1, 0, 2])
 
-    global_step = tf.Variable(0, name='global_step', trainable=False)
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-    train_op = optimizer.minimize(loss, global_step=global_step)
-    return train_op, global_step
+            self.ys = tf.argmax(packed_logits, dimension=2)
 
 
+    def training(self, learning_rate):
+        print 'Building model training'
+
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+        self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
+
+
+# TODO: put in custom_ops file
+# TODO: documentation ..!
 def _grid_gather(params, indices):
     indices_shape = tf.shape(indices)
     params_shape = tf.shape(params)

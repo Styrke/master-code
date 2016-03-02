@@ -1,28 +1,25 @@
 import numpy as np
 
 import tensorflow as tf
-import model
+from model import Model
 import text_loader
 from frostings.loader import *
 from gen_dummy_data import get_batch
 
 # initialize placeholders for the computation graph
-X = tf.placeholder(tf.int32, shape=[None, 25], name='x_input')
-t = tf.placeholder(tf.int32, shape=[None, 25], name='t_input')
-X_lengths = tf.placeholder(tf.int32, shape=[None], name='x_lengths')
+Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
+ts = tf.placeholder(tf.int32, shape=[None, 25], name='t_input')
+X_len = tf.placeholder(tf.int32, shape=[None], name='X_len')
 t_mask = tf.placeholder(tf.float32, shape=[None, 25], name='t_mask')
 
 # build model
-output_logits = model.inference(
-    alphabet_size=170,
-    input=X,
-    input_lengths=X_lengths,
-    target=t)
-loss = model.loss(output_logits, t, t_mask)
-train_op, global_step = model.training(loss, learning_rate=0.01)
-prediction = model.prediction(output_logits)
+model = Model(alphabet_size=170)
+model.build(Xs, X_len, ts)
+model.build_loss(ts, t_mask)
+model.build_prediction()
+model.training(learning_rate=0.01)
 
-loss_summary = tf.scalar_summary('loss', loss)
+loss_summary = tf.scalar_summary('loss', model.loss)
 
 for var in tf.all_variables():
     if var.name == 'rnn_encoder/BasicRNNCell/Linear/Matrix:0':
@@ -63,13 +60,13 @@ with tf.Session() as sess:
 
     for i, batch in enumerate(text_batch_gen.gen_batch()):
         feed_dict = {
-            X: batch['x_encoded'],
-            t: batch['t_encoded'],
-            X_lengths: batch['x_len'],
+            Xs: batch['x_encoded'],
+            ts: batch['t_encoded'],
+            X_len: batch['x_len'],
             t_mask: batch['t_mask']
         }
 
-        fetches = [loss, prediction, summaries, train_op]
+        fetches = [model.loss, model.ys, summaries, model.train_op]
         res = sess.run(fetches, feed_dict=feed_dict)
 
         # every 10 iterations print x-sentence ::: t-prediction ::: t-truth
@@ -83,7 +80,7 @@ with tf.Session() as sess:
             writer.add_summary(res[2], i)
             saver.save(sess,
                        'train/checkpoints/checkpoint',
-                       global_step=global_step)
+                       global_step=model.global_step)
 
         # if i % 10 == 0:
         print 'Iteration %i Loss: %f' % (i, np.mean(res[0]))
