@@ -28,23 +28,23 @@ def plot_with_labels(low_dim_embs, labels, filename='tsne.png'):
 
 
 # for usage in T-sne (normalized embeddings) 
-def get_normalized_embeddings(inference):
+def get_normalized_embeddings(model):
     try:
         import tensorflow as tf
         norm = tf.sqrt(tf.reduce_sum(tf.square(
-            inference.embeddings), 1, keep_dims=True))
+            model.embeddings), 1, keep_dims=True))
         return embeddings / norm
     except ImportError:
         print("Please install tensorflow")
 
 
 # T-sne
-def create_tsne(inference, alphadict, plot_only=100, plx=20):
+def create_tsne(model, alphadict, plot_only=100, plx=20):
     try:
         from sklearn.manifold import TSNE
         import matplotlib.pyplot as plt
 
-        normalized_embeddings = get_normalized_embeddings(inference)
+        normalized_embeddings = get_normalized_embeddings(model)
         final_embeddings = normalized_embeddings.eval()
         tsne = TSNE(perplexity=plx, n_components=2, init='pca', n_iter=5000)
         low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only, :])
