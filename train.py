@@ -4,7 +4,6 @@ import tensorflow as tf
 from model import Model
 import text_loader
 from frostings.loader import *
-from gen_dummy_data import get_batch
 
 # initialize placeholders for the computation graph
 Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
