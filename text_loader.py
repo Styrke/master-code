@@ -24,7 +24,7 @@ def remove_samples(samples):
 
 def strip_whitespace(sentences, whitespace=' \t\n\r'):
     """ strip whitespace from start and end of strings in given list
-        
+
         Keyword arguments:
         sentences  -- the list of strings
         whitespace -- whitespace to strip (default ' \t\n\r')
@@ -64,7 +64,7 @@ class TextLoadMethod(LoadMethod):
 
 
 def get_alphabet(filename='data/train/alphabet', additions=[EOS]):
-    """ Return dictionary of alphabet with unique 
+    """ Return dictionary of alphabet with unique
         integer values for each element.
         Will append given list of additions to dictionary.
 
@@ -128,10 +128,10 @@ def masking(sentence):
 
 
 class TextBatchGenerator(BatchGenerator):
-    def __init__(self, sample_generator, batch_info, add_feature_dim=False,
+    def __init__(self, sample_generator, batch_size, add_feature_dim=False,
                  dynamic_array_sizes=False):
         # call superclass constructor
-        super(TextBatchGenerator, self).__init__(sample_generator, batch_info)
+        super(TextBatchGenerator, self).__init__(sample_generator, batch_size)
 
         # get alphabet dictionary for each language
         self.alphabet = get_alphabet()

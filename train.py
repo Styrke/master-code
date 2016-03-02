@@ -32,10 +32,8 @@ for var in tf.all_variables():
 
 # initialize data loader
 text_load_method = text_loader.TextLoadMethod()
-sample_info = SampleInfo(len(text_load_method.samples))
-sample_gen = SampleGenerator(text_load_method, sample_info, repeat=True)
-batch_info = BatchInfo(batch_size=32)
-text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_info)
+sample_gen = SampleGenerator(text_load_method, repeat=True)
+text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_size=32)
 
 # reverse dictionaries and define function for converting prediction to string
 alphabet = {v: k for k, v in text_batch_gen.alphabet.iteritems()}
