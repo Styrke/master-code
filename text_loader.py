@@ -104,13 +104,10 @@ class TextBatchGenerator(BatchGenerator):
         super(TextBatchGenerator, self).__init__(sample_generator, batch_info)
 
         # get alphabet dictionary for each language
-        self.alphadict = dict()
-        self.alphadict[0] = get_alphabet()
-        self.alphadict[1] = get_alphabet('fr')
+        self.alphadict = get_alphabet()
 
         # append EOS string to dictionary of the alphabet
-        self.alphadict[0][EOS] = len(self.alphadict[0])
-        self.alphadict[1][EOS] = len(self.alphadict[1])
+        self.alphadict[EOS] = len(self.alphadict)
 
         self.add_feature_dim = add_feature_dim
         self.dynamic_array_sizes = dynamic_array_sizes
@@ -123,8 +120,8 @@ class TextBatchGenerator(BatchGenerator):
                 # concatenate list with single element to list
                 # of encoded sample, where the single element 
                 # is the EOS encoded
-                my_s.append(encode(elem, self.alphadict[elem_idx])\
-                            + [self.alphadict[elem_idx][EOS]])
+                my_s.append(encode(elem, self.alphadict)\
+                            + [self.alphadict[EOS]])
                 # add dummy char to end that is not space
                 # such that we have single dummy char that
                 # represents EOS
