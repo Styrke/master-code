@@ -63,20 +63,37 @@ class TextLoadMethod(LoadMethod):
         self._preprocess_data()
 
 
-def get_alphabet(filename='data/train/alphabet'):
-    """ Create and return dictionary of alphabet
-        with unique integer for each element
+def get_alphabet(filename='data/train/alphabet', additions=[EOS]):
+    """ Return dictionary of alphabet with unique 
+        integer values for each element.
+        Will append given list of additions to dictionary.
 
         Keyword arguments:
-        filename -- location of alphabet file (default 'data/train/alphabet')
+        filename  -- location of alphabet file (default 'data/train/alphabet')
+        additions -- list of strings to add to alphabet (default ['<EOS>'])
     """
     with open(filename, 'r') as f:
         # Make sure only one type of line ending is present
         alphabet = f.read().replace('\r\n', '\n').replace('\r', '\n')
-        # Create list of alphabet
+        # Create list of unique alphabet
         alphabet = list(set(alphabet))
 
-    return {char: i for i, char in enumerate(alphabet)}
+    alphabet = {char: i for i, char in enumerate(alphabet)}
+
+    # add additions of they exist
+    if type(additions) is list and len(additions) > 0:
+        for addition in additions:
+            addition = str(addition) # stringify
+            # make sure given addition is not already present
+            try:
+                alphabet[addition]
+            except KeyError:
+                alphabet[addition] = len(alphabet)
+    else:
+        print "WARNING -- given list of additions was invalid (list: %s, empty: %s)"\
+                % (type(additions) is list, len(additions) == 0)
+
+    return alphabet
 
 
 def encode(sentence, alphabet):
@@ -105,9 +122,6 @@ class TextBatchGenerator(BatchGenerator):
 
         # get alphabet dictionary for each language
         self.alphabet = get_alphabet()
-
-        # append EOS string to dictionary of the alphabet
-        self.alphabet[EOS] = len(self.alphabet)
 
         self.add_feature_dim = add_feature_dim
         self.dynamic_array_sizes = dynamic_array_sizes
