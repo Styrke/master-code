@@ -7,7 +7,7 @@ EOS = '<EOS>' # denotes end of sequence
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 25]
+    samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 24]
 
     # Remove input sentences that that has too many spaces. This is a strict
     # inequality because we add a separater at the end of the sequence as well.
@@ -15,7 +15,7 @@ def remove_samples(samples):
                                               t.count(' ') < 6)]
 
     # remove target sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 25]
+    samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 24]
 
     samples = list(set(samples))
 
