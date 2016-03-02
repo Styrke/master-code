@@ -22,6 +22,16 @@ def remove_samples(samples):
     return samples
 
 
+def strip_whitespace(sentences, whitespace=' \t\n\r'):
+    """ strip whitespace from start and end of strings in given list
+        
+        Keyword arguments:
+        sentences  -- the list of strings
+        whitespace -- whitespace to strip (default ' \t\n\r')
+    """
+    return [sentence.strip(whitespace) for sentence in sentences]
+
+
 class TextLoadMethod(LoadMethod):
 
     def __init__(self):
@@ -30,10 +40,10 @@ class TextLoadMethod(LoadMethod):
     def _load_data(self):
         print "loading X data ..."
         with open("data/train/europarl-v7.fr-en.en", "r") as f:
-            self.train_X = f.read().split("\n")
+            self.train_X = strip_whitespace(f.read().split("\n"))
         print "loading t data ..."
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
-            self.train_t = f.read().split("\n")
+            self.train_t = strip_whitespace(f.read().split("\n"))
 
         self.samples = zip(self.train_X, self.train_t)
 
