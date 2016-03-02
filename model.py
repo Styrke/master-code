@@ -11,7 +11,7 @@ EMBEDD_DIMS = 3  # number of dimensions for each char embedding
 MAX_X_SEQ_LEN = 25  # max length of x input sequence
 MAX_T_SEQ_LEN = 25  # max length of t truth sequence
 
-RNN_UNITS = 201  # this should currently be equal to the output alphabet size
+RNN_UNITS = 170  # this should currently be equal to the output alphabet size
 
 
 def inference(alphabet_size, input, input_lengths, target):
