@@ -10,6 +10,7 @@ def dict_to_char(num_to_char_dict, list_to_find):
     return [ num_to_char_dict[x] for x in list_to_find ]
 
 
+# --- TSNE: Look at tensorflow tutorial ---
 # for usage in T-sne (to plot)
 def plot_with_labels(low_dim_embs, labels, filename='tsne.png'):
     assert low_dim_embs.shape[0] >= len(labels), "More labels than embeddings"
