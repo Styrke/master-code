@@ -79,8 +79,8 @@ def get_alphabet(filename='data/train/alphabet'):
     return {char: i for i, char in enumerate(alphabet)}
 
 
-def encode(sentence, alphadict):
-    return [alphadict[c] for c in sentence]
+def encode(sentence, alphabet):
+    return [alphabet[c] for c in sentence]
 
 
 def spaces(sentence):
@@ -104,10 +104,10 @@ class TextBatchGenerator(BatchGenerator):
         super(TextBatchGenerator, self).__init__(sample_generator, batch_info)
 
         # get alphabet dictionary for each language
-        self.alphadict = get_alphabet()
+        self.alphabet = get_alphabet()
 
         # append EOS string to dictionary of the alphabet
-        self.alphadict[EOS] = len(self.alphadict)
+        self.alphabet[EOS] = len(self.alphabet)
 
         self.add_feature_dim = add_feature_dim
         self.dynamic_array_sizes = dynamic_array_sizes
@@ -120,8 +120,8 @@ class TextBatchGenerator(BatchGenerator):
                 # concatenate list with single element to list
                 # of encoded sample, where the single element 
                 # is the EOS encoded
-                my_s.append(encode(elem, self.alphadict)\
-                            + [self.alphadict[EOS]])
+                my_s.append(encode(elem, self.alphabet)\
+                            + [self.alphabet[EOS]])
                 # add dummy char to end that is not space
                 # such that we have single dummy char that
                 # represents EOS
