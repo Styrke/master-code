@@ -14,7 +14,7 @@ t_mask = tf.placeholder(tf.float32, shape=[None, 25], name='t_mask')
 
 # build model
 output_logits = model.inference(
-    alphabet_size=200,
+    alphabet_size=170,
     input=X,
     input_lengths=X_lengths,
     target=t)
@@ -42,8 +42,7 @@ batch_info = BatchInfo(batch_size=32)
 text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_info)
 
 # reverse dictionaries and define function for converting prediction to string
-inp_alpha = {v: k for k, v in text_batch_gen.alphadict[0].iteritems()}
-out_alpha = {v: k for k, v in text_batch_gen.alphadict[1].iteritems()}
+alphabet = {v: k for k, v in text_batch_gen.alphabet.iteritems()}
 
 saver = tf.train.Saver()
 
@@ -77,9 +76,9 @@ with tf.Session() as sess:
         if i % 10 == 0:
             for j in xrange(32):
                 print '%s ::: %s ::: %s' % (
-                        to_str(batch['x_encoded'][j], inp_alpha),
-                        to_str(res[1][j], out_alpha),
-                        to_str(batch['t_encoded'][j], out_alpha)
+                        to_str(batch['x_encoded'][j], alphabet),
+                        to_str(res[1][j], alphabet),
+                        to_str(batch['t_encoded'][j], alphabet)
                     )
             writer.add_summary(res[2], i)
             saver.save(sess,
