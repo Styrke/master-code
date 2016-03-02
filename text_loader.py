@@ -66,7 +66,7 @@ class TextLoadMethod(LoadMethod):
 # prepare a dictionary for mapping characters to integer tokens
 
 
-def get_dictionary_char(lang='en'):
+def get_alphabet(lang='en'):
     with open('alphabet.' + lang, 'r') as f:
         # Convert Microsoft CRLF line endings
         alphabet_raw = f.read().replace('\r\n', '\n').replace('\r', '\n')
@@ -104,8 +104,8 @@ class TextBatchGenerator(BatchGenerator):
 
         # get alphabet dictionary for each language
         self.alphadict = dict()
-        self.alphadict[0] = get_dictionary_char()
-        self.alphadict[1] = get_dictionary_char('fr')
+        self.alphadict[0] = get_alphabet()
+        self.alphadict[1] = get_alphabet('fr')
 
         # append EOS string to dictionary of the alphabet
         self.alphadict[0][EOS] = len(self.alphadict[0])
