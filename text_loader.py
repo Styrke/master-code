@@ -4,23 +4,6 @@ import numpy as np
 EOS = '<EOS>'  # denotes end of sequence
 
 
-def remove_samples(samples):
-    # remove input sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 24]
-
-    # Remove input sentences that that has too many spaces. This is a strict
-    # inequality because we add a separater at the end of the sequence as well.
-    samples = [(x, t) for x, t in samples if (x.count(' ') < 2 and
-                                              t.count(' ') < 6)]
-
-    # remove target sentences that are too short or too long
-    samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 24]
-
-    samples = list(set(samples))
-
-    return samples
-
-
 class TextLoadMethod(LoadMethod):
 
     def __init__(self):
@@ -41,7 +24,7 @@ class TextLoadMethod(LoadMethod):
         self.samples = map(lambda (x, t): (x.strip(), t.strip()), self.samples)
 
         print "removing very long and very short samples ..."
-        self.samples = remove_samples(self.samples)
+        self.samples = self._filter_samples(self.samples)
 
         print '%i samples left in the data set' % len(self.samples)
 
@@ -54,30 +37,22 @@ class TextLoadMethod(LoadMethod):
         self._load_data()
         self._preprocess_data()
 
+    def _filter_samples(self, samples):
+        # remove input sentences that are too short or too long
+        samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 24]
 
-def get_alphabet(filename='data/train/alphabet', additions=[EOS]):
-    """ Return dictionary of alphabet with unique
-        integer values for each element.
-        Will append given list of additions to dictionary.
+        # Remove input sentences that that has too many spaces. This is a
+        # strict inequality because we add a separater at the end of the
+        # sequence as well.
+        samples = [(x, t) for x, t in samples if (x.count(' ') < 2 and
+                                                  t.count(' ') < 6)]
 
-        Keyword arguments:
-        filename  -- location of alphabet file (default 'data/train/alphabet')
-        additions -- list of strings to add to alphabet (default ['<EOS>'])
-    """
-    with open(filename, 'r') as f:
-        # Make sure only one type of line ending is present
-        alphabet = f.read().replace('\r\n', '\n').replace('\r', '\n')
-        # Create list of unique alphabet
-        alphabet = list(set(alphabet))
+        # remove target sentences that are too short or too long
+        samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 24]
 
-    alphabet = {char: i for i, char in enumerate(alphabet)}
+        samples = list(set(samples))
 
-    # add any additions that aren't already in the alphabet dictionary
-    for addition in additions:
-        if addition not in alphabet:
-            alphabet[addition] = len(alphabet)
-
-    return alphabet
+        return samples
 
 
 class TextBatchGenerator(BatchGenerator):
@@ -109,7 +84,7 @@ class TextBatchGenerator(BatchGenerator):
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(sample_generator, batch_size)
 
-        self.alphabet = get_alphabet()  # get alphabet dictionary
+        self.alphabet = self.get_alphabet()  # get alphabet dictionary
 
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
@@ -215,6 +190,32 @@ class TextBatchGenerator(BatchGenerator):
             mask.append(1)
 
         return mask
+
+    def get_alphabet(self, filename='data/train/alphabet', additions=[EOS]):
+        """Get alphabet dict with unique integer values for each char.
+
+        Will append given list of additions to dictionary.
+
+        Keyword arguments:
+        filename  -- location of alphabet file (default:
+            'data/train/alphabet')
+        additions -- list of strings to add to alphabet (default:
+            ['<EOS>'])
+        """
+        with open(filename, 'r') as f:
+            # Make sure only one type of line ending is present
+            alphabet = f.read().replace('\r\n', '\n').replace('\r', '\n')
+            # Create list of unique alphabet
+            alphabet = list(set(alphabet))
+
+        alphabet = {char: i for i, char in enumerate(alphabet)}
+
+        # add any additions that aren't already in the alphabet dictionary
+        for addition in additions:
+            if addition not in alphabet:
+                alphabet[addition] = len(alphabet)
+
+        return alphabet
 
 
 if __name__ == '__main__':
