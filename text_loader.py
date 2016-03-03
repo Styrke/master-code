@@ -117,8 +117,7 @@ class TextBatchGenerator(BatchGenerator):
         offset = self.add_eos_character  # Maybe count EOS character
         self.batch['x_len'] = self._make_len_vec(x, offset=offset)
         self.batch['t_len'] = self._make_len_vec(t, offset=offset)
-        self.batch['x_spaces_len'] = self._make_len_vec(
-            [self._spaces(e) for e in x])
+        self.batch['x_spaces_len'] = self._make_len_vec(map(self._spaces, x))
         # NOTE: The way we make self.batch['x_spaces_len'] here is not elegant,
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
