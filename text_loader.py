@@ -1,8 +1,5 @@
 from frostings.loader import *
 import numpy as np
-import gzip
-import os
-import pdb
 
 EOS = '<EOS>'  # denotes end of sequence
 
