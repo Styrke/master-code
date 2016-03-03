@@ -21,7 +21,7 @@ class TextLoadMethod(LoadMethod):
 
     def _preprocess_data(self):
         # Strip sorrounding whitespace characters from each sentence
-        self.samples = map(lambda (x, t): (x.strip(), t.strip()), self.samples)
+        self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
 
         print "removing very long and very short samples ..."
         self.samples = self._filter_samples(self.samples)
@@ -30,7 +30,7 @@ class TextLoadMethod(LoadMethod):
 
         print "sorting data ..."
         self.samples = sorted(self.samples,
-                              key=lambda (X, t): len(X)*10000 + len(t))
+                              key=lambda x: len(x[0])*10000 + len(x[1]))
 
     def _prepare_data(self):
         print "prepare_data started"
