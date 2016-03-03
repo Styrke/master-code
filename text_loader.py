@@ -72,18 +72,10 @@ def get_alphabet(filename='data/train/alphabet', additions=[EOS]):
 
     alphabet = {char: i for i, char in enumerate(alphabet)}
 
-    # add additions of they exist
-    if type(additions) is list and len(additions) > 0:
-        for addition in additions:
-            addition = str(addition)  # stringify
-            # make sure given addition is not already present
-            try:
-                alphabet[addition]
-            except KeyError:
-                alphabet[addition] = len(alphabet)
-    else:
-        print "WARNING -- given list of additions was invalid (list: %s, empty: %s)"\
-                % (type(additions) is list, len(additions) == 0)
+    # add any additions that aren't already in the alphabet dictionary
+    for addition in additions:
+        if addition not in alphabet:
+            alphabet[addition] = len(alphabet)
 
     return alphabet
 
