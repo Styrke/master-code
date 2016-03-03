@@ -5,11 +5,14 @@ EOS = '<EOS>'  # denotes end of sequence
 
 
 class TextLoadMethod(LoadMethod):
+    """Load and prepare text data."""
 
     def __init__(self):
+        """Initialize instance of TextLoadMethod."""
         self._prepare_data()
 
     def _load_data(self):
+        """Read data from files and create list of samples."""
         print "loading X data ..."
         with open("data/train/europarl-v7.fr-en.en", "r") as f:
             train_X = f.read().split("\n")
@@ -20,6 +23,12 @@ class TextLoadMethod(LoadMethod):
         self.samples = zip(train_X, train_t)
 
     def _preprocess_data(self):
+        """Clean up, filter, and sort the data samples before use.
+
+        - Remove sorrounding whitespace characters.
+        - Filter the samples by their lengths.
+        - Sort the samples for easy bucketing.
+        """
         # Strip sorrounding whitespace characters from each sentence
         self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
 
@@ -33,11 +42,13 @@ class TextLoadMethod(LoadMethod):
                               key=lambda x: len(x[0])*10000 + len(x[1]))
 
     def _prepare_data(self):
+        """Load and preprocess data."""
         print "prepare_data started"
         self._load_data()
         self._preprocess_data()
 
     def _filter_samples(self, samples):
+        """Filter out samples of extreme length."""
         # remove input sentences that are too short or too long
         samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 24]
 
