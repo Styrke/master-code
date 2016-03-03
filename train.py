@@ -4,6 +4,10 @@ import tensorflow as tf
 from model import Model
 import text_loader
 from frostings.loader import *
+from utils import create_tsne as TSNE
+
+use_logged_weights = False
+make_TSNE = False
 
 # initialize placeholders for the computation graph
 Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
@@ -12,7 +16,7 @@ X_len = tf.placeholder(tf.int32, shape=[None], name='X_len')
 t_mask = tf.placeholder(tf.float32, shape=[None, 25], name='t_mask')
 
 # build model
-model = Model(alphabet_size=170)
+model = Model(alphabet_size=335)
 model.build(Xs, X_len, ts)
 model.build_loss(ts, t_mask)
 model.build_prediction()
@@ -36,21 +40,25 @@ sample_gen = SampleGenerator(text_load_method, repeat=True)
 text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_size=32)
 
 # reverse dictionaries and define function for converting prediction to string
-alphabet = {v: k for k, v in text_batch_gen.alphabet.iteritems()}
+alphabet = {v: k for k, v in text_batch_gen.alphabet.items()}
 
 saver = tf.train.Saver()
-
 
 def to_str(seq, alphadict):
     return ''.join([alphadict[c] for c in seq])
 
 with tf.Session() as sess:
     # restore or initialize parameters
-    latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
+    if use_logged_weights:
+		    latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
+    else:
+        latest_checkpoint = False # could be more pretty
     if latest_checkpoint:
         saver.restore(sess, latest_checkpoint)
     else:
         tf.initialize_all_variables().run()
+    if make_TSNE:
+        TSNE(model, alphabet)
 
     summaries = tf.merge_all_summaries()
     writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
@@ -68,16 +76,16 @@ with tf.Session() as sess:
 
         # every 10 iterations print x-sentence ::: t-prediction ::: t-truth
         if i % 10 == 0:
-            for j in xrange(32):
-                print '%s ::: %s ::: %s' % (
+            for j in range(32):
+                print( '%s ::: %s ::: %s' % (
                         to_str(batch['x_encoded'][j], alphabet),
                         to_str(res[1][j], alphabet),
                         to_str(batch['t_encoded'][j], alphabet)
-                    )
+                    ))
             writer.add_summary(res[2], i)
             saver.save(sess,
                        'train/checkpoints/checkpoint',
                        global_step=model.global_step)
 
         # if i % 10 == 0:
-        print 'Iteration %i Loss: %f' % (i, np.mean(res[0]))
+        print('Iteration %i Loss: %f' % (i, np.mean(res[0])))

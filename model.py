@@ -8,7 +8,7 @@ from tensorflow.python.ops import rnn
 class Model(object):
 
     def __init__(self, alphabet_size, embedd_dims=3, max_x_seq_len=25,
-        max_t_seq_len=25, rnn_units=170):
+        max_t_seq_len=25, rnn_units=335):
         self.alphabet_size = alphabet_size
         self.embedd_dims = embedd_dims
         self.max_x_seq_len = max_x_seq_len
@@ -16,7 +16,7 @@ class Model(object):
         self.rnn_units = rnn_units
 
     def build(self, Xs, X_len, ts):
-        print 'Building model'
+        print('Building model')
 
         self.embeddings = tf.Variable(
             tf.random_uniform([self.alphabet_size, self.embedd_dims]),
@@ -66,7 +66,7 @@ class Model(object):
 
 
     def build_loss(self, ts, t_mask):
-        print 'Building model loss'
+        print('Building model loss')
         # TODO: build some fail safes, e.g. check if model has built
         with tf.variable_scope('loss'):
             ts = tf.split(
@@ -100,7 +100,7 @@ class Model(object):
 
 
     def training(self, learning_rate):
-        print 'Building model training'
+        print('Building model training')
 
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)

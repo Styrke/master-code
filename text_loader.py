@@ -13,10 +13,10 @@ class TextLoadMethod(LoadMethod):
 
     def _load_data(self):
         """Read data from files and create list of samples."""
-        print "loading X data ..."
+        print("loading X data ...")
         with open("data/train/europarl-v7.fr-en.en", "r") as f:
             train_X = f.read().split("\n")
-        print "loading t data ..."
+        print("loading t data ...")
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
             train_t = f.read().split("\n")
 
@@ -32,18 +32,18 @@ class TextLoadMethod(LoadMethod):
         # Strip sorrounding whitespace characters from each sentence
         self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
 
-        print "removing very long and very short samples ..."
+        print("removing very long and very short samples ...")
         self.samples = self._filter_samples(self.samples)
 
-        print '%i samples left in the data set' % len(self.samples)
+        print("%i samples left in the data set" % len(self.samples))
 
-        print "sorting data ..."
+        print("sorting data ...")
         self.samples = sorted(self.samples,
                               key=lambda x: len(x[0])*10000 + len(x[1]))
 
     def _prepare_data(self):
         """Load and preprocess data."""
-        print "prepare_data started"
+        print("prepare_data started")
         self._load_data()
         self._preprocess_data()
 
@@ -237,5 +237,5 @@ if __name__ == '__main__':
     for batch in text_batch_gen.gen_batch():
         pass
 
-    for key, item in batch.iteritems():
-        print key, item.shape
+    for key, item in batch.items():
+        print(key, item.shape)

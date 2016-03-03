@@ -43,10 +43,17 @@ def get_normalized_embeddings(model):
 
 # T-sne
 def create_tsne(model, alphadict, plot_only=100, plx=20):
+    """
+        Takes a model (that has a variable 'embeddings'), as well as some labels.
+        The embeddings needs to be normalized (for some reason).
+        The embeddings are projected (some KL SGD procedure) to a lower dimension.
+        The labels are then placed into the lower dimension distribution.
+        All of it is plottet
+    """
     normalized_embeddings = get_normalized_embeddings(model)
     final_embeddings = normalized_embeddings.eval()
     tsne = TSNE(perplexity=plx, n_components=2, init='pca', n_iter=5000)
     low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only, :])
     reverse_dictionary = alphadict#reverse_dict(alphadict)
-    labels = [reverse_dictionary[i] for i in xrange(plot_only)]
+    labels = [reverse_dictionary[i] for i in range(plot_only)]
     plot_with_labels(low_dim_embs, labels)
