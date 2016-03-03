@@ -29,12 +29,12 @@ class TextLoadMethod(LoadMethod):
     def _load_data(self):
         print "loading X data ..."
         with open("data/train/europarl-v7.fr-en.en", "r") as f:
-            self.train_X = f.read().split("\n")
+            train_X = f.read().split("\n")
         print "loading t data ..."
         with open("data/train/europarl-v7.fr-en.fr", "r") as f:
-            self.train_t = f.read().split("\n")
+            train_t = f.read().split("\n")
 
-        self.samples = zip(self.train_X, self.train_t)
+        self.samples = zip(train_X, train_t)
 
     def _preprocess_data(self):
         # Strip sorrounding whitespace characters from each sentence
