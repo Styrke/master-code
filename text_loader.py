@@ -2,8 +2,10 @@ from frostings.loader import *
 import numpy as np
 import gzip
 import os
+import pdb
 
-EOS = '<EOS>' # denotes end of sequence
+EOS = '<EOS>'  # denotes end of sequence
+
 
 def remove_samples(samples):
     # remove input sentences that are too short or too long
@@ -83,7 +85,7 @@ def get_alphabet(filename='data/train/alphabet', additions=[EOS]):
     # add additions of they exist
     if type(additions) is list and len(additions) > 0:
         for addition in additions:
-            addition = str(addition) # stringify
+            addition = str(addition)  # stringify
             # make sure given addition is not already present
             try:
                 alphabet[addition]
@@ -96,122 +98,147 @@ def get_alphabet(filename='data/train/alphabet', additions=[EOS]):
     return alphabet
 
 
-def encode_sequence(sentence, alphabet, append_EOS=True):
-    """ Return list of integer encoded sentence given by alphabet.
-        Will concatenate list with encoded EOS by default.
+class TextBatchGenerator(BatchGenerator):
+    """Generates processed batches of text.
+
+    Extends BatchGenerator
+    """
+
+    def __init__(self, sample_generator, batch_size, add_feature_dim=False,
+                 use_dynamic_array_sizes=False):
+        """Initialize instance of TextBatchGenerator.
+
+        NOTE: The size of a produced batch can be smaller than
+        batch_size if there aren't enough samples left to make a full
+        batch.
 
         Keyword arguments:
-        sentence    -- string to encode
-        alphabet    -- dictionary over alphabet and encodings
-        append_EOS  -- whether or not to append '<EOS>' to encoding (default True)
-    """
-    encoding = [alphabet[c] for c in sentence]
-
-    if append_EOS:
-        encoding += [alphabet[EOS]]
-
-    return encoding
-
-
-def spaces(sentence):
-    spaces = [idx-1 for idx, c in enumerate(sentence) if c == " "]
-    spaces.append(len(sentence)-1)
-    return spaces
-
-
-def char_length(in_string):
-    return len(in_string)
-
-
-def masking(sentence):
-    return [1 for _ in sentence]
-
-
-class TextBatchGenerator(BatchGenerator):
-    def __init__(self, sample_generator, batch_size, add_feature_dim=False,
-                 dynamic_array_sizes=False):
+        sample_generator -- instance of SampleGenerator that has been
+            initialized with a TextLoadMethod instance.
+        batch_size -- the max number of samples to include in each
+            batch.
+        add_feature_dim -- (default: False) whether or not to add
+            artificial 2nd axis to numpy arrays produced by this
+            BatchGenerator.
+        use_dynamic_array_sizes -- (default: False) Allow producing
+            arrays of varying size along the 1st axis, to fit the
+            longest sample in the batch.
+        """
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(sample_generator, batch_size)
 
-        # get alphabet dictionary for each language
-        self.alphabet = get_alphabet()
+        self.alphabet = get_alphabet()  # get alphabet dictionary
 
         self.add_feature_dim = add_feature_dim
-        self.dynamic_array_sizes = dynamic_array_sizes
-
-    def _preprocess_sample(self):
-        for sample_idx, sample in enumerate(self.samples):
-            my_s = []
-
-            for elem_idx, elem in enumerate(sample):
-                my_s.append(encode_sequence(elem, self.alphabet))
-                # add dummy char to end that is not space such that
-                # we have single dummy char that represents EOS
-                elem += 'X'
-                my_s.append(spaces(elem))
-                my_s.append(char_length(elem))
-                my_s.append(masking(elem))
-
-            # + sample concats with original sample
-            self.samples[sample_idx] = tuple(my_s)
-
-    def _make_batch_holder(self, mlen_t_X, mlen_s_X, mlen_t_t):
-        """Initiate numpy arrays for the data in the batch"""
-        batch_size = self.latest_batch_size
-        self.batch = dict()
-        self.batch['x_encoded'] = np.zeros([batch_size, mlen_t_X])
-        self.batch['x_len'] = np.zeros([batch_size])
-        self.batch['x_spaces'] = np.zeros([batch_size, mlen_s_X])
-        self.batch['x_spaces_len'] = np.zeros([batch_size])
-        self.batch['t_encoded'] = np.zeros([batch_size, mlen_t_t])
-        self.batch['t_len'] = np.zeros([batch_size])
-        self.batch['t_mask'] = np.zeros([batch_size, mlen_t_t])
+        self.use_dynamic_array_sizes = use_dynamic_array_sizes
+        self.add_eos_character = True
 
     def _make_batch(self):
-        self._preprocess_sample()
+        """Process the list of samples into a nicely formatted batch.
 
-        mlen_s_X = len(max(self.samples, key=lambda x: len(x[1]))[1])
-        if self.dynamic_array_sizes:
-            # only make the arrays large enough to contain the longest sequence
-            # in the batch
-            mlen_t_X = max(self.samples, key=lambda x: x[2])[2]
-            mlen_t_t = max(self.samples, key=lambda x: x[6])[6]
-            self._make_batch_holder(mlen_t_X, mlen_s_X, mlen_t_t)
-        else:
-            # make maximum-size arrays whether or not its necessary
-            self._make_batch_holder(25, 2, 25)
+        Process the list of samples stored in self.samples. Return the
+        result as a dict with nicely formatted numpy arrays.
+        """
+        x, t = zip(*self.samples)  # unzip samples
+        self.batch = dict()
+        self.batch['x_encoded'] = self._make_array(x, self._encode, 25)
+        self.batch['t_encoded'] = self._make_array(t, self._encode, 25)
+        self.batch['x_spaces'] = self._make_array(x, self._spaces, 3)
+        self.batch['t_mask'] = self._make_array(t, self._mask, 25)
 
-        for sample_idx, (t_X, s_X, l_X, m_X, t_t, s_t, l_t, m_t) in enumerate(self.samples):
-            l_s_X = len(s_X)
-            self.batch['x_encoded'][sample_idx][:l_X] = t_X
-            self.batch['x_len'][sample_idx] = l_X
-            self.batch['x_spaces'][sample_idx][:l_s_X] = s_X
-            self.batch['x_spaces_len'][sample_idx] = l_s_X
-            self.batch['t_encoded'][sample_idx][:l_t] = t_t
-            self.batch['t_len'][sample_idx] = l_t
-            self.batch['t_mask'][sample_idx][:l_t] = m_t
+        offset = self.add_eos_character  # Maybe count EOS character
+        self.batch['x_len'] = self._make_len_vec(x, offset=offset)
+        self.batch['t_len'] = self._make_len_vec(t, offset=offset)
+        self.batch['x_spaces_len'] = self._make_len_vec(
+            [self._spaces(e) for e in x])
+        # NOTE: The way we make self.batch['x_spaces_len'] here is not elegant,
+        # because we compute self._spaces for the second time on the same batch
+        # of samples. Think of a way to fix this!
 
+        # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:
-            # add feature dimension as last part of the shape (alrojo insists)
             for key, array in self.batch.iteritems():
                 self.batch[key] = np.expand_dims(array, axis=-1)
 
         return self.batch
 
+    def _make_array(self, sequences, function, max_len=None):
+        """Use function to preprocess each sequence in the batch.
+
+        Return as numpy array.
+
+        If self.use_dynamic_array_sizes is true, or max_len has not
+        been provided, the returned array's size along the 1st axis
+        will be made large enough to hold the longest sequence.
+
+        Keyword arguments:
+        sequences -- list of sequences.
+        function  -- the function that should be used to preprocess
+            each sequence in the list before packing.
+        max_len   -- (optional) size of returned array along 1st axis
+            if self.use_dynamic_array_sizes is false.
+        """
+        if self.use_dynamic_array_sizes or not max_len:
+            # make the array long enough for the longest sequence in sequences
+            max_len = max([len(seq) for seq in sequences])
+
+        array = np.zeros([self.latest_batch_size, max_len])
+
+        # copy data into the array:
+        for sample_idx, seq in enumerate(sequences):
+            processed_seq = function(seq)
+            array[sample_idx, :len(processed_seq)] = processed_seq
+
+        return array
+
+    def _make_len_vec(self, sequences, offset=0):
+        """Get length of each sequence in list of sequences.
+
+        Return as numpy vector.
+
+        Keyword arguments:
+        sequences -- list of sequences.
+        offset    -- (optional) value to be added to each length.
+            Useful for including EOS characters.
+        """
+        return np.array([len(seq)+offset for seq in sequences])
+
+    def _encode(self, sentence):
+        """Encode sentence as a list of integers given by alphabet."""
+        encoding = [self.alphabet[c] for c in sentence]
+
+        if self.add_eos_character:
+            encoding.append(self.alphabet[EOS])
+
+        return encoding
+
+    def _spaces(self, sentence):
+        """Locate the spaces and the end of the sentence.
+
+        Return their indices in a numpy array.
+        """
+        if self.add_eos_character:
+            # the EOS character will be counted as a space
+            sentence += " "
+        spaces = [idx-1 for idx, c in enumerate(sentence) if c == " "]
+        spaces.append(len(sentence)-1)
+        return spaces
+
+    def _mask(self, sentence):
+        """Create a list of 1's as long as sentence."""
+        mask = [1]*len(sentence)
+
+        # Maybe add another item to the list to represent EOS character
+        if self.add_eos_character:
+            mask.append(1)
+
+        return mask
+
+
 if __name__ == '__main__':
     text_load_method = TextLoadMethod()
-
-    # needs to know how many samples we have, so it can make an idx for all of
-    # them.
-    sample_info = SampleInfo(len(text_load_method.samples))
-
-    # generates one sample which consists of several elements sample = (elem,
-    # elem, elem)
-    sample_gen = SampleGenerator(text_load_method, sample_info)
-    batch_info = BatchInfo(batch_size=32)
-
-    # Generates a batch, being a tuples
-    text_batch_gen = TextBatchGenerator(sample_gen, batch_info)
+    sample_gen = SampleGenerator(text_load_method)
+    text_batch_gen = TextBatchGenerator(sample_gen, batch_size=32)
 
     for batch in text_batch_gen.gen_batch():
         pass
