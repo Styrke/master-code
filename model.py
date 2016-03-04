@@ -46,6 +46,11 @@ class Model(object):
 
             [t.set_shape([None, self.embedd_dims]) for t in t_list]
 
+        with tf.variable_scope('dense_out'):
+            W_out = tf.get_variable('W_out',
+                [self.rnn_units, self.alphabet_size])
+            b_out = tf.get_variable('b_out', [self.alphabet_size])
+
         cell = rnn_cell.BasicRNNCell(self.rnn_units)
 
         # encoder
@@ -62,7 +67,9 @@ class Model(object):
             initial_state=enc_state,
             cell=cell)
 
-        self.out = dec_out
+        self.out = []
+        for d in dec_out:
+            self.out.append(tf.matmul(d, W_out) + b_out)
 
 
     def build_loss(self, ts, t_mask):
