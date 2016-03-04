@@ -213,9 +213,7 @@ class TextBatchGenerator(BatchGenerator):
             ['<EOS>'])
         """
         with open(filename, 'r') as f:
-            # Make sure only one type of line ending is present
-            alphabet = f.read().replace('\r\n', '\n').replace('\r', '\n')
-            alphabet = alphabet.split('\n')
+            alphabet = f.read().split('\n')
 
         alphabet = {char: i for i, char in enumerate(alphabet)}
 
