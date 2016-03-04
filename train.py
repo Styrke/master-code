@@ -45,7 +45,7 @@ alphabet = {v: k for k, v in text_batch_gen.alphabet.items()}
 saver = tf.train.Saver()
 
 def to_str(seq, alphadict):
-    return ''.join([alphadict[c] for c in seq])
+    return ''.join([alphadict.get(c, '') for c in seq])
 
 with tf.Session() as sess:
     # restore or initialize parameters
