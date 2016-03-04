@@ -11,4 +11,4 @@ def generate_alphabet(filenames, alphabet_file):
         f.write('\n'.join(set(contents)))
     print("done ...")
 
-generate_alphabet(['data/train/europarl-v7.fr-en.en', 'data/train/europarl-v7.fr-en.fr'], 'data/train/alphabet')
+generate_alphabet(['train/europarl-v7.fr-en.en', 'train/europarl-v7.fr-en.fr'], 'alphabet')

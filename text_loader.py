@@ -201,14 +201,14 @@ class TextBatchGenerator(BatchGenerator):
 
         return mask
 
-    def get_alphabet(self, filename='data/train/alphabet', additions=[EOS]):
+    def get_alphabet(self, filename='data/alphabet', additions=[EOS]):
         """Get alphabet dict with unique integer values for each char.
 
         Will append given list of additions to dictionary.
 
         Keyword arguments:
         filename  -- location of alphabet file (default:
-            'data/train/alphabet')
+            'data/alphabet')
         additions -- list of strings to add to alphabet (default:
             ['<EOS>'])
         """
