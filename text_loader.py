@@ -215,8 +215,7 @@ class TextBatchGenerator(BatchGenerator):
         with open(filename, 'r') as f:
             # Make sure only one type of line ending is present
             alphabet = f.read().replace('\r\n', '\n').replace('\r', '\n')
-            # Create list of unique alphabet
-            alphabet = list(set(alphabet))
+            alphabet = alphabet.split('\n')
 
         alphabet = {char: i for i, char in enumerate(alphabet)}
 
