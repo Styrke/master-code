@@ -14,10 +14,10 @@ class TextLoadMethod(LoadMethod):
     def _load_data(self):
         """Read data from files and create list of samples."""
         print("loading X data ...")
-        with open("data/train/europarl-v7.fr-en.en", "r") as f:
+        with open("data/train/europarl-v7.fr-en.en", "r", encoding="utf-8") as f:
             train_X = f.read().split("\n")
         print("loading t data ...")
-        with open("data/train/europarl-v7.fr-en.fr", "r") as f:
+        with open("data/train/europarl-v7.fr-en.fr", "r", encoding="utf-8") as f:
             train_t = f.read().split("\n")
 
         self.samples = zip(train_X, train_t)
@@ -212,7 +212,7 @@ class TextBatchGenerator(BatchGenerator):
         additions -- list of strings to add to alphabet (default:
             ['<EOS>'])
         """
-        with open(filename, 'r') as f:
+        with open(filename, 'r', encoding="utf-8") as f:
             alphabet = f.read().split('\n')
 
         alphabet = {char: i for i, char in enumerate(alphabet)}
