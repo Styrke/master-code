@@ -1,6 +1,8 @@
 from frostings.loader import *
 import numpy as np
 
+from data.alphabet import Alphabet
+
 EOS = '<EOS>'  # denotes end of sequence
 
 
@@ -95,7 +97,7 @@ class TextBatchGenerator(BatchGenerator):
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(sample_generator, batch_size)
 
-        self.alphabet = self.get_alphabet()  # get alphabet dictionary
+        self.alphabet = Alphabet(eos=EOS)
 
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
@@ -109,8 +111,8 @@ class TextBatchGenerator(BatchGenerator):
         """
         x, t = zip(*self.samples)  # unzip samples
         self.batch = dict()
-        self.batch['x_encoded'] = self._make_array(x, self._encode, 25)
-        self.batch['t_encoded'] = self._make_array(t, self._encode, 25)
+        self.batch['x_encoded'] = self._make_array(x, self.alphabet.encode, 25)
+        self.batch['t_encoded'] = self._make_array(t, self.alphabet.encode, 25)
         self.batch['x_spaces'] = self._make_array(x, self._spaces, 3)
         self.batch['t_mask'] = self._make_array(t, self._mask, 25)
 
@@ -170,15 +172,6 @@ class TextBatchGenerator(BatchGenerator):
         """
         return np.array([len(seq)+offset for seq in sequences])
 
-    def _encode(self, sentence):
-        """Encode sentence as a list of integers given by alphabet."""
-        encoding = [self.alphabet[c] for c in sentence]
-
-        if self.add_eos_character:
-            encoding.append(self.alphabet[EOS])
-
-        return encoding
-
     def _spaces(self, sentence):
         """Locate the spaces and the end of the sentence.
 
@@ -200,29 +193,6 @@ class TextBatchGenerator(BatchGenerator):
             mask.append(1)
 
         return mask
-
-    def get_alphabet(self, filename='data/alphabet', additions=[EOS]):
-        """Get alphabet dict with unique integer values for each char.
-
-        Will append given list of additions to dictionary.
-
-        Keyword arguments:
-        filename  -- location of alphabet file (default:
-            'data/alphabet')
-        additions -- list of strings to add to alphabet (default:
-            ['<EOS>'])
-        """
-        with open(filename, 'r', encoding="utf-8") as f:
-            alphabet = f.read().split('\n')
-
-        alphabet = {char: i for i, char in enumerate(alphabet)}
-
-        # add any additions that aren't already in the alphabet dictionary
-        for addition in additions:
-            if addition not in alphabet:
-                alphabet[addition] = len(alphabet)
-
-        return alphabet
 
 
 if __name__ == '__main__':

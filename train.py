@@ -28,7 +28,7 @@ def train(tsne, visualize, log_freq, save_freq):
     t_mask = tf.placeholder(tf.float32, shape=[None, 25], name='t_mask')
 
     # build model
-    model = Model(alphabet_size=335)
+    model = Model(alphabet_size=336)
     model.build(Xs, X_len, ts)
     model.build_loss(ts, t_mask)
     model.build_prediction()
@@ -51,14 +51,9 @@ def train(tsne, visualize, log_freq, save_freq):
     sample_gen = SampleGenerator(text_load_method, repeat=True)
     text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_size=32)
 
-    # reverse dictionary
-    alphabet = {v: k for k, v in text_batch_gen.alphabet.items()}
+    alphabet = text_batch_gen.alphabet
 
     saver = tf.train.Saver()
-
-    def to_str(seq, alphadict):
-        """Convert prediction to string."""
-        return ''.join([alphadict.get(c, '') for c in seq])
 
     with tf.Session() as sess:
         # restore or initialize parameters
@@ -72,7 +67,7 @@ def train(tsne, visualize, log_freq, save_freq):
             tf.initialize_all_variables().run()
 
         if tsne:
-            TSNE(model, alphabet)
+            TSNE(model, alphabet.decode_dict)
 
         summaries = tf.merge_all_summaries()
         writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
@@ -93,9 +88,9 @@ def train(tsne, visualize, log_freq, save_freq):
                 if i % visualize == 0:
                     for j in range(32):
                         click.echo('%s ::: %s ::: %s' % (
-                                to_str(batch['x_encoded'][j], alphabet),
-                                to_str(res[1][j], alphabet),
-                                to_str(batch['t_encoded'][j], alphabet)
+                                alphabet.decode(batch['x_encoded'][j]),
+                                alphabet.decode(res[1][j]),
+                                alphabet.decode(batch['t_encoded'][j])
                             ))
 
             if save_freq and i:
