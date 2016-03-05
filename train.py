@@ -44,15 +44,16 @@ alphabet = {v: k for k, v in text_batch_gen.alphabet.items()}
 
 saver = tf.train.Saver()
 
+
 def to_str(seq, alphadict):
     return ''.join([alphadict.get(c, '') for c in seq])
 
 with tf.Session() as sess:
     # restore or initialize parameters
     if use_logged_weights:
-		    latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
+        latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
     else:
-        latest_checkpoint = False # could be more pretty
+        latest_checkpoint = False  # could be more pretty
     if latest_checkpoint:
         saver.restore(sess, latest_checkpoint)
     else:
