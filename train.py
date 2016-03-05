@@ -1,9 +1,9 @@
 import numpy as np
-
 import tensorflow as tf
-from model import Model
-import text_loader
 from frostings.loader import *
+
+import text_loader
+from model import Model
 from utils import create_tsne as TSNE
 
 use_logged_weights = False
