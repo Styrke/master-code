@@ -13,7 +13,9 @@ use_logged_weights = False
 @click.command()
 @click.option('--tsne', is_flag=True,
               help='Use t-sne to plot character embeddings.')
-def train(tsne):
+@click.option('--visualize', default=0,
+              help='Print visualizations every N iterations.')
+def train(tsne, visualize):
     """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
@@ -82,14 +84,17 @@ def train(tsne):
             fetches = [model.loss, model.ys, summaries, model.train_op]
             res = sess.run(fetches, feed_dict=feed_dict)
 
-            # every 10 iterations print x-sentence ::: t-prediction ::: t-truth
+            # Maybe visualize predictions
+            if visualize:
+                if i % visualize == 0:
+                    for j in range(32):
+                        click.echo('%s ::: %s ::: %s' % (
+                                to_str(batch['x_encoded'][j], alphabet),
+                                to_str(res[1][j], alphabet),
+                                to_str(batch['t_encoded'][j], alphabet)
+                            ))
+
             if i % 10 == 0:
-                for j in range(32):
-                    click.echo('%s ::: %s ::: %s' % (
-                            to_str(batch['x_encoded'][j], alphabet),
-                            to_str(res[1][j], alphabet),
-                            to_str(batch['t_encoded'][j], alphabet)
-                        ))
                 writer.add_summary(res[2], i)
                 saver.save(sess,
                            'train/checkpoints/checkpoint',
