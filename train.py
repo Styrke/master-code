@@ -15,7 +15,11 @@ use_logged_weights = False
               help='Use t-sne to plot character embeddings.')
 @click.option('--visualize', default=0,
               help='Print visualizations every N iterations.')
-def train(tsne, visualize):
+@click.option('--log-freq', default=10,
+              help='Print updates every N iterations. (default: 10)')
+@click.option('--save-freq', default=0,
+              help='Create checkpoint every N iterations.')
+def train(tsne, visualize, log_freq, save_freq):
     """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
@@ -94,14 +98,16 @@ def train(tsne, visualize):
                                 to_str(batch['t_encoded'][j], alphabet)
                             ))
 
-            if i % 10 == 0:
-                writer.add_summary(res[2], i)
-                saver.save(sess,
-                           'train/checkpoints/checkpoint',
-                           global_step=model.global_step)
+            if save_freq and i:
+                if i % save_freq == 0:
+                    writer.add_summary(res[2], i)
+                    saver.save(sess,
+                               'train/checkpoints/checkpoint',
+                               global_step=model.global_step)
 
-            # if i % 10 == 0:
-            click.echo('Iteration %i Loss: %f' % (i, np.mean(res[0])))
+            if log_freq:
+                if i % log_freq == 0:
+                    click.echo('Iteration %i Loss: %f' % (i, np.mean(res[0])))
 
 if __name__ == '__main__':
     train()
