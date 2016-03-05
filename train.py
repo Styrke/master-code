@@ -11,6 +11,7 @@ make_TSNE = False
 
 
 def train():
+    """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
     ts = tf.placeholder(tf.int32, shape=[None, 25], name='t_input')
@@ -41,13 +42,13 @@ def train():
     sample_gen = SampleGenerator(text_load_method, repeat=True)
     text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_size=32)
 
-    # reverse dictionaries and define function for converting prediction to string
+    # reverse dictionary
     alphabet = {v: k for k, v in text_batch_gen.alphabet.items()}
 
     saver = tf.train.Saver()
 
-
     def to_str(seq, alphadict):
+        """Convert prediction to string."""
         return ''.join([alphadict.get(c, '') for c in seq])
 
     with tf.Session() as sess:
