@@ -1,3 +1,4 @@
+import click
 import numpy as np
 import tensorflow as tf
 from frostings.loader import *
@@ -10,6 +11,7 @@ use_logged_weights = False
 make_TSNE = False
 
 
+@click.command()
 def train():
     """Train a translation model."""
     # initialize placeholders for the computation graph
