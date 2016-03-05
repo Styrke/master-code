@@ -82,21 +82,19 @@ def train():
 
             # every 10 iterations print x-sentence ::: t-prediction ::: t-truth
             if i % 10 == 0:
-                """
                 for j in range(32):
-                    print( '%s ::: %s ::: %s' % (
+                    click.echo('%s ::: %s ::: %s' % (
                             to_str(batch['x_encoded'][j], alphabet),
                             to_str(res[1][j], alphabet),
                             to_str(batch['t_encoded'][j], alphabet)
                         ))
-                """
                 writer.add_summary(res[2], i)
                 saver.save(sess,
                            'train/checkpoints/checkpoint',
                            global_step=model.global_step)
 
             # if i % 10 == 0:
-            print('Iteration %i Loss: %f' % (i, np.mean(res[0])))
+            click.echo('Iteration %i Loss: %f' % (i, np.mean(res[0])))
 
 if __name__ == '__main__':
     train()
