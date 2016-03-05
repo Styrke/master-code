@@ -3,8 +3,6 @@ import numpy as np
 
 from data.alphabet import Alphabet
 
-EOS = '<EOS>'  # denotes end of sequence
-
 
 class TextLoadMethod(LoadMethod):
     """Load and prepare text data."""
@@ -97,7 +95,7 @@ class TextBatchGenerator(BatchGenerator):
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(sample_generator, batch_size)
 
-        self.alphabet = Alphabet(eos=EOS)
+        self.alphabet = Alphabet(eos='*')
 
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
