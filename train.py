@@ -8,11 +8,12 @@ from model import Model
 from utils import create_tsne as TSNE
 
 use_logged_weights = False
-make_TSNE = False
 
 
 @click.command()
-def train():
+@click.option('--tsne', is_flag=True,
+              help='Use t-sne to plot character embeddings.')
+def train(tsne):
     """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
@@ -63,7 +64,8 @@ def train():
             saver.restore(sess, latest_checkpoint)
         else:
             tf.initialize_all_variables().run()
-        if make_TSNE:
+
+        if tsne:
             TSNE(model, alphabet)
 
         summaries = tf.merge_all_summaries()
