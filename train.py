@@ -6,11 +6,14 @@ from frostings.loader import *
 import text_loader
 from model import Model
 from utils import create_tsne as TSNE
+from dummy_loader import *
 
 use_logged_weights = False
 
 
 @click.command()
+@click.option('--loader', default=1,
+              help='0: for europarl, 1: for simple_dummy_gen')
 @click.option('--tsne', is_flag=True,
               help='Use t-sne to plot character embeddings.')
 @click.option('--visualize', default=0,
@@ -19,7 +22,7 @@ use_logged_weights = False
               help='Print updates every N iterations. (default: 10)')
 @click.option('--save-freq', default=0,
               help='Create checkpoint every N iterations.')
-def train(tsne, visualize, log_freq, save_freq):
+def train(loader, tsne, visualize, log_freq, save_freq):
     """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
@@ -47,8 +50,17 @@ def train(tsne, visualize, log_freq, save_freq):
             tf.histogram_summary('bias/decoder', var)
 
     # initialize data loader
-    text_load_method = text_loader.TextLoadMethod()
-    sample_gen = SampleGenerator(text_load_method, repeat=True)
+    if loader == 0:
+        print('Using europarl loader')
+        text_load_method = text_loader.TextLoadMethod()
+        sample_gen = SampleGenerator(text_load_method, repeat=True)
+    elif loader == 1:
+        print('Using simple dummy loader')
+        sample_gen = DummySampleGenerator()
+    else:
+        # should make a section to handle bad flag args
+        print('Please use only 0 or 1 as arguments')
+        assert False
     text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_size=32)
 
     alphabet = text_batch_gen.alphabet
