@@ -12,7 +12,7 @@ use_logged_weights = False
 
 
 @click.command()
-@click.option('--loader', default=1,
+@click.option('--loader', default=2,
               help='0: for europarl, 1: for simple_dummy_gen')
 @click.option('--tsne', is_flag=True,
               help='Use t-sne to plot character embeddings.')
@@ -50,13 +50,19 @@ def train(loader, tsne, visualize, log_freq, save_freq):
             tf.histogram_summary('bias/decoder', var)
 
     # initialize data loader
+    # the magic number arguments in dummy loaders are for max len and
+    # max spaces.
+
     if loader == 0:
         print('Using europarl loader')
         text_load_method = text_loader.TextLoadMethod()
         sample_gen = SampleGenerator(text_load_method, repeat=True)
     elif loader == 1:
         print('Using simple dummy loader')
-        sample_gen = DummySampleGenerator()
+        sample_gen = DummySampleGenerator(simple_dummy_sample, 19, 1)
+    elif loader == 2:
+        print('Using advanced dummy loader')
+        sample_gen = DummySampleGenerator(advanced_dummy_sample, 4, 1)
     else:
         # should make a section to handle bad flag args
         print('Please use only 0 or 1 as arguments')
