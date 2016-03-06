@@ -12,7 +12,7 @@ class Alphabet(object):
         of the eos argument will be used to represent the EOS character
         when decoding sequences.
 
-        Chars that arent in the alphabet will be encoded as UNK
+        Chars that aren't in the alphabet will be encoded as UNK
         character.
 
         Keyword arguments:
