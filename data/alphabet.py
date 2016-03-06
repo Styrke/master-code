@@ -3,7 +3,7 @@ from collections import Counter
 
 class Alphabet(object):
     """Easily encode and decode strings using a set of characters."""
-    def __init__(self, alphabet_file='data/alphabet', eos=None, unk=''):
+    def __init__(self, alphabet='data/alphabet', eos=None, unk=''):
         """Get alphabet dict with unique integer values for each char.
 
         By default (if argument eos==None) no EOS character will be
@@ -12,12 +12,12 @@ class Alphabet(object):
         of the eos argument will be used to represent the EOS character
         when decoding sequences.
 
-        Chars that arent in the alphabet will be encoded as UNK
+        Chars that aren't in the alphabet will be encoded as UNK
         character.
 
         Keyword arguments:
-        alphabet_file -- File that contains the alphabet. (default:
-            'alphabet')
+        alphabet -- List of characters, or string with path to a file
+        that contains the alphabet. (default: 'data/alphabet')
         eos -- (optional) string that will be used to represent EOS
             char when decoding. Only specify if you want all encoded
             sequences to be appended with EOS char
@@ -27,8 +27,11 @@ class Alphabet(object):
         self.unk_char = unk  # Representation of UNK when decoding
         self.eos_char = eos  # Representation of EOS when decoding
 
-        with open(alphabet_file, 'r', encoding="utf-8") as f:
-            self.char_list = f.read().split('\n')
+        if type(alphabet) is list:
+            self.char_list = alphabet
+        else:
+            with open(alphabet, 'r', encoding="utf-8") as f:
+                self.char_list = f.read().split('\n')
 
         # the list apparently contains some empty character ('') twice, so we
         # have to remove duplicates while preserving the order:
