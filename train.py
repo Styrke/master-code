@@ -120,9 +120,11 @@ def train(loader, tsne, visualize, log_freq, save_freq):
                                 alphabet.decode(batch['t_encoded'][j])
                             ))
 
+            # Write summaries for TensorBoard.
+            writer.add_summary(res[2], i)
+
             if save_freq and i:
                 if i % save_freq == 0:
-                    writer.add_summary(res[2], i)
                     saver.save(sess,
                                'train/checkpoints/checkpoint',
                                global_step=model.global_step)
