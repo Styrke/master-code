@@ -29,12 +29,13 @@ def train(loader, tsne, visualize, log_freq, save_freq):
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
     ts = tf.placeholder(tf.int32, shape=[None, 25], name='t_input')
+    ts_go = tf.placeholder(tf.int32, shape=[None, 25], name='t_input_go')
     X_len = tf.placeholder(tf.int32, shape=[None], name='X_len')
     t_mask = tf.placeholder(tf.float32, shape=[None, 25], name='t_mask')
 
     # build model
-    model = Model(alphabet_size=336)
-    model.build(Xs, X_len, ts)
+    model = Model(alphabet_size=337)
+    model.build(Xs, X_len, ts_go)
     model.build_loss(ts, t_mask)
     model.build_prediction()
     model.training(learning_rate=0.01)
@@ -105,6 +106,7 @@ def train(loader, tsne, visualize, log_freq, save_freq):
             feed_dict = {
                 Xs: batch['x_encoded'],
                 ts: batch['t_encoded'],
+                ts_go: batch['t_encoded_go'],
                 X_len: batch['x_len'],
                 t_mask: batch['t_mask']
             }
