@@ -14,3 +14,5 @@ fi
 ```
 
 Now log out and back into the server for the changes to take affect.
+
+It should now be possible to run `gpu-docker` to fire up a docker container for TF.
