@@ -73,7 +73,7 @@ class TextBatchGenerator(BatchGenerator):
     """
 
     def __init__(self, sample_generator, batch_size, add_feature_dim=False,
-                 use_dynamic_array_sizes=False):
+                 use_dynamic_array_sizes=False, alphabet=None):
         """Initialize instance of TextBatchGenerator.
 
         NOTE: The size of a produced batch can be smaller than
@@ -91,11 +91,16 @@ class TextBatchGenerator(BatchGenerator):
         use_dynamic_array_sizes -- (default: False) Allow producing
             arrays of varying size along the 1st axis, to fit the
             longest sample in the batch.
+        alphabet -- (optional) A custom Alphabet instance to use for
+            encoding.
         """
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(sample_generator, batch_size)
 
-        self.alphabet = Alphabet(eos='*')
+        if alphabet:
+            self.alphabet = alphabet
+        else:
+            self.alphabet = Alphabet(eos='*')
 
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
