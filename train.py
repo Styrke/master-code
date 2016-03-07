@@ -58,11 +58,17 @@ def train(loader, tsne, visualize, log_freq, save_freq):
         text_load_method = text_loader.TextLoadMethod()
         sample_gen = SampleGenerator(text_load_method, repeat=True)
     elif loader == 1:
-        print('Using simple dummy loader')
-        sample_gen = DummySampleGenerator(simple_dummy_sample, 19, 1)
+        print('Using normal dummy loader')
+        sample_gen = DummySampleGenerator(dummy_sampler, 19, 1, 'normal')
     elif loader == 2:
-        print('Using advanced dummy loader')
-        sample_gen = DummySampleGenerator(advanced_dummy_sample, 4, 1)
+        print('Using talord dummy loader')
+        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord')
+    elif loader == 3:
+        print('Using talord_caps dummy loader')
+        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps')
+    elif loader == 4:
+        print('Using talord_caps2 dummy loader')
+        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps2')
     else:
         # should make a section to handle bad flag args
         print('Please use only 0 or 1 as arguments')

@@ -50,11 +50,49 @@ advanced_dict.append({
     ' ': ' '
 })
 
-def advanced_dummy_sample(max_len, max_len_spaces):
+make_caps = {
+    'z': 'Z',
+    'e': 'E',
+    'r': 'R',
+    'o': 'O',
+    'n': 'N',
+    't': 'T',
+    'w': 'W',
+    'h': 'H',
+    'f': 'F',
+    'u': 'U',
+    'i': 'I',
+    'v': 'V',
+    's': 'S',
+    'x': 'X',
+    'g': 'G',
+    'l': 'L',
+    'k': 'K',
+    'y': 'Y',
+    ' ': ' ',
+}
+
+
+def dummy_sampler(max_len, max_len_spaces, sampler='normal'):
+    assert sampler in ['normal', 'talord', 'talord_caps', 'talord_caps2']
     elem_X, elem_t = simple_dummy_sample(max_len, max_len_spaces)
-    # Turning it to danish/english (list -> join)
-    elem_X = ''.join([advanced_dict[0][char] for char in elem_X])
-    elem_t = ''.join([advanced_dict[1][char] for char in elem_t])
+    if sampler == 'normal':
+        pass # base case
+    else:
+        # Turning it to danish/english (list -> join)
+        elem_X = ''.join([advanced_dict[0][e] for e in elem_X])
+        elem_t = ''.join([advanced_dict[1][e] for e in elem_t])
+        if sampler == 'talord_caps':
+            holder = [] # hacked around str assignment
+            for e in elem_X:
+                if np.random.choice(2):
+                    holder.append(make_caps[e])
+                else:
+                    holder.append(e)
+            elem_X = ''.join(holder)
+        elif sampler == 'talord_caps2':
+            if np.random.choice(2):
+                elem_t = ''.join([make_caps[e] for e in elem_t])
     return elem_X, elem_t
 
 class DummySampleGenerator(SampleGenerator):
@@ -65,21 +103,30 @@ class DummySampleGenerator(SampleGenerator):
 
 
     def __init__(self, make_dummy_sample=simple_dummy_sample,
-                 max_len=10, max_len_spaces=1):
+                 max_len=4, max_len_spaces=1, sampler='normal'):
         self.make_dummy_sample = make_dummy_sample
         self.max_len = max_len
         self.max_len_spaces = max_len_spaces
-
+        self.sampler = sampler
 
     def gen_sample(self):
         while True:
-            yield self.make_dummy_sample(self.max_len, self.max_len_spaces)
+            yield self.make_dummy_sample(
+                self.max_len, self.max_len_spaces, self.sampler)
 
 if __name__ == '__main__':
-    dummy_sample_gen = DummySampleGenerator(advanced_dummy_sample)
-    count = 0
-    for sample in dummy_sample_gen.gen_sample():
-        print(sample)
-        count += 1
-        if count > 5:
-            break
+    samplers = ['normal', 'talord', 'talord_caps', 'talord_caps2']
+    for sampler in samplers:
+        print('@@@@@')
+        print(sampler)
+        print('-----')
+        dummy_sample_gen = DummySampleGenerator(
+            make_dummy_sample = dummy_sampler,
+            max_len = 4, max_len_spaces = 1,
+            sampler=sampler)
+        count = 0
+        for sample in dummy_sample_gen.gen_sample():
+            print(sample)
+            count += 1
+            if count > 5:
+                break
