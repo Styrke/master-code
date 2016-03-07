@@ -3,7 +3,7 @@ from collections import Counter
 
 class Alphabet(object):
     """Easily encode and decode strings using a set of characters."""
-    def __init__(self, alphabet='data/alphabet', eos=None, unk=''):
+    def __init__(self, alphabet='data/alphabet', eos=None, unk='', sos=None):
         """Get alphabet dict with unique integer values for each char.
 
         By default (if argument eos==None) no EOS character will be
@@ -23,9 +23,12 @@ class Alphabet(object):
             sequences to be appended with EOS char
         unk -- string that represents UNK character when decoding.
             (default: '')
+        sos -- string that represents Start Of Sequence character when
+            decoding. (default: '')
         """
         self.unk_char = unk  # Representation of UNK when decoding
         self.eos_char = eos  # Representation of EOS when decoding
+        self.sos_char = sos  # Representation of SOS when decoding
 
         if type(alphabet) is list:
             self.char_list = alphabet
@@ -46,11 +49,14 @@ class Alphabet(object):
 
         # ids for unknown and EOS characters
         self.unk_id = len(self.encode_dict)  # id for UNK char
-        self.eos_id = self.unk_id + 1  # id for EOS char
 
-        # be able to decode eos character if used
-        if self.eos_char:
+        # be able to decode eos and sos characters if used
+        if self.eos_char is not None:
+            self.eos_id = len(self.decode_dict) + 1  # id for EOS char
             self.decode_dict[self.eos_id] = self.eos_char
+        if self.sos_char is not None:
+            self.sos_id = len(self.decode_dict) + 1  # id for SOS char
+            self.decode_dict[self.sos_id] = self.sos_char
 
     def encode(self, string):
         """Encode a string to a sequence of integers."""

@@ -100,7 +100,7 @@ class TextBatchGenerator(BatchGenerator):
         if alphabet:
             self.alphabet = alphabet
         else:
-            self.alphabet = Alphabet(eos='*')
+            self.alphabet = Alphabet(eos='*', sos='')
 
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
@@ -118,6 +118,8 @@ class TextBatchGenerator(BatchGenerator):
         self.batch['t_encoded'] = self._make_array(t, self.alphabet.encode, 25)
         self.batch['x_spaces'] = self._make_array(x, self._spaces, 3)
         self.batch['t_mask'] = self._make_array(t, self._mask, 25)
+
+        self.batch['t_encoded_go'] = self._add_sos(self.batch['t_encoded'])
 
         offset = self.add_eos_character  # Maybe count EOS character
         self.batch['x_len'] = self._make_len_vec(x, offset=offset)
@@ -197,6 +199,10 @@ class TextBatchGenerator(BatchGenerator):
 
         return mask
 
+    def _add_sos(self, array):
+        """Add Start Of Sequence character to an array of sequences."""
+        sos_col = np.ones([self.latest_batch_size, 1]) * self.alphabet.sos_id
+        return np.concatenate([sos_col, array[:, :-1]], 1)
 
 if __name__ == '__main__':
     text_load_method = TextLoadMethod()
