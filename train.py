@@ -12,16 +12,18 @@ use_logged_weights = False
 
 
 @click.command()
-@click.option('--loader', default=2,
-              help='0: for europarl, 1: for simple_dummy_gen')
+@click.option(
+    '--loader', type=click.Choice(['europarl', 'normal', 'talord',
+    'talord_caps1', 'talord_caps2', 'talord_caps3']), default='normal',
+    help='Choose dataset to load. (default: normal)')
 @click.option('--tsne', is_flag=True,
-              help='Use t-sne to plot character embeddings.')
+    help='Use t-sne to plot character embeddings.')
 @click.option('--visualize', default=0,
-              help='Print visualizations every N iterations.')
+    help='Print visualizations every N iterations.')
 @click.option('--log-freq', default=10,
-              help='Print updates every N iterations. (default: 10)')
+    help='Print updates every N iterations. (default: 10)')
 @click.option('--save-freq', default=0,
-              help='Create checkpoint every N iterations.')
+    help='Create checkpoint every N iterations.')
 def train(loader, tsne, visualize, log_freq, save_freq):
     """Train a translation model."""
     # initialize placeholders for the computation graph
@@ -53,29 +55,29 @@ def train(loader, tsne, visualize, log_freq, save_freq):
     # the magic number arguments in dummy loaders are for max len and
     # max spaces.
 
-    if loader == 0:
+    if loader == 'europarl':
         print('Using europarl loader')
         text_load_method = text_loader.TextLoadMethod()
         sample_gen = SampleGenerator(text_load_method, repeat=True)
-    elif loader == 1:
+    elif loader == 'normal':
         print('Using normal dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 19, 1, 'normal')
-    elif loader == 2:
+    elif loader == 'talord':
         print('Using talord dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord')
-    elif loader == 3:
-        print('Using talord_caps dummy loader')
+    elif loader == 'talord_caps1':
+        print('Using talord_caps1 dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps1')
-    elif loader == 4:
+    elif loader == 'talord_caps2':
         print('Using talord_caps2 dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps2')
-    elif loader == 5:
+    elif loader == 'talord_caps3':
         print('Using talord_caps3 dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps3')
     else:
-        # should make a section to handle bad flag args
-        print('Please use only 0 or 1 as arguments')
+        print('This should not happen, contact administrator')
         assert False
+
     text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_size=32)
 
     alphabet = text_batch_gen.alphabet
