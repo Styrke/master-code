@@ -69,12 +69,14 @@ make_caps = {
     'l': 'L',
     'k': 'K',
     'y': 'Y',
+    'm': 'M',
     ' ': ' ',
 }
 
 
 def dummy_sampler(max_len, max_len_spaces, sampler='normal'):
-    assert sampler in ['normal', 'talord', 'talord_caps', 'talord_caps2']
+    assert sampler in ['normal', 'talord', 'talord_caps1', 'talord_caps2',
+        'talord_caps3']
     elem_X, elem_t = simple_dummy_sample(max_len, max_len_spaces)
     if sampler == 'normal':
         pass # base case
@@ -82,7 +84,7 @@ def dummy_sampler(max_len, max_len_spaces, sampler='normal'):
         # Turning it to danish/english (list -> join)
         elem_X = ''.join([advanced_dict[0][e] for e in elem_X])
         elem_t = ''.join([advanced_dict[1][e] for e in elem_t])
-        if sampler == 'talord_caps':
+        if sampler == 'talord_caps1' or sampler=="talord_caps3":
             holder = [] # hacked around str assignment
             for e in elem_X:
                 if np.random.choice(2):
@@ -90,8 +92,8 @@ def dummy_sampler(max_len, max_len_spaces, sampler='normal'):
                 else:
                     holder.append(e)
             elem_X = ''.join(holder)
-        elif sampler == 'talord_caps2':
-            if np.random.choice(2):
+        if sampler == 'talord_caps2' or sampler=="talord_caps3":
+            if np.random.choice(4) == 0:
                 elem_t = ''.join([make_caps[e] for e in elem_t])
     return elem_X, elem_t
 
@@ -115,8 +117,10 @@ class DummySampleGenerator(SampleGenerator):
                 self.max_len, self.max_len_spaces, self.sampler)
 
 if __name__ == '__main__':
-    samplers = ['normal', 'talord', 'talord_caps', 'talord_caps2']
+    samplers = ['normal', 'talord', 'talord_caps1', 'talord_caps2',
+        'talord_caps3']
     for sampler in samplers:
+        print
         print('@@@@@')
         print(sampler)
         print('-----')

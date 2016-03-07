@@ -65,10 +65,13 @@ def train(loader, tsne, visualize, log_freq, save_freq):
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord')
     elif loader == 3:
         print('Using talord_caps dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps')
+        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps1')
     elif loader == 4:
         print('Using talord_caps2 dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps2')
+    elif loader == 5:
+        print('Using talord_caps3 dummy loader')
+        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps3')
     else:
         # should make a section to handle bad flag args
         print('Please use only 0 or 1 as arguments')
@@ -117,9 +120,11 @@ def train(loader, tsne, visualize, log_freq, save_freq):
                                 alphabet.decode(batch['t_encoded'][j])
                             ))
 
+            # Write summaries for TensorBoard.
+            writer.add_summary(res[2], i)
+
             if save_freq and i:
                 if i % save_freq == 0:
-                    writer.add_summary(res[2], i)
                     saver.save(sess,
                                'train/checkpoints/checkpoint',
                                global_step=model.global_step)
