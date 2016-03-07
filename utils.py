@@ -1,4 +1,5 @@
 ## A collection of methods used in the master-code repository
+import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
@@ -57,3 +58,12 @@ def create_tsne(model, alphadict, plot_only=100, plx=20):
     reverse_dictionary = alphadict#reverse_dict(alphadict)
     labels = [reverse_dictionary[i] for i in range(plot_only)]
     plot_with_labels(low_dim_embs, labels)
+
+def acc(out, label, mask):
+    """ Takes an output (soft labelled/logits), labels and a mask
+        outputs maksed accuracy
+    """
+    out = np.argmax(out, axis=2) # axis 2 is axis with predictions
+    masked_sum = np.sum(((out == label).flatten()*mask.flatten())) \
+                   .astype('float32')
+    return  masked_sum / np.sum(mask).astype('float32')

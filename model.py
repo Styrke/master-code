@@ -71,6 +71,13 @@ class Model(object):
         for d in dec_out:
             self.out.append(tf.matmul(d, W_out) + b_out)
 
+        # for debugging network
+        out_packed = tf.pack(self.out)
+        out_packed = tf.transpose(out_packed, perm=[1, 0, 2])
+        print(out_packed.get_shape())
+        self.out_tensor = out_packed
+
+
 
     def build_loss(self, ts, t_mask):
         print('Building model loss')

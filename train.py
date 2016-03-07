@@ -5,7 +5,7 @@ from frostings.loader import *
 
 import text_loader
 from model import Model
-from utils import create_tsne as TSNE
+from utils import acc, create_tsne as TSNE
 from dummy_loader import *
 
 use_logged_weights = False
@@ -111,7 +111,8 @@ def train(loader, tsne, visualize, log_freq, save_freq):
                 t_mask: batch['t_mask']
             }
 
-            fetches = [model.loss, model.ys, summaries, model.train_op]
+            fetches = [model.loss, model.ys, summaries, model.train_op,
+                model.out_tensor]
             res = sess.run(fetches, feed_dict=feed_dict)
 
             # Maybe visualize predictions
@@ -135,7 +136,10 @@ def train(loader, tsne, visualize, log_freq, save_freq):
 
             if log_freq:
                 if i % log_freq == 0:
-                    click.echo('Iteration %i Loss: %f' % (i, np.mean(res[0])))
+                    batch_acc = acc(res[4], batch['t_encoded'],
+                        batch['t_mask'])
+                    click.echo('Iteration %i Loss: %f Acc: %f' % (
+                        i, np.mean(res[0]), batch_acc))
 
 if __name__ == '__main__':
     train()
