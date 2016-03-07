@@ -67,7 +67,7 @@ class Alphabet(object):
 
         return encoded
 
-    def decode(self, sequence):
+    def decode(self, seq):
         """Decode a sequence of integers to a string."""
-        str_sequence = [self.decode_dict.get(i, self.unk_id) for i in sequence]
+        str_sequence = [self.decode_dict.get(i, self.unk_char) for i in seq]
         return ''.join(str_sequence)
