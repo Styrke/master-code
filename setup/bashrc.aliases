@@ -1,0 +1,1 @@
+alias gpu-docker='docker run -v $HOME:$HOME -w="$HOME" -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH -it $LD_LIBRARY $CUDA_SO $DEVICES obeyed/py3-tf-gpu:1.0'

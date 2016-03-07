@@ -1,0 +1,20 @@
+### Make symbolic links for tensorflow gpu accesibility
+if [ ! -d $HOME/tensorflow-cuda-symlinks ]
+then
+  # create symlinks
+  for f in /usr/local/cuda/lib64/*.so
+  do ln -s $f ~/; done
+
+  # create folder for symlinks
+  mkdir ~/tensorflow-cuda-symlinks/
+
+  # rename all symlinks
+  mv ~/*.so ~/tensorflow-cuda-symlinks/
+  for f in ~/tensorflow-cuda-symlinks/*.so
+  do mv $f $f.7.0; done
+
+  # rename libcudnn symlink
+  mv ~/tensorflow-cuda-symlinks/libcudnn.so.7.0 ~/tensorflow-cuda-symlinks/libcudnn.so.6.5
+  cp ~/tensorflow-cuda-symlinks/libcudnn.so.6.5 ~/tensorflow-cuda-symlinks/libcudnn.so
+fi
+
