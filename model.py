@@ -7,8 +7,8 @@ from tensorflow.python.ops import rnn
 
 class Model(object):
 
-    def __init__(self, alphabet_size, embedd_dims=6, max_x_seq_len=25,
-        max_t_seq_len=25, rnn_units=335):
+    def __init__(self, alphabet_size, embedd_dims=8, max_x_seq_len=25,
+        max_t_seq_len=25, rnn_units=100):
         self.alphabet_size = alphabet_size
         self.embedd_dims = embedd_dims
         self.max_x_seq_len = max_x_seq_len
@@ -51,7 +51,7 @@ class Model(object):
                 [self.rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        cell = rnn_cell.BasicRNNCell(self.rnn_units)
+        cell = rnn_cell.GRUCell(self.rnn_units)
 
         # encoder
         enc_outputs, enc_state = rnn.rnn(
@@ -117,7 +117,7 @@ class Model(object):
         print('Building model training')
 
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+        optimizer = tf.train.MomentumOptimizer(learning_rate, 0.9)
         self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
 
 

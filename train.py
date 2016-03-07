@@ -38,7 +38,7 @@ def train(loader, tsne, visualize, log_freq, save_freq):
     model.build(Xs, X_len, ts_go)
     model.build_loss(ts, t_mask)
     model.build_prediction()
-    model.training(learning_rate=0.01)
+    model.training(learning_rate=0.1)
 
     loss_summary = tf.scalar_summary('loss', model.loss)
 
