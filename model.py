@@ -8,7 +8,7 @@ from tensorflow.python.ops import rnn
 class Model(object):
 
     def __init__(self, alphabet_size, embedd_dims=8, max_x_seq_len=25,
-        max_t_seq_len=25, rnn_units=100):
+            max_t_seq_len=25, rnn_units=100):
         self.alphabet_size = alphabet_size
         self.embedd_dims = embedd_dims
         self.max_x_seq_len = max_x_seq_len
