@@ -1,10 +1,10 @@
-from frostings.loader import *
+from frostings import loader
 import numpy as np
 
 from data.alphabet import Alphabet
 
 
-class TextLoadMethod(LoadMethod):
+class TextLoadMethod(loader.LoadMethod):
     """Load and prepare text data."""
 
     def __init__(self):
@@ -66,7 +66,7 @@ class TextLoadMethod(LoadMethod):
         return samples
 
 
-class TextBatchGenerator(BatchGenerator):
+class TextBatchGenerator(loader.BatchGenerator):
     """Generates processed batches of text.
 
     Extends BatchGenerator
@@ -206,7 +206,7 @@ class TextBatchGenerator(BatchGenerator):
 
 if __name__ == '__main__':
     text_load_method = TextLoadMethod()
-    sample_gen = SampleGenerator(text_load_method)
+    sample_gen = loader.SampleGenerator(text_load_method)
     text_batch_gen = TextBatchGenerator(sample_gen, batch_size=32)
 
     for batch in text_batch_gen.gen_batch():

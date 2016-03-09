@@ -1,4 +1,4 @@
-from frostings.loader import *
+from frostings import loader
 import numpy as np
 
 def simple_dummy_sample(max_len, max_len_spaces):
@@ -97,7 +97,7 @@ def dummy_sampler(max_len, max_len_spaces, sampler='normal'):
                 elem_t = ''.join([make_caps[e] for e in elem_t])
     return elem_X, elem_t
 
-class DummySampleGenerator(SampleGenerator):
+class DummySampleGenerator(loader.SampleGenerator):
     """Generates a sample from a dummy sampler
 
     Extends SampleGenerator
