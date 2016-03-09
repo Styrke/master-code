@@ -117,7 +117,7 @@ class Model(object):
         print('Building model training')
 
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
-        optimizer = tf.train.MomentumOptimizer(learning_rate, 0.9)
+        optimizer = tf.train.AdamOptimizer()
         self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
 
 

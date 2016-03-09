@@ -62,7 +62,7 @@ def train(loader, tsne, visualize, log_freq, save_freq):
         sample_gen = SampleGenerator(text_load_method, repeat=True)
     elif loader == 'normal':
         print('Using normal dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, 19, 1, 'normal')
+        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'normal')
     elif loader == 'talord':
         print('Using talord dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord')
