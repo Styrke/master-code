@@ -1,9 +1,6 @@
 import numpy as np
 import os
-import utils
-
 from . import utils
-
 
 # Method YOU should implement!
 class LoadMethod(object):
