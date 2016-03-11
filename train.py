@@ -26,7 +26,10 @@ use_logged_weights = False
     help='Create checkpoint every N iterations.')
 @click.option('--num-iterations', default=20000,
     help='Number of iterations')
-def train(loader, tsne, visualize, log_freq, save_freq, num_iterations):
+@click.option('--valid-every', default=20,
+    help='Iteration to validate at')
+def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
+          valid_every):
     """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
@@ -60,10 +63,11 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations):
 
     if loader == 'europarl':
         print('Using europarl loader')
-        text_load_method = text_loader.TextLoadMethod(
+        train_load_method = text_loader.TextLoadMethod(
             ['data/train/europarl-v7.fr-en.en'],
             ['data/train/europarl-v7.fr-en.fr'])
-        sample_gen = SampleGenerator(text_load_method, repeat=True)
+        train_sample_gen = SampleGenerator(train_load_method, repeat=True)
+        train_eval_sample_gen = SampleGenerator(train_load_method, repeat=False)
     elif loader == 'normal':
         print('Using normal dummy loader')
         sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'normal')
@@ -83,9 +87,11 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations):
         print('This should not happen, contact administrator')
         assert False
 
-    text_batch_gen = text_loader.TextBatchGenerator(sample_gen, batch_size=32)
-
-    alphabet = text_batch_gen.alphabet
+    train_batch_gen = text_loader.TextBatchGenerator(
+        train_sample_gen, batch_size=32)
+    train_eval_batch_gen = text_loader.TextBatchGenerator(
+        train_eval_sample_gen, batch_size=32)
+    alphabet = train_batch_gen.alphabet
 
     saver = tf.train.Saver()
 
@@ -106,7 +112,38 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations):
         summaries = tf.merge_all_summaries()
         writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
 
-        for i, batch in enumerate(text_batch_gen.gen_batch()):
+        for i, batch in enumerate(train_batch_gen.gen_batch()):
+            if i % valid_every == 0:
+                print()
+                print('Validating')
+                subsets = ['train']
+                gens = [train_eval_batch_gen]
+
+                for subset, gen in zip(subsets, gens):
+                    print('  %s set' % subset)
+                    outputs = []
+                    labels = []
+                    masks = []
+                    for valid_batch in gen.gen_batch():
+                        feed_dict = {
+                            Xs: valid_batch['x_encoded'],
+                            ts_go: valid_batch['t_encoded_go'],
+                            X_len: valid_batch['x_len']
+                        }
+
+                        fetches = [model.out_tensor]
+                        res = sess.run(fetches, feed_dict=feed_dict)
+                        out = res[0]
+                        outputs.append(out)
+                        labels.append(valid_batch['t_encoded'])
+                        masks.append(valid_batch['t_mask'])
+                    outputs = np.vstack(outputs)
+                    labels = np.vstack(labels)
+                    masks = np.vstack(masks)
+                    valid_acc = acc(outputs, labels, masks)
+                    print('    acc:\t%.2f%%' % (valid_acc * 100))
+                    print()
+
             feed_dict = {
                 Xs: batch['x_encoded'],
                 ts: batch['t_encoded'],
