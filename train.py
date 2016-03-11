@@ -67,6 +67,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
             ['data/train/europarl-v7.fr-en.en'],
             ['data/train/europarl-v7.fr-en.fr'])
         train_sample_gen = SampleGenerator(train_load_method, repeat=True)
+        # data loader for eval, notices repeat = false
         train_eval_sample_gen = SampleGenerator(train_load_method, repeat=False)
     elif loader == 'normal':
         print('Using normal dummy loader')
@@ -89,6 +90,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
 
     train_batch_gen = text_loader.TextBatchGenerator(
         train_sample_gen, batch_size=32)
+    # again, for evaluation purposes
     train_eval_batch_gen = text_loader.TextBatchGenerator(
         train_eval_sample_gen, batch_size=32)
     alphabet = train_batch_gen.alphabet
@@ -116,15 +118,19 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
             if i % valid_every == 0:
                 print()
                 print('Validating')
+                # subset for printing purposes
                 subsets = ['train']
+                # giving the generator to the subset
                 gens = [train_eval_batch_gen]
 
                 for subset, gen in zip(subsets, gens):
                     print('  %s set' % subset)
+                    # holders for subset (to compute acc() later!)
                     outputs = []
                     labels = []
                     masks = []
                     for valid_batch in gen.gen_batch():
+                        # running the model only for inference
                         feed_dict = {
                             Xs: valid_batch['x_encoded'],
                             ts_go: valid_batch['t_encoded_go'],
@@ -134,12 +140,15 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
                         fetches = [model.out_tensor]
                         res = sess.run(fetches, feed_dict=feed_dict)
                         out = res[0]
+                        # appending for each batch
                         outputs.append(out)
                         labels.append(valid_batch['t_encoded'])
                         masks.append(valid_batch['t_mask'])
+                    # stacking all batches, list -> nd.array
                     outputs = np.vstack(outputs)
                     labels = np.vstack(labels)
                     masks = np.vstack(masks)
+                    # getting validation
                     valid_acc = acc(outputs, labels, masks)
                     print('    acc:\t%.2f%%' % (valid_acc * 100))
                     print()
