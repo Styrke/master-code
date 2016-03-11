@@ -7,20 +7,26 @@ from data.alphabet import Alphabet
 class TextLoadMethod(loader.LoadMethod):
     """Load and prepare text data."""
 
-    def __init__(self):
+    def __init__(self, paths_X, paths_t):
         """Initialize instance of TextLoadMethod."""
+        self.paths_X = paths_X
+        self.paths_t = paths_t
         self._prepare_data()
 
     def _load_data(self):
         """Read data from files and create list of samples."""
-        print("loading X data ...")
-        with open("data/train/europarl-v7.fr-en.en", "r", encoding="utf-8") as f:
-            train_X = f.read().split("\n")
-        print("loading t data ...")
-        with open("data/train/europarl-v7.fr-en.fr", "r", encoding="utf-8") as f:
-            train_t = f.read().split("\n")
+        
+        data_X = []
+        data_t = []
+        for path_X, path_t in zip(self.paths_X, self.paths_t):
+            print("loading X data ...")
+            with open(path_X, "r", encoding="utf-8") as f:
+                data_X += f.read().split("\n")
+            print("loading t data ...")
+            with open(path_t, "r", encoding="utf-8") as f:
+                data_t = f.read().split("\n")
 
-        self.samples = zip(train_X, train_t)
+        self.samples = zip(data_X, data_t)
 
     def _preprocess_data(self):
         """Clean up, filter, and sort the data samples before use.

@@ -24,7 +24,9 @@ use_logged_weights = False
     help='Print updates every N iterations. (default: 10)')
 @click.option('--save-freq', default=0,
     help='Create checkpoint every N iterations.')
-def train(loader, tsne, visualize, log_freq, save_freq):
+@click.option('--num-iterations', default=20000,
+    help='Number of iterations')
+def train(loader, tsne, visualize, log_freq, save_freq, num_iterations):
     """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
@@ -58,7 +60,9 @@ def train(loader, tsne, visualize, log_freq, save_freq):
 
     if loader == 'europarl':
         print('Using europarl loader')
-        text_load_method = text_loader.TextLoadMethod()
+        text_load_method = text_loader.TextLoadMethod(
+            ['data/train/europarl-v7.fr-en.en'],
+            ['data/train/europarl-v7.fr-en.fr'])
         sample_gen = SampleGenerator(text_load_method, repeat=True)
     elif loader == 'normal':
         print('Using normal dummy loader')
@@ -141,5 +145,9 @@ def train(loader, tsne, visualize, log_freq, save_freq):
                     click.echo('Iteration %i Loss: %f Acc: %f' % (
                         i, np.mean(res[0]), batch_acc))
 
+            if i >= num_iterations:
+                click.echo('reached max iteration: %d' % i)
+                break
+ 
 if __name__ == '__main__':
     train()
