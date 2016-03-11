@@ -58,7 +58,9 @@ def train(loader, tsne, visualize, log_freq, save_freq):
 
     if loader == 'europarl':
         print('Using europarl loader')
-        text_load_method = text_loader.TextLoadMethod()
+        text_load_method = text_loader.TextLoadMethod(
+            ['data/train/europarl-v7.fr-en.en'],
+            ['data/train/europarl-v7.fr-en.fr'])
         sample_gen = SampleGenerator(text_load_method, repeat=True)
     elif loader == 'normal':
         print('Using normal dummy loader')
