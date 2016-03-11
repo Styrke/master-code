@@ -7,10 +7,11 @@ from data.alphabet import Alphabet
 class TextLoadMethod(loader.LoadMethod):
     """Load and prepare text data."""
 
-    def __init__(self, paths_X, paths_t):
+    def __init__(self, paths_X, paths_t, seq_len):
         """Initialize instance of TextLoadMethod."""
         self.paths_X = paths_X
         self.paths_t = paths_t
+        self.seq_len = seq_len
         self._prepare_data()
 
     def _load_data(self):
@@ -56,16 +57,12 @@ class TextLoadMethod(loader.LoadMethod):
     def _filter_samples(self, samples):
         """Filter out samples of extreme length."""
         # remove input sentences that are too short or too long
-        samples = [(x, t) for x, t in samples if len(x) > 1 and len(x) <= 24]
-
-        # Remove input sentences that that has too many spaces. This is a
-        # strict inequality because we add a separater at the end of the
-        # sequence as well.
-        samples = [(x, t) for x, t in samples if (x.count(' ') < 2 and
-                                                  t.count(' ') < 6)]
+        samples = [(x, t) for x, t in samples if len(x) > 1 \
+            and len(x) <= self.seq_len-1]
 
         # remove target sentences that are too short or too long
-        samples = [(x, t) for x, t in samples if len(t) > 1 and len(t) <= 24]
+        samples = [(x, t) for x, t in samples if len(t) > 1 \
+            and len(t) <= self.seq_len - 1]
 
         samples = list(set(samples))
 
@@ -78,8 +75,9 @@ class TextBatchGenerator(loader.BatchGenerator):
     Extends BatchGenerator
     """
 
-    def __init__(self, sample_generator, batch_size, add_feature_dim=False,
-                 use_dynamic_array_sizes=False, alphabet=None):
+    def __init__(self, sample_generator, batch_size, seq_len,
+            add_feature_dim=False, use_dynamic_array_sizes=False,
+            alphabet=None):
         """Initialize instance of TextBatchGenerator.
 
         NOTE: The size of a produced batch can be smaller than
@@ -108,6 +106,7 @@ class TextBatchGenerator(loader.BatchGenerator):
         else:
             self.alphabet = Alphabet(eos='*', sos='')
 
+        self.seq_len = seq_len
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
         self.add_eos_character = True
@@ -120,10 +119,13 @@ class TextBatchGenerator(loader.BatchGenerator):
         """
         x, t = zip(*self.samples)  # unzip samples
         self.batch = dict()
-        self.batch['x_encoded'] = self._make_array(x, self.alphabet.encode, 25)
-        self.batch['t_encoded'] = self._make_array(t, self.alphabet.encode, 25)
-        self.batch['x_spaces'] = self._make_array(x, self._spaces, 3)
-        self.batch['t_mask'] = self._make_array(t, self._mask, 25)
+        self.batch['x_encoded'] = self._make_array(x, self.alphabet.encode,
+            self.seq_len)
+        self.batch['t_encoded'] = self._make_array(t, self.alphabet.encode,
+            self.seq_len)
+        self.batch['x_spaces'] = self._make_array(x, self._spaces,
+            self.seq_len/2)
+        self.batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
 
         self.batch['t_encoded_go'] = self._add_sos(self.batch['t_encoded'])
 

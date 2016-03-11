@@ -28,18 +28,21 @@ use_logged_weights = False
     help='Number of iterations')
 @click.option('--valid-every', default=20,
     help='Iteration to validate at')
+@click.option('--seq-len', default=50,
+    help='Maximum length of char sequences')
 def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
-          valid_every):
+          valid_every, seq_len):
     """Train a translation model."""
     # initialize placeholders for the computation graph
-    Xs = tf.placeholder(tf.int32, shape=[None, 25], name='X_input')
-    ts = tf.placeholder(tf.int32, shape=[None, 25], name='t_input')
-    ts_go = tf.placeholder(tf.int32, shape=[None, 25], name='t_input_go')
+    Xs = tf.placeholder(tf.int32, shape=[None, seq_len], name='X_input')
+    ts = tf.placeholder(tf.int32, shape=[None, seq_len], name='t_input')
+    ts_go = tf.placeholder(tf.int32, shape=[None, seq_len], name='t_input_go')
     X_len = tf.placeholder(tf.int32, shape=[None], name='X_len')
-    t_mask = tf.placeholder(tf.float32, shape=[None, 25], name='t_mask')
+    t_mask = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
 
     # build model
-    model = Model(alphabet_size=337)
+    model = Model(alphabet_size=337, max_x_seq_len = seq_len,
+        max_t_seq_len = seq_len)
     model.build(Xs, X_len, ts_go)
     model.build_loss(ts, t_mask)
     model.build_prediction()
@@ -65,34 +68,34 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
         print('Using europarl loader')
         train_load_method = text_loader.TextLoadMethod(
             ['data/train/europarl-v7.fr-en.en'],
-            ['data/train/europarl-v7.fr-en.fr'])
+            ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
         train_sample_gen = SampleGenerator(train_load_method, repeat=True)
         # data loader for eval, notices repeat = false
         train_eval_sample_gen = SampleGenerator(train_load_method, repeat=False)
     elif loader == 'normal':
         print('Using normal dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'normal')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'normal')
     elif loader == 'talord':
         print('Using talord dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord')
     elif loader == 'talord_caps1':
         print('Using talord_caps1 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps1')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps1')
     elif loader == 'talord_caps2':
         print('Using talord_caps2 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps2')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps2')
     elif loader == 'talord_caps3':
         print('Using talord_caps3 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, 4, 1, 'talord_caps3')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps3')
     else:
         print('This should not happen, contact administrator')
         assert False
 
     train_batch_gen = text_loader.TextBatchGenerator(
-        train_sample_gen, batch_size=32)
+        train_sample_gen, batch_size=32, seq_len=seq_len)
     # again, for evaluation purposes
     train_eval_batch_gen = text_loader.TextBatchGenerator(
-        train_eval_sample_gen, batch_size=32)
+        train_eval_sample_gen, batch_size=32, seq_len=seq_len)
     alphabet = train_batch_gen.alphabet
 
     saver = tf.train.Saver()
