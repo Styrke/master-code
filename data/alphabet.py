@@ -1,12 +1,13 @@
 from collections import Counter
+import pickle
 
 
 class Alphabet(object):
     """Easily encode and decode strings using a set of characters."""
-    def __init__(self, alphabet='data/alphabet', eos=None, unk='', sos=None):
+    def __init__(self, alphabet='data/alphabet', min_occurrence=50, eos=None, unk='', sos=None):
         """Get alphabet dict with unique integer values for each char.
 
-        By default (if argument eos==None) no EOS character will be
+        By default (if argument eos=None) no EOS character will be
         added when encoding strings. If eos is not None, each sequence
         that is encoded will be appended with an EOS char, and the value
         of the eos argument will be used to represent the EOS character
@@ -18,13 +19,15 @@ class Alphabet(object):
         Keyword arguments:
         alphabet -- List of characters, or string with path to a file
         that contains the alphabet. (default: 'data/alphabet')
-        eos -- (optional) string that will be used to represent EOS
-            char when decoding. Only specify if you want all encoded
-            sequences to be appended with EOS char
+        min_occurrence -- set a limit for returned list of characters 
+            by minimum number of known occurrences (default: 50)
+        eos -- string that will be used to represent EOS char when 
+            decoding. Only specify if you want all encoded sequences 
+            to be appended with EOS char (default: None)
         unk -- string that represents UNK character when decoding.
             (default: '')
         sos -- string that represents Start Of Sequence character when
-            decoding. (default: '')
+            decoding. (default: None)
         """
         self.unk_char = unk  # Representation of UNK when decoding
         self.eos_char = eos  # Representation of EOS when decoding
@@ -33,8 +36,8 @@ class Alphabet(object):
         if type(alphabet) is list:
             self.char_list = alphabet
         else:
-            with open(alphabet, 'r', encoding="utf-8") as f:
-                self.char_list = f.read().split('\n')
+            self.char_list = pickle.load(open(alphabet, 'br'), encoding='utf-8')
+            self.char_list = [c for c, n in self.char_list if n >= min_occurrence]
 
         # the list apparently contains some empty character ('') twice, so we
         # have to remove duplicates while preserving the order:
