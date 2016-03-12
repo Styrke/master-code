@@ -2,6 +2,7 @@
 import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+from nltk import bleu_score
 
 
 # for usage in printing output
@@ -31,7 +32,7 @@ def plot_with_labels(low_dim_embs, labels, filename='tsne.png'):
     plt.savefig(filename)
 
 
-# for usage in T-sne (normalized embeddings) 
+# for usage in T-sne (normalized embeddings)
 def get_normalized_embeddings(model):
     try:
         import tensorflow as tf
@@ -67,3 +68,15 @@ def acc(out, label, mask):
     masked_sum = np.sum(((out == label).flatten()*mask.flatten())) \
                    .astype('float32')
     return  masked_sum / np.sum(mask).astype('float32')
+
+
+def bleu(references, hypotheses):
+    """Compute BLEU score.
+
+    Keyword arguments:
+    references -- list of strings with target translations
+    hypotheses -- list of strings with hypothesis translations to test
+    """
+    hypotheses = [h.split() for h in hypotheses]
+    references = [[r.split()] for r in references]
+    return bleu_score.corpus_bleu(references, hypotheses)
