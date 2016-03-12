@@ -24,14 +24,14 @@ use_logged_weights = False
     help='Print updates every N iterations. (default: 10)')
 @click.option('--save-freq', default=0,
     help='Create checkpoint every N iterations.')
-@click.option('--num-iterations', default=20000,
-    help='Number of iterations')
-@click.option('--valid-every', default=20,
-    help='Iteration to validate at')
+@click.option('--iterations', default=20000,
+    help='Number of iterations (default: 20000)')
+@click.option('--valid-freq', default=20,
+    help='Validate every N iterations. 0 to disable. (default: 20)')
 @click.option('--seq-len', default=50,
     help='Maximum length of char sequences')
-def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
-          valid_every, seq_len):
+def train(loader, tsne, visualize, log_freq, save_freq, iterations,
+          valid_freq, seq_len):
     """Train a translation model."""
     # initialize placeholders for the computation graph
     Xs = tf.placeholder(tf.int32, shape=[None, seq_len], name='X_input')
@@ -41,8 +41,10 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
     t_mask = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
 
     # build model
-    model = Model(alphabet_size=337, max_x_seq_len = seq_len,
-        max_t_seq_len = seq_len)
+    model = Model(
+        alphabet_size=337,
+        max_x_seq_len=seq_len,
+        max_t_seq_len=seq_len)
     model.build(Xs, X_len, ts_go)
     model.build_loss(ts, t_mask)
     model.build_prediction()
@@ -50,6 +52,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
 
     loss_summary = tf.scalar_summary('loss', model.loss)
 
+    # Add TensorBoard summaries to biases and weights from encoder and decoder
     for var in tf.all_variables():
         if var.name == 'rnn_encoder/BasicRNNCell/Linear/Matrix:0':
             tf.histogram_summary('weights/encoder', var)
@@ -118,7 +121,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
         writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
 
         for i, batch in enumerate(train_batch_gen.gen_batch()):
-            if i % valid_every == 0:
+            if valid_freq and i % valid_freq == 0:
                 print()
                 print('Validating')
                 # subset for printing purposes
@@ -194,9 +197,9 @@ def train(loader, tsne, visualize, log_freq, save_freq, num_iterations,
                     click.echo('Iteration %i Loss: %f Acc: %f' % (
                         i, np.mean(res[0]), batch_acc))
 
-            if i >= num_iterations:
+            if i >= iterations:
                 click.echo('reached max iteration: %d' % i)
                 break
- 
+
 if __name__ == '__main__':
     train()
