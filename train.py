@@ -72,30 +72,36 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
         train_load_method = text_loader.TextLoadMethod(
             ['data/train/europarl-v7.fr-en.en'],
             ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
-        train_sample_gen = SampleGenerator(train_load_method, repeat=True)
+        train_sample_gen = text_loader.SampleTrainWrapper(train_load_method,
+            num_splits=32)
         # data loader for eval, notices repeat = false
         train_eval_sample_gen = SampleGenerator(train_load_method, repeat=False)
     elif loader == 'normal':
         print('Using normal dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'normal')
+        train_sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'normal')
     elif loader == 'talord':
         print('Using talord dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord')
+        train_sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord')
     elif loader == 'talord_caps1':
         print('Using talord_caps1 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps1')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord_caps1')
     elif loader == 'talord_caps2':
         print('Using talord_caps2 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps2')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord_caps2')
     elif loader == 'talord_caps3':
         print('Using talord_caps3 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps3')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord_caps3')
     else:
         print('This should not happen, contact administrator')
         assert False
 
-    train_batch_gen = text_loader.TextBatchGenerator(
-        train_sample_gen, batch_size=32, seq_len=seq_len)
+    train_batch_gen = text_loader.BatchTrainWrapper(
+        train_sample_gen, batch_size=32, seq_len=seq_len, warm_up=5000)
     # again, for evaluation purposes
     train_eval_batch_gen = text_loader.TextBatchGenerator(
         train_eval_sample_gen, batch_size=32, seq_len=seq_len)
