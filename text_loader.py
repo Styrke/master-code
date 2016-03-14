@@ -215,9 +215,10 @@ class TextBatchGenerator(loader.BatchGenerator):
 
 
 class SampleTrainWrapper(object):
-    def __init__(self, load_method, num_splits=1):
+    def __init__(self, load_method, permutation = None, num_splits=1):
 
         self.load_method = load_method
+        self.permutation = permutation
         self.num_splits = num_splits
         self.cur_split = None # hack for batch_wrapper
 
@@ -226,15 +227,18 @@ class SampleTrainWrapper(object):
 
     def _make_splits(self):
         self.splits = []
-        num_samples = len(self.load_method.samples)
-        permutations = range(num_samples)
+        if self.permutation is None:
+            num_samples = len(self.load_method.samples)
+            self.permutation = range(num_samples)
+        else:
+            num_samples = len(self.permutation)
         split_size = num_samples//self.num_splits
         for split in range(self.num_splits):
-            self.splits.append(list(permutations[
+            self.splits.append(list(self.permutation[
                 split * split_size:
                 (split + 1) * split_size]))
         if num_samples - (split_size * self.num_splits):
-            self.splits[-1] += list(permutations[
+            self.splits[-1] += list(self.permutation[
                 split_size * self.num_splits:])
 
     def _make_samplers(self):

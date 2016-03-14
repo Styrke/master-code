@@ -9,12 +9,12 @@ from utils import acc, create_tsne as TSNE
 from dummy_loader import *
 
 use_logged_weights = False
-
+DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
 @click.command()
 @click.option(
     '--loader', type=click.Choice(['europarl', 'normal', 'talord',
-    'talord_caps1', 'talord_caps2', 'talord_caps3']), default='normal',
+    'talord_caps1', 'talord_caps2', 'talord_caps3']), default='europarl',
     help='Choose dataset to load. (default: normal)')
 @click.option('--tsne', is_flag=True,
     help='Use t-sne to plot character embeddings.')
@@ -72,10 +72,21 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
         train_load_method = text_loader.TextLoadMethod(
             ['data/train/europarl-v7.fr-en.en'],
             ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
+
+        if True:#not os.path.isfile(DEFAULT_VALIDATION_SPLIT):
+            import create_validation_split as v_split
+            v_split.create_split(len(train_load_method.samples),
+                DEFAULT_VALIDATION_SPLIT)
+        split = np.load(DEFAULT_VALIDATION_SPLIT)
+
         train_sample_gen = text_loader.SampleTrainWrapper(train_load_method,
-            num_splits=32)
+            permutation = split['indices_train'], num_splits=32)
+
         # data loader for eval, notices repeat = false
-        train_eval_sample_gen = SampleGenerator(train_load_method, repeat=False)
+        train_eval_sample_gen = SampleGenerator(train_load_method,
+            permutation = split['indices_train'], repeat=False)
+        valid_eval_sample_gen = SampleGenerator(train_load_method, 
+            permutation = split['indices_valid'], repeat=False)
     elif loader == 'normal':
         print('Using normal dummy loader')
         train_sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
@@ -103,8 +114,11 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
     train_batch_gen = text_loader.BatchTrainWrapper(
         train_sample_gen, batch_size=32, seq_len=seq_len, warm_up=100)
     # again, for evaluation purposes
-    train_eval_batch_gen = text_loader.TextBatchGenerator(
-        train_eval_sample_gen, batch_size=32, seq_len=seq_len)
+    if valid_freq:
+        train_eval_batch_gen = text_loader.TextBatchGenerator(
+            train_eval_sample_gen, batch_size=32, seq_len=seq_len)
+        valid_eval_batch_gen = text_loader.TextBatchGenerator(
+            valid_eval_sample_gen, batch_size=32, seq_len=seq_len)
     alphabet = train_batch_gen.alphabet
 
     saver = tf.train.Saver()
@@ -131,9 +145,9 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
                 print()
                 print('Validating')
                 # subset for printing purposes
-                subsets = ['train']
+                subsets = ['valid']
                 # giving the generator to the subset
-                gens = [train_eval_batch_gen]
+                gens = [valid_eval_batch_gen]
 
                 for subset, gen in zip(subsets, gens):
                     print('  %s set' % subset)
