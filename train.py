@@ -73,12 +73,14 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
             ['data/train/europarl-v7.fr-en.en'],
             ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
 
+        # making the validation split (should not just be True later on)
         if True:#not os.path.isfile(DEFAULT_VALIDATION_SPLIT):
             import create_validation_split as v_split
             v_split.create_split(len(train_load_method.samples),
                 DEFAULT_VALIDATION_SPLIT)
+        # loading the validation split
         split = np.load(DEFAULT_VALIDATION_SPLIT)
-
+        # making sample gen for training
         train_sample_gen = text_loader.SampleTrainWrapper(train_load_method,
             permutation = split['indices_train'], num_splits=32)
 
@@ -110,7 +112,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
     else:
         print('This should not happen, contact administrator')
         assert False
-
+    # making batch gen for training
     train_batch_gen = text_loader.BatchTrainWrapper(
         train_sample_gen, batch_size=32, seq_len=seq_len, warm_up=100)
     # again, for evaluation purposes
