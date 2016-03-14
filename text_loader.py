@@ -272,6 +272,8 @@ class BatchTrainWrapper(TextBatchGenerator):
                 # choose the sample_generator list
                 if self.warm_up > 0:
                     self.warm_up -= 1
+                    if self.warm_up == 0:
+                        print('---WARM-UP OVER---')
                 else:
                     self.sample_generator.cur_split = \
                         np.random.choice(self.sample_generator.num_splits)

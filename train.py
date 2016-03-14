@@ -26,8 +26,8 @@ use_logged_weights = False
     help='Create checkpoint every N iterations.')
 @click.option('--iterations', default=20000,
     help='Number of iterations (default: 20000)')
-@click.option('--valid-freq', default=20,
-    help='Validate every N iterations. 0 to disable. (default: 20)')
+@click.option('--valid-freq', default=0,
+    help='Validate every N iterations. 0 to disable. (default: 0)')
 @click.option('--seq-len', default=50,
     help='Maximum length of char sequences')
 def train(loader, tsne, visualize, log_freq, save_freq, iterations,
@@ -101,7 +101,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
         assert False
 
     train_batch_gen = text_loader.BatchTrainWrapper(
-        train_sample_gen, batch_size=32, seq_len=seq_len, warm_up=5000)
+        train_sample_gen, batch_size=32, seq_len=seq_len, warm_up=100)
     # again, for evaluation purposes
     train_eval_batch_gen = text_loader.TextBatchGenerator(
         train_eval_sample_gen, batch_size=32, seq_len=seq_len)
