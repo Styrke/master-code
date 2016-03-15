@@ -78,7 +78,7 @@ class Model(object):
         self.out_tensor = out_packed
 
     def build_loss(self, ts, t_mask, reg_scale=0.001):
-        """Build a loss function for the model.
+        """Build a loss function and accuracy for the model.
 
         Keyword arguments:
         ts -- targets to predict
@@ -86,13 +86,21 @@ class Model(object):
         reg_scale -- regularization scale in range [0.0, 1.0]. 0.0 to
             disable.
         """
-        print('Building model loss')
+        print('Building model loss and accuracy')
+
+        with tf.variable_scope('accuracy'):
+            argmax = tf.to_int32(tf.argmax(self.out_tensor, 2))
+            correct = tf.to_float(tf.equal(argmax, ts)) * t_mask
+            self.accuracy = tf.reduce_sum(correct) / tf.reduce_sum(t_mask)
+
+            tf.scalar_summary('accuracy', self.accuracy)
 
         with tf.variable_scope('loss'):
-            ts = tf.split(
-                split_dim=1, num_split=self.max_t_seq_len, value=ts)
+            with tf.variable_scope('split_t_and_mask'):
+                ts = tf.split(split_dim=1,
+                              num_split=self.max_t_seq_len,
+                              value=ts)
 
-            with tf.variable_scope('split_t_mask'):
                 t_mask = tf.split(
                     split_dim=1,
                     num_split=self.max_t_seq_len,
@@ -114,7 +122,6 @@ class Model(object):
             loss = loss + reg_term
 
         self.loss = loss
-
 
     def build_prediction(self):
         with tf.variable_scope('prediction'):

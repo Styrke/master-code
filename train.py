@@ -87,7 +87,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
         # data loader for eval, notices repeat = false
         train_eval_sample_gen = SampleGenerator(train_load_method,
             permutation = split['indices_train'], repeat=False)
-        valid_eval_sample_gen = SampleGenerator(train_load_method, 
+        valid_eval_sample_gen = SampleGenerator(train_load_method,
             permutation = split['indices_valid'], repeat=False)
     elif loader == 'normal':
         print('Using normal dummy loader')
@@ -153,31 +153,25 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
 
                 for subset, gen in zip(subsets, gens):
                     print('  %s set' % subset)
-                    # holders for subset (to compute acc() later!)
-                    outputs = []
-                    labels = []
-                    masks = []
+                    accuracies = []
                     for valid_batch in gen.gen_batch():
                         # running the model only for inference
                         feed_dict = {
                             Xs: valid_batch['x_encoded'],
+                            ts: valid_batch['t_encoded'],
                             ts_go: valid_batch['t_encoded_go'],
-                            X_len: valid_batch['x_len']
+                            X_len: valid_batch['x_len'],
+                            t_mask: valid_batch['t_mask']
                         }
 
-                        fetches = [model.out_tensor]
+                        fetches = [model.accuracy]
                         res = sess.run(fetches, feed_dict=feed_dict)
-                        out = res[0]
-                        # appending for each batch
-                        outputs.append(out)
-                        labels.append(valid_batch['t_encoded'])
-                        masks.append(valid_batch['t_mask'])
-                    # stacking all batches, list -> nd.array
-                    outputs = np.vstack(outputs)
-                    labels = np.vstack(labels)
-                    masks = np.vstack(masks)
+
+                        # TODO: accuracies should be weighted by batch sizes
+                        # before averaging
+                        accuracies.append(res[0])
                     # getting validation
-                    valid_acc = acc(outputs, labels, masks)
+                    valid_acc = np.mean(accuracies)
                     print('    acc:\t%.2f%%' % (valid_acc * 100))
                     print()
 
@@ -190,7 +184,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
             }
 
             fetches = [model.loss, model.ys, summaries, model.train_op,
-                model.out_tensor]
+                model.accuracy]
             res = sess.run(fetches, feed_dict=feed_dict)
 
             # Maybe visualize predictions
@@ -214,8 +208,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
 
             if log_freq:
                 if i % log_freq == 0:
-                    batch_acc = acc(res[4], batch['t_encoded'],
-                        batch['t_mask'])
+                    batch_acc = res[4]
                     click.echo('Iteration %i Loss: %f Acc: %f' % (
                         i, np.mean(res[0]), batch_acc))
 
