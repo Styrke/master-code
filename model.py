@@ -126,12 +126,27 @@ class Model(object):
             self.ys = tf.argmax(packed_logits, dimension=2)
 
 
-    def training(self, learning_rate):
+    def training(self, learning_rate, clip_norm=1):
         print('Building model training')
 
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         optimizer = tf.train.AdamOptimizer()
-        self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
+
+        # Do gradient clipping
+        # NOTE: this is the correct, but slower clipping by global norm.
+        # Maybe it's worth trying the faster tf.clip_by_norm()
+        # (See the documentation for tf.clip_by_global_norm() for more info)
+        grads_and_vars = optimizer.compute_gradients(self.loss)
+        gradients, variables = zip(*grads_and_vars)  # unzip list of tuples
+        gradients, global_norm = tf.clip_by_global_norm(gradients, clip_norm)
+        grads_and_vars = zip(gradients, variables)
+
+        # Create TensorBoard scalar summary for global gradient norm
+        tf.scalar_summary('global gradient norm', global_norm)
+
+        # make training op for applying the gradients
+        self.train_op = optimizer.apply_gradients(grads_and_vars,
+                                                  global_step=self.global_step)
 
 
 # TODO: put in custom_ops file
