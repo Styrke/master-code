@@ -77,11 +77,17 @@ class Model(object):
         print(out_packed.get_shape())
         self.out_tensor = out_packed
 
+    def build_loss(self, ts, t_mask, reg_scale=0.001):
+        """Build a loss function for the model.
 
-
-    def build_loss(self, ts, t_mask):
+        Keyword arguments:
+        ts -- targets to predict
+        t_mask -- mask for the targets
+        reg_scale -- regularization scale in range [0.0, 1.0]. 0.0 to
+            disable.
+        """
         print('Building model loss')
-        # TODO: build some fail safes, e.g. check if model has built
+
         with tf.variable_scope('loss'):
             ts = tf.split(
                 split_dim=1, num_split=self.max_t_seq_len, value=ts)
@@ -99,6 +105,13 @@ class Model(object):
                 ts,
                 t_mask,
                 self.max_t_seq_len)
+
+            with tf.variable_scope('regularization'):
+                regularize = tf.contrib.layers.l2_regularizer(reg_scale)
+                params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                reg_term = sum([regularize(param) for param in params])
+
+            loss = loss + reg_term
 
         self.loss = loss
 
