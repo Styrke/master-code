@@ -15,7 +15,3 @@ fi
 
 Now log out and back into the server for the changes to take affect.
 
-## Adding the Frostings module
-
-It should now be possible to run `gpu-docker` to fire up a docker container for TF.
-You probably need to run `cd $HOME/thesis/Frostings/ && python3 setup.py install` inside the container, before continuing.
