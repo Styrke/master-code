@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y \
 	gfortran \
 	vim \
 	git \
-        && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/*
+	&& apt-get clean \
+	&& rm -rf /var/lib/apt/lists/* 
 
 RUN pip3 install --upgrade https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.7.1-cp34-none-linux_x86_64.whl
-RUN pip3 install -r requirements.txt
+# unable to install from requirements file -- installing manually
+RUN pip3 install numpy scipy matplotlib sklearn click nltk
 
 CMD ["/bin/bash"]
