@@ -29,16 +29,21 @@ class LoadMethod(object):
 
 class SampleGenerator(object):
 
-    def __init__(self, load_method, shuffle=False, repeat=False):
+    def __init__(self, load_method, permutation=None,
+        shuffle=False, repeat=False):
+
         self.load_method = load_method
-        self.num_samples = len(self.load_method.samples)
         self.shuffle = shuffle
         self.repeat = repeat
 
-        # This default permutation is only used if shuffle == False
-        self.permutation = range(self.num_samples)
-
-        print("ElemGenerator initiated")
+        if permutation is None:
+            self.num_samples = len(self.load_method.samples)
+            self.permutation = range(self.num_samples)
+        else:
+            self.permutation = permutation
+            self.num_samples = len(self.permutation)
+   
+        print("SampleGenerator initiated")
 
     def gen_sample(self):
         while True:

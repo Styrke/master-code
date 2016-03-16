@@ -69,6 +69,7 @@ class TextLoadMethod(loader.LoadMethod):
         return samples
 
 
+
 class TextBatchGenerator(loader.BatchGenerator):
     """Generates processed batches of text.
 
@@ -212,13 +213,96 @@ class TextBatchGenerator(loader.BatchGenerator):
         sos_col = np.ones([self.latest_batch_size, 1]) * self.alphabet.sos_id
         return np.concatenate([sos_col, array[:, :-1]], 1)
 
+
+class SampleTrainWrapper(object):
+    def __init__(self, load_method, permutation = None, num_splits=1):
+
+        self.load_method = load_method
+        self.permutation = permutation
+        self.num_splits = num_splits
+        self.cur_split = None # hack for batch_wrapper
+
+        self._make_splits()
+        self._make_samplers()
+
+    def _make_splits(self):
+        self.splits = []
+        if self.permutation is None:
+            num_samples = len(self.load_method.samples)
+            self.permutation = range(num_samples)
+        else:
+            num_samples = len(self.permutation)
+        split_size = num_samples//self.num_splits
+        for split in range(self.num_splits):
+            self.splits.append(list(self.permutation[
+                split * split_size:
+                (split + 1) * split_size]))
+        if num_samples - (split_size * self.num_splits):
+            self.splits[-1] += list(self.permutation[
+                split_size * self.num_splits:])
+
+    def _make_samplers(self):
+        self.samplers = []
+        for split in self.splits:
+            self.samplers.append(
+                loader.SampleGenerator(self.load_method, permutation=split,
+                    shuffle=True, repeat=True))
+
+    def gen_sample(self):
+        while True:
+            yield next(self.samplers[self.cur_split].gen_sample())
+            # should add some stop mechanism.
+
+
+class BatchTrainWrapper(TextBatchGenerator):
+
+    def __init__(self, sample_generator, batch_size, seq_len,
+        add_feature_dim=False, use_dynamic_array_size=False,
+        alphabet=None, warm_up=5000):
+
+        super(BatchTrainWrapper, self).__init__(sample_generator, batch_size,
+            seq_len, add_feature_dim, use_dynamic_array_size, alphabet)
+
+        self.warm_up = warm_up
+        self.sample_generator.cur_split = 0
+
+    def gen_batch(self):
+        self.samples = []
+        for sample in self.sample_generator.gen_sample():
+            self.samples.append(sample)
+            if len(self.samples) == self.batch_size:
+                yield self._make_batch()
+                self.samples = []
+                # choose the sample_generator list
+                if self.warm_up > 0:
+                    self.warm_up -= 1
+                    if self.warm_up == 0:
+                        print('---WARM-UP OVER---')
+                else:
+                    self.sample_generator.cur_split = \
+                        np.random.choice(self.sample_generator.num_splits)
+
+
 if __name__ == '__main__':
-    text_load_method = TextLoadMethod()
+    text_load_method = TextLoadMethod(
+        ['data/train/europarl-v7.fr-en.en'],
+        ['data/train/europarl-v7.fr-en.fr'], seq_len=40)
     sample_gen = loader.SampleGenerator(text_load_method)
-    text_batch_gen = TextBatchGenerator(sample_gen, batch_size=32)
+    text_batch_gen = TextBatchGenerator(sample_gen, batch_size=32, seq_len=40)
 
     for batch in text_batch_gen.gen_batch():
         pass
+    print(type(batch))
+    print(len(batch.items()))
+    for key, item in batch.items():
+        print(key, item.shape)
+
+    sample_wrapper = SampleTrainWrapper(text_load_method, num_splits=16)
+    batch_wrapper = BatchTrainWrapper(sample_wrapper,
+        batch_size=32, seq_len=40, warm_up=5000)
+    batch = next(batch_wrapper.gen_batch())
+    print(type(batch))
+    print(len(batch.items()))
 
     for key, item in batch.items():
         print(key, item.shape)

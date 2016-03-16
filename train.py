@@ -9,12 +9,12 @@ from utils import acc, create_tsne as TSNE
 from dummy_loader import *
 
 use_logged_weights = False
-
+DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
 @click.command()
 @click.option(
     '--loader', type=click.Choice(['europarl', 'normal', 'talord',
-    'talord_caps1', 'talord_caps2', 'talord_caps3']), default='normal',
+    'talord_caps1', 'talord_caps2', 'talord_caps3']), default='europarl',
     help='Choose dataset to load. (default: normal)')
 @click.option('--tsne', is_flag=True,
     help='Use t-sne to plot character embeddings.')
@@ -26,8 +26,8 @@ use_logged_weights = False
     help='Create checkpoint every N iterations.')
 @click.option('--iterations', default=20000,
     help='Number of iterations (default: 20000)')
-@click.option('--valid-freq', default=20,
-    help='Validate every N iterations. 0 to disable. (default: 20)')
+@click.option('--valid-freq', default=0,
+    help='Validate every N iterations. 0 to disable. (default: 0)')
 @click.option('--seq-len', default=50,
     help='Maximum length of char sequences')
 def train(loader, tsne, visualize, log_freq, save_freq, iterations,
@@ -72,33 +72,55 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
         train_load_method = text_loader.TextLoadMethod(
             ['data/train/europarl-v7.fr-en.en'],
             ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
-        train_sample_gen = SampleGenerator(train_load_method, repeat=True)
+
+        # making the validation split (should not just be True later on)
+        if True:#not os.path.isfile(DEFAULT_VALIDATION_SPLIT):
+            import create_validation_split as v_split
+            v_split.create_split(len(train_load_method.samples),
+                DEFAULT_VALIDATION_SPLIT)
+        # loading the validation split
+        split = np.load(DEFAULT_VALIDATION_SPLIT)
+        # making sample gen for training
+        train_sample_gen = text_loader.SampleTrainWrapper(train_load_method,
+            permutation = split['indices_train'], num_splits=32)
+
         # data loader for eval, notices repeat = false
-        train_eval_sample_gen = SampleGenerator(train_load_method, repeat=False)
+        train_eval_sample_gen = SampleGenerator(train_load_method,
+            permutation = split['indices_train'], repeat=False)
+        valid_eval_sample_gen = SampleGenerator(train_load_method,
+            permutation = split['indices_valid'], repeat=False)
     elif loader == 'normal':
         print('Using normal dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'normal')
+        train_sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'normal')
     elif loader == 'talord':
         print('Using talord dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord')
+        train_sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord')
     elif loader == 'talord_caps1':
         print('Using talord_caps1 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps1')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord_caps1')
     elif loader == 'talord_caps2':
         print('Using talord_caps2 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps2')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord_caps2')
     elif loader == 'talord_caps3':
         print('Using talord_caps3 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1, 'talord_caps3')
+        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
+            'talord_caps3')
     else:
         print('This should not happen, contact administrator')
         assert False
-
-    train_batch_gen = text_loader.TextBatchGenerator(
-        train_sample_gen, batch_size=32, seq_len=seq_len)
+    # making batch gen for training
+    train_batch_gen = text_loader.BatchTrainWrapper(
+        train_sample_gen, batch_size=32, seq_len=seq_len, warm_up=100)
     # again, for evaluation purposes
-    train_eval_batch_gen = text_loader.TextBatchGenerator(
-        train_eval_sample_gen, batch_size=32, seq_len=seq_len)
+    if valid_freq:
+        train_eval_batch_gen = text_loader.TextBatchGenerator(
+            train_eval_sample_gen, batch_size=32, seq_len=seq_len)
+        valid_eval_batch_gen = text_loader.TextBatchGenerator(
+            valid_eval_sample_gen, batch_size=32, seq_len=seq_len)
     alphabet = train_batch_gen.alphabet
 
     saver = tf.train.Saver()
@@ -125,37 +147,31 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
                 print()
                 print('Validating')
                 # subset for printing purposes
-                subsets = ['train']
+                subsets = ['valid']
                 # giving the generator to the subset
-                gens = [train_eval_batch_gen]
+                gens = [valid_eval_batch_gen]
 
                 for subset, gen in zip(subsets, gens):
                     print('  %s set' % subset)
-                    # holders for subset (to compute acc() later!)
-                    outputs = []
-                    labels = []
-                    masks = []
+                    accuracies = []
                     for valid_batch in gen.gen_batch():
                         # running the model only for inference
                         feed_dict = {
                             Xs: valid_batch['x_encoded'],
+                            ts: valid_batch['t_encoded'],
                             ts_go: valid_batch['t_encoded_go'],
-                            X_len: valid_batch['x_len']
+                            X_len: valid_batch['x_len'],
+                            t_mask: valid_batch['t_mask']
                         }
 
-                        fetches = [model.out_tensor]
+                        fetches = [model.accuracy]
                         res = sess.run(fetches, feed_dict=feed_dict)
-                        out = res[0]
-                        # appending for each batch
-                        outputs.append(out)
-                        labels.append(valid_batch['t_encoded'])
-                        masks.append(valid_batch['t_mask'])
-                    # stacking all batches, list -> nd.array
-                    outputs = np.vstack(outputs)
-                    labels = np.vstack(labels)
-                    masks = np.vstack(masks)
+
+                        # TODO: accuracies should be weighted by batch sizes
+                        # before averaging
+                        accuracies.append(res[0])
                     # getting validation
-                    valid_acc = acc(outputs, labels, masks)
+                    valid_acc = np.mean(accuracies)
                     print('    acc:\t%.2f%%' % (valid_acc * 100))
                     print()
 
@@ -168,7 +184,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
             }
 
             fetches = [model.loss, model.ys, summaries, model.train_op,
-                model.out_tensor]
+                model.accuracy]
             res = sess.run(fetches, feed_dict=feed_dict)
 
             # Maybe visualize predictions
@@ -192,8 +208,7 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
 
             if log_freq:
                 if i % log_freq == 0:
-                    batch_acc = acc(res[4], batch['t_encoded'],
-                        batch['t_mask'])
+                    batch_acc = res[4]
                     click.echo('Iteration %i Loss: %f Acc: %f' % (
                         i, np.mean(res[0]), batch_acc))
 
