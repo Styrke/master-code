@@ -8,14 +8,15 @@ from tensorflow.python.ops import rnn
 class Model(object):
 
     def __init__(self, alphabet_size, embedd_dims=8, max_x_seq_len=25,
-            max_t_seq_len=25, rnn_units=100):
+            max_t_seq_len=25):
         self.alphabet_size = alphabet_size
         self.embedd_dims = embedd_dims
         self.max_x_seq_len = max_x_seq_len
         self.max_t_seq_len = max_t_seq_len
-        self.rnn_units = rnn_units
+        # rnn output size must equal alphabet size for decoder feedback to work
+        self.rnn_units = alphabet_size
 
-    def build(self, Xs, X_len, ts):
+    def build(self, Xs, X_len, ts, feedback):
         print('Building model')
 
         self.embeddings = tf.Variable(
@@ -61,11 +62,21 @@ class Model(object):
             sequence_length=X_len,
             scope='rnn_encoder')
 
+        def decoder_loop_function(prev, i):
+            def feedback_on():
+                return tf.gather(self.embeddings, tf.argmax(prev, 1))
+
+            def feedback_off():
+                return t_list[i]
+
+            return tf.cond(feedback, feedback_on, feedback_off)
+
         # decoder
         dec_out, dec_state = seq2seq.rnn_decoder(
             decoder_inputs=t_list,
             initial_state=enc_state,
-            cell=cell)
+            cell=cell,
+            loop_function=decoder_loop_function)
 
         self.out = []
         for d in dec_out:

@@ -39,13 +39,14 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
     ts_go = tf.placeholder(tf.int32, shape=[None, seq_len], name='t_input_go')
     X_len = tf.placeholder(tf.int32, shape=[None], name='X_len')
     t_mask = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
+    feedback = tf.placeholder(tf.bool, name='feedback_indicator')
 
     # build model
     model = Model(
         alphabet_size=337,
         max_x_seq_len=seq_len,
         max_t_seq_len=seq_len)
-    model.build(Xs, X_len, ts_go)
+    model.build(Xs, X_len, ts_go, feedback)
     model.build_loss(ts, t_mask)
     model.build_prediction()
     model.training(learning_rate=0.1)
@@ -161,7 +162,8 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
                             ts: valid_batch['t_encoded'],
                             ts_go: valid_batch['t_encoded_go'],
                             X_len: valid_batch['x_len'],
-                            t_mask: valid_batch['t_mask']
+                            t_mask: valid_batch['t_mask'],
+                            feedback: True
                         }
 
                         fetches = [model.accuracy]
@@ -180,7 +182,8 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
                 ts: batch['t_encoded'],
                 ts_go: batch['t_encoded_go'],
                 X_len: batch['x_len'],
-                t_mask: batch['t_mask']
+                t_mask: batch['t_mask'],
+                feedback: False
             }
 
             fetches = [model.loss, model.ys, summaries, model.train_op,
