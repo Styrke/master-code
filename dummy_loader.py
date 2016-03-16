@@ -104,7 +104,7 @@ class DummySampleGenerator(loader.SampleGenerator):
     """
 
 
-    def __init__(self, make_dummy_sample=simple_dummy_sample,
+    def __init__(self, make_dummy_sample=dummy_sampler,
                  max_len=4, max_len_spaces=1, sampler='normal'):
         self.make_dummy_sample = make_dummy_sample
         self.max_len = max_len
