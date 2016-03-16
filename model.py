@@ -62,11 +62,14 @@ class Model(object):
             sequence_length=X_len,
             scope='rnn_encoder')
 
+        # The loop function provides inputs to the decoder:
         def decoder_loop_function(prev, i):
             def feedback_on():
+                # feedback is on, so feed the decoder with the previous output
                 return tf.gather(self.embeddings, tf.argmax(prev, 1))
 
             def feedback_off():
+                # feedback is off, so just feed the decoder with t's
                 return t_list[i]
 
             return tf.cond(feedback, feedback_on, feedback_off)
