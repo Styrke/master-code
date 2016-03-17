@@ -162,19 +162,19 @@ class Model(object):
         grads_and_vars = optimizer.compute_gradients(self.loss)
         grads, variables = zip(*grads_and_vars)  # unzip list of tuples
         clipped_grads, global_norm = tf.clip_by_global_norm(grads, clip_norm)
-        grads_and_vars = zip(clipped_grads, variables)
+        clipped_grads_and_vars = zip(clipped_grads, variables)
 
         # Create TensorBoard scalar summary for global gradient norm
         tf.scalar_summary('global gradient norm', global_norm)
 
-        # Create TensorBoard summaries for gradients (before clipping)
-        # (Works, but the names in tensorboard aren't useful, so it's being
-        # commented out for now.)
-        # tensor_grads = [g for g in grads if type(g) == tf.Tensor]
-        # tf.contrib.layers.summarize_tensors(tensor_grads)
+        # Create TensorBoard summaries for gradients
+        for grad, var in grads_and_vars:
+            # Sparse tensor updates can't be summarized, so avoid doing that:
+            if isinstance(grad, tf.Tensor):
+                tf.histogram_summary('grad_' + var.name, grad)
 
         # make training op for applying the gradients
-        self.train_op = optimizer.apply_gradients(grads_and_vars,
+        self.train_op = optimizer.apply_gradients(clipped_grads_and_vars,
                                                   global_step=self.global_step)
 
 
