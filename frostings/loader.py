@@ -43,7 +43,7 @@ class SampleGenerator(object):
             self.permutation = permutation
             self.num_samples = len(self.permutation)
    
-        print("SampleGenerator initiated")
+#        print("SampleGenerator initiated")
 
     def gen_sample(self):
         while True:
