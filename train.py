@@ -41,7 +41,6 @@ class Trainer:
 
         self.setup_placeholders()
         self.setup_model()
-        self.setup_summaries()
         self.setup_loader()
         self.setup_batch_generator()
 
@@ -66,9 +65,6 @@ class Trainer:
         self.model.build_loss(self.ts, self.t_mask)
         self.model.build_prediction()
         self.model.training(learning_rate = 0.1)
-
-    def setup_summaries(self):
-        tf.scalar_summary('loss', self.model.loss)
 
     def setup_loader(self):
         self.sample_generator = dict()

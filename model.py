@@ -137,6 +137,8 @@ class Model(object):
 
             loss = loss + reg_term
 
+            tf.scalar_summary('loss', loss)
+
         self.loss = loss
 
     def build_prediction(self):
