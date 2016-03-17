@@ -53,17 +53,6 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
 
     loss_summary = tf.scalar_summary('loss', model.loss)
 
-    # Add TensorBoard summaries to biases and weights from encoder and decoder
-    for var in tf.all_variables():
-        if var.name == 'rnn_encoder/BasicRNNCell/Linear/Matrix:0':
-            tf.histogram_summary('weights/encoder', var)
-        if var.name == 'rnn_decoder/BasicRNNCell/Linear/Matrix:0':
-            tf.histogram_summary('weights/decoder', var)
-        if var.name == 'rnn_encoder/BasicRNNCell/Linear/Bias:0':
-            tf.histogram_summary('bias/encoder', var)
-        if var.name == 'rnn_decoder/BasicRNNCell/Linear/Bias:0':
-            tf.histogram_summary('bias/decoder', var)
-
     # initialize data loader
     # the magic number arguments in dummy loaders are for max len and
     # max spaces.

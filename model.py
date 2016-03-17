@@ -22,7 +22,6 @@ class Model(object):
         self.embeddings = tf.Variable(
             tf.random_uniform([self.alphabet_size, self.embedd_dims]),
             name='embeddings')
-        tf.histogram_summary('embeddings', self.embeddings)
 
         X_embedded = tf.gather(self.embeddings, Xs, name='embed_X')
         t_embedded = tf.gather(self.embeddings, ts, name='embed_t')
@@ -91,6 +90,9 @@ class Model(object):
         print(out_packed.get_shape())
         self.out_tensor = out_packed
 
+        # add TensorBoard summaries for all variables
+        tf.contrib.layers.summarize_variables()
+
     def build_loss(self, ts, t_mask, reg_scale=0.001):
         """Build a loss function and accuracy for the model.
 
@@ -158,12 +160,18 @@ class Model(object):
         # Maybe it's worth trying the faster tf.clip_by_norm()
         # (See the documentation for tf.clip_by_global_norm() for more info)
         grads_and_vars = optimizer.compute_gradients(self.loss)
-        gradients, variables = zip(*grads_and_vars)  # unzip list of tuples
-        gradients, global_norm = tf.clip_by_global_norm(gradients, clip_norm)
-        grads_and_vars = zip(gradients, variables)
+        grads, variables = zip(*grads_and_vars)  # unzip list of tuples
+        clipped_grads, global_norm = tf.clip_by_global_norm(grads, clip_norm)
+        grads_and_vars = zip(clipped_grads, variables)
 
         # Create TensorBoard scalar summary for global gradient norm
         tf.scalar_summary('global gradient norm', global_norm)
+
+        # Create TensorBoard summaries for gradients (before clipping)
+        # (Works, but the names in tensorboard aren't useful, so it's being
+        # commented out for now.)
+        # tensor_grads = [g for g in grads if type(g) == tf.Tensor]
+        # tf.contrib.layers.summarize_tensors(tensor_grads)
 
         # make training op for applying the gradients
         self.train_op = optimizer.apply_gradients(grads_and_vars,
