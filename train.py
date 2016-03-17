@@ -1,14 +1,15 @@
+import time
 import click
 import numpy as np
 import tensorflow as tf
-from frostings.loader import *
 
+from frostings.loader import *
 import text_loader
 from model import Model
 from utils import acc, create_tsne as TSNE
 from dummy_loader import *
 
-use_logged_weights = False
+USE_LOGGED_WEIGHTS = False
 DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
 @click.command()
@@ -30,132 +31,144 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Validate every N iterations. 0 to disable. (default: 0)')
 @click.option('--seq-len', default=50,
     help='Maximum length of char sequences')
-def train(loader, tsne, visualize, log_freq, save_freq, iterations,
-          valid_freq, seq_len):
+class Trainer:
     """Train a translation model."""
-    # initialize placeholders for the computation graph
-    Xs = tf.placeholder(tf.int32, shape=[None, seq_len], name='X_input')
-    ts = tf.placeholder(tf.int32, shape=[None, seq_len], name='t_input')
-    ts_go = tf.placeholder(tf.int32, shape=[None, seq_len], name='t_input_go')
-    X_len = tf.placeholder(tf.int32, shape=[None], name='X_len')
-    t_mask = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
-    feedback = tf.placeholder(tf.bool, name='feedback_indicator')
 
-    # build model
-    model = Model(
-        alphabet_size=337,
-        max_x_seq_len=seq_len,
-        max_t_seq_len=seq_len)
-    model.build(Xs, X_len, ts_go, feedback)
-    model.build_loss(ts, t_mask)
-    model.build_prediction()
-    model.training(learning_rate=0.1)
+    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len):
+        self.loader, self.tsne, self.visualize = loader, tsne, visualize
+        self.log_freq, self.save_freq, self.valid_freq = log_freq, save_freq, valid_freq
+        self.iterations, self.seq_len = iterations, seq_len
 
-    loss_summary = tf.scalar_summary('loss', model.loss)
+        self.setup_placeholders()
+        self.setup_model()
+        self.setup_summaries()
+        self.setup_loader()
+        self.setup_batch_generator()
 
-    # initialize data loader
-    # the magic number arguments in dummy loaders are for max len and
-    # max spaces.
+        self.alphabet = self.batch_generator['train'].alphabet
 
-    if loader == 'europarl':
-        print('Using europarl loader')
-        train_load_method = text_loader.TextLoadMethod(
-            ['data/train/europarl-v7.fr-en.en'],
-            ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
+        self.train()
 
-        # making the validation split (should not just be True later on)
-        if True:#not os.path.isfile(DEFAULT_VALIDATION_SPLIT):
-            import create_validation_split as v_split
-            v_split.create_split(len(train_load_method.samples),
-                DEFAULT_VALIDATION_SPLIT)
-        # loading the validation split
-        split = np.load(DEFAULT_VALIDATION_SPLIT)
-        # making sample gen for training
-        train_sample_gen = text_loader.SampleTrainWrapper(train_load_method,
-            permutation = split['indices_train'], num_splits=32)
+    def setup_placeholders(self):
+        self.Xs       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='X_input')
+        self.ts       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='t_input')
+        self.ts_go    = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='t_input_go')
+        self.X_len    = tf.placeholder(tf.int32,   shape=[None],               name='X_len')
+        self.t_mask   = tf.placeholder(tf.float32, shape=[None, self.seq_len], name='t_mask')
+        self.feedback = tf.placeholder(tf.bool,                                name='feedback_indicator')
 
-        # data loader for eval, notices repeat = false
-        train_eval_sample_gen = SampleGenerator(train_load_method,
-            permutation = split['indices_train'], repeat=False)
-        valid_eval_sample_gen = SampleGenerator(train_load_method,
-            permutation = split['indices_valid'], repeat=False)
-    elif loader == 'normal':
-        print('Using normal dummy loader')
-        train_sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
-            'normal')
-    elif loader == 'talord':
-        print('Using talord dummy loader')
-        train_sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
-            'talord')
-    elif loader == 'talord_caps1':
-        print('Using talord_caps1 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
-            'talord_caps1')
-    elif loader == 'talord_caps2':
-        print('Using talord_caps2 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
-            'talord_caps2')
-    elif loader == 'talord_caps3':
-        print('Using talord_caps3 dummy loader')
-        sample_gen = DummySampleGenerator(dummy_sampler, seq_len/6, 1,
-            'talord_caps3')
-    else:
-        print('This should not happen, contact administrator')
-        assert False
-    # making batch gen for training
-    train_batch_gen = text_loader.BatchTrainWrapper(
-        train_sample_gen, batch_size=32, seq_len=seq_len, warm_up=100)
-    # again, for evaluation purposes
-    if valid_freq:
-        train_eval_batch_gen = text_loader.TextBatchGenerator(
-            train_eval_sample_gen, batch_size=32, seq_len=seq_len)
-        valid_eval_batch_gen = text_loader.TextBatchGenerator(
-            valid_eval_sample_gen, batch_size=32, seq_len=seq_len)
-    alphabet = train_batch_gen.alphabet
+    def setup_model(self):
+        self.model = Model(
+                alphabet_size = 337,
+                max_x_seq_len = self.seq_len,
+                max_t_seq_len = self.seq_len )
+        self.model.build(self.Xs, self.X_len, self.ts_go, self.feedback)
+        self.model.build_loss(self.ts, self.t_mask)
+        self.model.build_prediction()
+        self.model.training(learning_rate = 0.1)
 
-    saver = tf.train.Saver()
+    def setup_summaries(self):
+        tf.scalar_summary('loss', self.model.loss)
 
-    with tf.Session() as sess:
-        # restore or initialize parameters
-        if use_logged_weights:
-            latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
+    def setup_loader(self):
+        self.sample_generator = dict()
+        if self.loader == 'europarl':
+            print('Using europarl loader')
+            self.load_method = {
+                    'train': text_loader.TextLoadMethod(
+                        ['data/train/europarl-v7.fr-en.en'],
+                        ['data/train/europarl-v7.fr-en.fr'],
+                        seq_len = self.seq_len ) }
+
+            # TODO: making the validation split (should not just be True later on)
+            # something like: `if not os.path.isfile(DEFAULT_VALIDATION_SPLIT):`
+            if True:
+                import create_validation_split as v_split
+                no_training_samples = len(self.load_method['train'].samples)
+                v_split.create_split(no_training_samples, DEFAULT_VALIDATION_SPLIT)
+
+            split = np.load(DEFAULT_VALIDATION_SPLIT)
+            self.sample_generator['train'] = text_loader.SampleTrainWrapper(
+                    self.load_method['train'],
+                    permutation = split['indices_train'],
+                    num_splits = 32 )
+
+            # data loader for eval
+            # notice repeat = false
+            self.eval_sample_generator = {
+                'train':  SampleGenerator(
+                    self.load_method['train'],
+                    permutation = split['indices_train'],
+                    repeat = False ),
+                'validation': SampleGenerator(
+                    self.load_method['train'], #TODO: is this the correct load method?
+                    permutation = split['indices_valid'],
+                    repeat = False ) }
+        elif self.loader in [ 'normal', 'talord', 'talord_caps1', 'talord_caps2', 'talord_caps3']:
+            print('Using dummy loader (%s)' % (self.loader) )
+            self.sample_generator['train'] = DummySampleGenerator(
+                    max_len = self.seq_len/6,
+                    sampler = self.loader )
         else:
-            latest_checkpoint = False  # could be more pretty
-        if latest_checkpoint:
-            saver.restore(sess, latest_checkpoint)
-        else:
-            tf.initialize_all_variables().run()
+            raise NotImplementedError("Given loader (%s) is not supported" % (self.loader) )
 
-        if tsne:
-            TSNE(model, alphabet.decode_dict)
+    def setup_batch_generator(self):
+        self.batch_generator = {
+                'train': text_loader.BatchTrainWrapper(
+                    self.sample_generator['train'],
+                    batch_size = 32,
+                    seq_len = self.seq_len,
+                    warm_up = 100 ) }
 
-        summaries = tf.merge_all_summaries()
-        writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
+        # If we have a validation frequency
+        # setup needed evaluation generators
+        if self.valid_freq:
+            self.eval_batch_generator = {
+                    # TODO: this was too large to run for now
+                    #'train': text_loader.TextBatchGenerator(
+                    #    self.eval_sample_generator['train'],
+                    #    batch_size = 32,
+                    #    seq_len = self.seq_len ),
+                    'validation': text_loader.TextBatchGenerator(
+                        self.eval_sample_generator['validation'],
+                        batch_size = 32,
+                        seq_len = self.seq_len ) }
 
-        for i, batch in enumerate(train_batch_gen.gen_batch()):
-            if valid_freq and i % valid_freq == 0:
-                print()
-                print('Validating')
-                # subset for printing purposes
-                subsets = ['valid']
-                # giving the generator to the subset
-                gens = [valid_eval_batch_gen]
+    def train(self):
+        print("## INITIATE TRAIN")
+        saver = tf.train.Saver()
 
-                for subset, gen in zip(subsets, gens):
-                    print('  %s set' % subset)
+        with tf.Session() as sess:
+            # start from latest checkpoint
+            if USE_LOGGED_WEIGHTS:
+                latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
+                saver.restore(sess, latest_checkpoint)
+            else:
+                tf.initialize_all_variables().run()
+
+            if self.tsne:
+                TSNE(self.model, self.alphabet.decode_dict)
+
+            summaries = tf.merge_all_summaries()
+            writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
+
+            print("## TRAINING...")
+            combined_time = 0.0 # total time for each print
+            for i, t_batch in enumerate(self.batch_generator['train'].gen_batch()):
+                ## VALIDATION START ##
+                if self.valid_freq and i % self.valid_freq == 0:
                     accuracies = []
-                    for valid_batch in gen.gen_batch():
+                    for v_batch in self.eval_batch_generator['validation'].gen_batch():
                         # running the model only for inference
                         feed_dict = {
-                            Xs: valid_batch['x_encoded'],
-                            ts: valid_batch['t_encoded'],
-                            ts_go: valid_batch['t_encoded_go'],
-                            X_len: valid_batch['x_len'],
-                            t_mask: valid_batch['t_mask'],
-                            feedback: True
-                        }
+                            self.Xs: v_batch['x_encoded'],
+                            self.ts: v_batch['t_encoded'],
+                            self.ts_go: v_batch['t_encoded_go'],
+                            self.X_len: v_batch['x_len'],
+                            self.t_mask: v_batch['t_mask'],
+                            self.feedback: True }
+                        fetches = [ self.model.accuracy ]
 
-                        fetches = [model.accuracy]
                         res = sess.run(fetches, feed_dict=feed_dict)
 
                         # TODO: accuracies should be weighted by batch sizes
@@ -163,50 +176,84 @@ def train(loader, tsne, visualize, log_freq, save_freq, iterations,
                         accuracies.append(res[0])
                     # getting validation
                     valid_acc = np.mean(accuracies)
-                    print('    acc:\t%.2f%%' % (valid_acc * 100))
-                    print()
+                    print('accuray:\t%.2f%% \n' % (valid_acc * 100))
+                ## VALIDATION END ##
 
-            feed_dict = {
-                Xs: batch['x_encoded'],
-                ts: batch['t_encoded'],
-                ts_go: batch['t_encoded_go'],
-                X_len: batch['x_len'],
-                t_mask: batch['t_mask'],
-                feedback: False
-            }
+                ## TRAIN START ##
+                fetches = [
+                        self.model.loss,
+                        self.model.ys,
+                        summaries,
+                        self.model.train_op,
+                        self.model.accuracy ]
 
-            fetches = [model.loss, model.ys, summaries, model.train_op,
-                model.accuracy]
-            res = sess.run(fetches, feed_dict=feed_dict)
+                feed_dict = {
+                        self.Xs:     t_batch['x_encoded'],
+                        self.ts:     t_batch['t_encoded'],
+                        self.ts_go:  t_batch['t_encoded_go'],
+                        self.X_len:  t_batch['x_len'],
+                        self.t_mask: t_batch['t_mask'],
+                        self.feedback: False }
 
-            # Maybe visualize predictions
-            if visualize:
-                if i % visualize == 0:
+                start_time = time.time()
+                res = sess.run(fetches, feed_dict=feed_dict)
+                elapsed_it = time.time() - start_time
+                ## TRAIN END ##
+
+                combined_time += elapsed_it
+
+                # Maybe visualize predictions
+                if self.visualize and i % self.visualize == 0:
                     for j in range(32):
                         click.echo('%s ::: %s ::: %s' % (
-                                alphabet.decode(batch['x_encoded'][j]),
-                                alphabet.decode(res[1][j]),
-                                alphabet.decode(batch['t_encoded'][j])
+                                self.alphabet.decode(t_batch['x_encoded'][j]),
+                                self.alphabet.decode(res[1][j]),
+                                self.alphabet.decode(t_batch['t_encoded'][j])
                             ))
 
-            # Write summaries for TensorBoard.
-            writer.add_summary(res[2], i)
+                # Write summaries for TensorBoard.
+                writer.add_summary(res[2], i)
 
-            if save_freq and i:
-                if i % save_freq == 0:
+                if self.save_freq and i and i % self.save_freq == 0:
                     saver.save(sess,
                                'train/checkpoints/checkpoint',
-                               global_step=model.global_step)
+                               global_step = self.model.global_step)
 
-            if log_freq:
-                if i % log_freq == 0:
+                if self.log_freq and i % self.log_freq == 0:
                     batch_acc = res[4]
-                    click.echo('Iteration %i Loss: %f Acc: %f' % (
-                        i, np.mean(res[0]), batch_acc))
+                    click.echo('Iteration %i\t Loss: %f\t Acc: %f\t Elapsed: %f (%f)' % (
+                        i, np.mean(res[0]), batch_acc, combined_time, (combined_time/self.log_freq) ))
+                    combined_time = 0.0
 
-            if i >= iterations:
-                click.echo('reached max iteration: %d' % i)
-                break
+                if i >= self.iterations:
+                    click.echo('reached max iteration: %d' % i)
+                    break
+
+    def perform_iteration(self, sess, fetches, feed_dict=None, batch=None):
+        """ Performs one iteration/run.
+            Returns tuple containing result and elapsed iteration time.
+
+            Keyword arguments:
+            sess:       Tensorflow Session
+            fetches:    A single graph element, or a list of graph elements
+            feed_dict:  A dictionary that maps graph elements to values (default: None)
+            batch:      A batch with data used to fill feed_dict (default: None)
+        """
+
+        if feed_dict is None and batch is not None:
+            print("Creating feed_dict from given batch...")
+            feed_dict = {
+                    Xs:     batch['x_encoded'],
+                    ts:     batch['t_encoded'],
+                    ts_go:  batch['t_encoded_go'],
+                    X_len:  batch['x_len'],
+                    t_mask: batch['t_mask'] }
+
+        start_time = time.time()
+        res = sess.run(fetches, feed_dict=feed_dict)
+        elapsed = time.time() - start_time
+
+        return (res, elapsed)
 
 if __name__ == '__main__':
-    train()
+    trainer = Trainer()
