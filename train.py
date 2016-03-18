@@ -110,12 +110,18 @@ class Trainer:
             raise NotImplementedError("Given loader (%s) is not supported" % (self.loader) )
 
     def setup_batch_generator(self):
-        self.batch_generator = {
-                'train': tl.BatchTrainWrapper(
+        self.batch_generator = dict()
+        if self.loader is 'europarl':
+             self.batch_generator['train'] = tl.BatchTrainWrapper(
                     self.sample_generator['train'],
                     batch_size = 32,
                     seq_len = self.seq_len,
-                    warm_up = 100 ) }
+                    warm_up = 100 )
+        else:
+             self.batch_generator['train'] = tl.TextBatchGenerator(
+                    self.sample_generator['train'],
+                    batch_size = 32,
+                    seq_len = self.seq_len )
 
         # If we have a validation frequency
         # setup needed evaluation generators
