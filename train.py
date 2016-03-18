@@ -166,7 +166,7 @@ class Trainer:
                         # running the model only for inference
                         fetches = [ self.model.accuracy ]
 
-                        res, elapsed_it = self.perform_iteration(sess, fetches, None, t_batch, True)
+                        res, elapsed_it = self.perform_iteration(sess, fetches, None, v_batch, True)
 
                         # TODO: accuracies should be weighted by batch sizes
                         # before averaging
