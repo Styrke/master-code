@@ -7,14 +7,14 @@ from tensorflow.python.ops import rnn
 
 class Model(object):
 
-    def __init__(self, alphabet_size, embedd_dims=8, max_x_seq_len=25,
+    def __init__(self, alphabet_size, embedd_dims=16, max_x_seq_len=25,
             max_t_seq_len=25):
         self.alphabet_size = alphabet_size
         self.embedd_dims = embedd_dims
         self.max_x_seq_len = max_x_seq_len
         self.max_t_seq_len = max_t_seq_len
         # rnn output size must equal alphabet size for decoder feedback to work
-        self.rnn_units = alphabet_size
+        self.rnn_units = 400
 
     def build(self, Xs, X_len, ts, feedback):
         print('Building model')
@@ -64,8 +64,9 @@ class Model(object):
         # The loop function provides inputs to the decoder:
         def decoder_loop_function(prev, i):
             def feedback_on():
+                prev_1 = tf.matmul(prev, W_out) + b_out
                 # feedback is on, so feed the decoder with the previous output
-                return tf.gather(self.embeddings, tf.argmax(prev, 1))
+                return tf.gather(self.embeddings, tf.argmax(prev_1, 1))
 
             def feedback_off():
                 # feedback is off, so just feed the decoder with t's

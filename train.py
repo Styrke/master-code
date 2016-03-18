@@ -32,13 +32,17 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Validate every N iterations. 0 to disable. (default: 0)')
 @click.option('--seq-len', default=50,
     help='Maximum length of char sequences')
+@click.option('--warm-up', default=100,
+    help='Warm up iterations for the batches')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len):
+    def __init__(self, loader, tsne, visualize, log_freq, save_freq,
+        iterations, valid_freq, seq_len, warm_up):
+
         self.loader, self.tsne, self.visualize = loader, tsne, visualize
         self.log_freq, self.save_freq, self.valid_freq = log_freq, save_freq, valid_freq
-        self.iterations, self.seq_len = iterations, seq_len
+        self.iterations, self.seq_len, self.warm_up = iterations, seq_len, warm_up
 
         self.setup_placeholders()
         self.setup_model()
@@ -73,8 +77,8 @@ class Trainer:
             print('Using europarl loader')
             self.load_method = {
                     'train': tl.TextLoadMethod(
-                        ['data/train/europarl-v7.fr-en.en'],
-                        ['data/train/europarl-v7.fr-en.fr'],
+                        ['data/train/europarl-v7.da-en.en'],
+                        ['data/train/europarl-v7.da-en.da'],
                         seq_len = self.seq_len ) }
 
             # TODO: making the validation split (should not just be True later on)
@@ -116,7 +120,7 @@ class Trainer:
                     self.sample_generator['train'],
                     batch_size = 32,
                     seq_len = self.seq_len,
-                    warm_up = 100 )
+                    warm_up = self.warm_up )
         else:
              self.batch_generator['train'] = tl.TextBatchGenerator(
                     self.sample_generator['train'],
@@ -138,7 +142,7 @@ class Trainer:
                         seq_len = self.seq_len ) }
 
     def visualize_ys(self, ys, batch):
-        for j in range(32):
+        for j in range(batch['x_encoded'].shape[0]):
             click.echo('%s ::: %s ::: %s' % (
                 self.alphabet.decode(batch['x_encoded'][j]),
                 self.alphabet.decode(ys[j]),
@@ -184,6 +188,7 @@ class Trainer:
                     # getting validation
                     valid_acc = np.mean(accuracies)
                     print('accuray:\t%.2f%% \n' % (valid_acc * 100))
+                    self.visualize_ys(res[1], v_batch)
                     print("## VALIDATION DONE")
                 ## VALIDATION END ##
 
