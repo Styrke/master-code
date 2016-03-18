@@ -3,7 +3,7 @@ import numpy as np
 
 def simple_dummy_sample(max_len, max_len_spaces):
     # setting variables
-    elem_len = np.random.choice(max_len) # generates a random len seq
+    elem_len = np.random.choice(int(max_len)) # generates a random len seq
     max_spaces = max_len_spaces
 
     # setting holders
