@@ -93,7 +93,7 @@ class Model(object):
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
 
-    def build_loss(self, ts, t_mask, reg_scale=0.001):
+    def build_loss(self, ts, t_mask, reg_scale=0.0001):
         """Build a loss function and accuracy for the model.
 
         Keyword arguments:
