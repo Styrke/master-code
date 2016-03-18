@@ -160,19 +160,13 @@ class Trainer:
             for i, t_batch in enumerate(self.batch_generator['train'].gen_batch()):
                 ## VALIDATION START ##
                 if self.valid_freq and i % self.valid_freq == 0:
+                    print("## VALIDATING")
                     accuracies = []
                     for v_batch in self.eval_batch_generator['validation'].gen_batch():
                         # running the model only for inference
-                        feed_dict = {
-                            self.Xs: v_batch['x_encoded'],
-                            self.ts: v_batch['t_encoded'],
-                            self.ts_go: v_batch['t_encoded_go'],
-                            self.X_len: v_batch['x_len'],
-                            self.t_mask: v_batch['t_mask'],
-                            self.feedback: True }
                         fetches = [ self.model.accuracy ]
 
-                        res = sess.run(fetches, feed_dict=feed_dict)
+                        res, elapsed_it = self.perform_iteration(sess, fetches, None, v_batch, True)
 
                         # TODO: accuracies should be weighted by batch sizes
                         # before averaging
@@ -180,6 +174,7 @@ class Trainer:
                     # getting validation
                     valid_acc = np.mean(accuracies)
                     print('accuray:\t%.2f%% \n' % (valid_acc * 100))
+                    print("## VALIDATION DONE")
                 ## VALIDATION END ##
 
                 ## TRAIN START ##
@@ -190,17 +185,7 @@ class Trainer:
                         self.model.train_op,
                         self.model.accuracy ]
 
-                feed_dict = {
-                        self.Xs:     t_batch['x_encoded'],
-                        self.ts:     t_batch['t_encoded'],
-                        self.ts_go:  t_batch['t_encoded_go'],
-                        self.X_len:  t_batch['x_len'],
-                        self.t_mask: t_batch['t_mask'],
-                        self.feedback: False }
-
-                start_time = time.time()
-                res = sess.run(fetches, feed_dict=feed_dict)
-                elapsed_it = time.time() - start_time
+                res, elapsed_it = self.perform_iteration(sess, fetches, None, t_batch)
                 ## TRAIN END ##
 
                 combined_time += elapsed_it
@@ -232,7 +217,7 @@ class Trainer:
                     click.echo('reached max iteration: %d' % i)
                     break
 
-    def perform_iteration(self, sess, fetches, feed_dict=None, batch=None):
+    def perform_iteration(self, sess, fetches, feed_dict=None, batch=None, feedback=False):
         """ Performs one iteration/run.
             Returns tuple containing result and elapsed iteration time.
 
@@ -241,16 +226,22 @@ class Trainer:
             fetches:    A single graph element, or a list of graph elements
             feed_dict:  A dictionary that maps graph elements to values (default: None)
             batch:      A batch with data used to fill feed_dict (default: None)
+            feedback:   If true the decoder will get its own prediction the previous time step.
+                        If false it will get target for previous time step (default: False)
         """
+        if not fetches:
+            raise ValueError("fetches argument must be a non-empty list")
+        if type(feedback) is not bool:
+            raise ValueError("feedback argument must be a boolean")
 
         if feed_dict is None and batch is not None:
-            print("Creating feed_dict from given batch...")
             feed_dict = {
-                    Xs:     batch['x_encoded'],
-                    ts:     batch['t_encoded'],
-                    ts_go:  batch['t_encoded_go'],
-                    X_len:  batch['x_len'],
-                    t_mask: batch['t_mask'] }
+                    self.Xs:     batch['x_encoded'],
+                    self.ts:     batch['t_encoded'],
+                    self.ts_go:  batch['t_encoded_go'],
+                    self.X_len:  batch['x_len'],
+                    self.t_mask: batch['t_mask'],
+                    self.feedback: feedback }
 
         start_time = time.time()
         res = sess.run(fetches, feed_dict=feed_dict)
