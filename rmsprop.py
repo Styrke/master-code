@@ -134,9 +134,9 @@ class RMSPropOptimizer(optimizer.Optimizer):
     mom = self.get_slot(var, "momentum")
     print('mom: ' + str(mom.get_shape()))
     sparse_grad = self.get_slot(var, "sparse_grad")
+    sparse_grad_t = state_ops.assign(sparse_grad, sparse_grad, use_locking=self._use_locking)
     sparse_grad_t = state_ops.scatter_add(sparse_grad, grad.indices, grad.values*self._learning_rate, use_locking=self._use_locking)
-    mom_scaled_g_values = sparse_grad_t * self._learning_rate_tensor / \
-                          rms
+    mom_scaled_g_values = sparse_grad_t / rms
     print('mom_scaled_g_values: ' + str(mom.get_shape()))
     mom_t = state_ops.assign(mom, mom * self._momentum_tensor,
                              use_locking=self._use_locking)
