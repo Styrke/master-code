@@ -16,7 +16,7 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 @click.option(
     '--loader', type=click.Choice(['europarl', 'normal', 'talord',
     'talord_caps1', 'talord_caps2', 'talord_caps3']), default='europarl',
-    help='Choose dataset to load. (default: normal)')
+    help='Choose dataset to load. (default: europarl)')
 @click.option('--tsne', is_flag=True,
     help='Use t-sne to plot character embeddings.')
 @click.option('--visualize', default=1000,
