@@ -137,6 +137,16 @@ class Trainer:
                         batch_size = 32,
                         seq_len = self.seq_len ) }
 
+    def visualize_ys(self, ys, batch):
+        for j in range(32):
+            click.echo('%s ::: %s ::: %s' % (
+                self.alphabet.decode(batch['x_encoded'][j]),
+                self.alphabet.decode(ys[j]),
+                self.alphabet.decode(batch['t_encoded'][j])
+                ))
+
+
+
     def train(self):
         print("## INITIATE TRAIN")
         saver = tf.train.Saver()
@@ -164,7 +174,7 @@ class Trainer:
                     accuracies = []
                     for v_batch in self.eval_batch_generator['validation'].gen_batch():
                         # running the model only for inference
-                        fetches = [ self.model.accuracy ]
+                        fetches = [ self.model.accuracy, self.model.ys ]
 
                         res, elapsed_it = self.perform_iteration(sess, fetches, None, v_batch, True)
 
@@ -192,12 +202,7 @@ class Trainer:
 
                 # Maybe visualize predictions
                 if self.visualize and i % self.visualize == 0:
-                    for j in range(32):
-                        click.echo('%s ::: %s ::: %s' % (
-                                self.alphabet.decode(t_batch['x_encoded'][j]),
-                                self.alphabet.decode(res[1][j]),
-                                self.alphabet.decode(t_batch['t_encoded'][j])
-                            ))
+                    self.visualize_ys(res[1], t_batch)
 
                 # Write summaries for TensorBoard.
                 writer.add_summary(res[2], i)
