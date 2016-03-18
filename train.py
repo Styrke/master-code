@@ -3,11 +3,12 @@ import click
 import numpy as np
 import tensorflow as tf
 
-from frostings.loader import *
-import text_loader
+import text_loader as tl
+
+from frostings import loader as fl
 from model import Model
 from utils import acc, create_tsne as TSNE
-from dummy_loader import *
+from dummy_loader import DummySampleGenerator
 
 USE_LOGGED_WEIGHTS = False
 DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
@@ -71,7 +72,7 @@ class Trainer:
         if self.loader == 'europarl':
             print('Using europarl loader')
             self.load_method = {
-                    'train': text_loader.TextLoadMethod(
+                    'train': tl.TextLoadMethod(
                         ['data/train/europarl-v7.fr-en.en'],
                         ['data/train/europarl-v7.fr-en.fr'],
                         seq_len = self.seq_len ) }
@@ -84,7 +85,7 @@ class Trainer:
                 v_split.create_split(no_training_samples, DEFAULT_VALIDATION_SPLIT)
 
             split = np.load(DEFAULT_VALIDATION_SPLIT)
-            self.sample_generator['train'] = text_loader.SampleTrainWrapper(
+            self.sample_generator['train'] = tl.SampleTrainWrapper(
                     self.load_method['train'],
                     permutation = split['indices_train'],
                     num_splits = 32 )
@@ -92,11 +93,11 @@ class Trainer:
             # data loader for eval
             # notice repeat = false
             self.eval_sample_generator = {
-                'train':  SampleGenerator(
+                'train':  fl.SampleGenerator(
                     self.load_method['train'],
                     permutation = split['indices_train'],
                     repeat = False ),
-                'validation': SampleGenerator(
+                'validation': fl.SampleGenerator(
                     self.load_method['train'], #TODO: is this the correct load method?
                     permutation = split['indices_valid'],
                     repeat = False ) }
@@ -110,7 +111,7 @@ class Trainer:
 
     def setup_batch_generator(self):
         self.batch_generator = {
-                'train': text_loader.BatchTrainWrapper(
+                'train': tl.BatchTrainWrapper(
                     self.sample_generator['train'],
                     batch_size = 32,
                     seq_len = self.seq_len,
@@ -121,11 +122,11 @@ class Trainer:
         if self.valid_freq:
             self.eval_batch_generator = {
                     # TODO: this was too large to run for now
-                    #'train': text_loader.TextBatchGenerator(
+                    #'train': tl.TextBatchGenerator(
                     #    self.eval_sample_generator['train'],
                     #    batch_size = 32,
                     #    seq_len = self.seq_len ),
-                    'validation': text_loader.TextBatchGenerator(
+                    'validation': tl.TextBatchGenerator(
                         self.eval_sample_generator['validation'],
                         batch_size = 32,
                         seq_len = self.seq_len ) }
