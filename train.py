@@ -1,5 +1,6 @@
 import time
 import click
+import os
 import numpy as np
 import tensorflow as tf
 
@@ -10,6 +11,7 @@ from model import Model
 from utils import acc, create_tsne as TSNE
 from dummy_loader import DummySampleGenerator
 
+SAVER_FOLDER_PATH = { 'base': 'train/', 'checkpoint': 'checkpoints/', 'log': 'logs/' }
 USE_LOGGED_WEIGHTS = False
 DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
@@ -34,16 +36,17 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Maximum length of char sequences')
 @click.option('--warm-up', default=100,
     help='Warm up iterations for the batches')
+@click.option('--train-name', default=None,
+    help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, visualize, log_freq, save_freq,
-        iterations, valid_freq, seq_len, warm_up):
-
+    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len, train_name, warm_up):
         self.loader, self.tsne, self.visualize = loader, tsne, visualize
         self.log_freq, self.save_freq, self.valid_freq = log_freq, save_freq, valid_freq
         self.iterations, self.seq_len, self.warm_up = iterations, seq_len, warm_up
 
+        self.setup_reload_path(train_name)
         self.setup_placeholders()
         self.setup_model()
         self.setup_loader()
@@ -52,6 +55,23 @@ class Trainer:
         self.alphabet = self.batch_generator['train'].alphabet
 
         self.train()
+
+    def setup_reload_path(self, name):
+        if name:
+            USE_LOGGED_WEIGHTS = True
+
+            local_folder_path           = os.path.join(SAVER_FOLDER_PATH['base'], name)
+            self.named_checkpoint_path  = os.path.join(local_folder_path, SAVER_FOLDER_PATH['checkpoint'])
+            self.named_log_path         = os.path.join(local_folder_path, SAVER_FOLDER_PATH['log'])
+
+            self.checkpoint_file_path   = os.path.join(self.named_checkpoint_path, 'checkpoint')
+
+            # make sure checkpoint folder exists
+            if not os.path.exists(self.named_checkpoint_path):
+                os.makedirs(self.named_checkpoint_path)
+
+            print("Will use '%s' for saving and restoring checkpoints" % (self.named_checkpoint_path))
+
 
     def setup_placeholders(self):
         self.Xs       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='X_input')
@@ -153,13 +173,14 @@ class Trainer:
 
     def train(self):
         print("## INITIATE TRAIN")
-        saver = tf.train.Saver()
 
         with tf.Session() as sess:
-            # start from latest checkpoint
-            if USE_LOGGED_WEIGHTS:
-                latest_checkpoint = tf.train.latest_checkpoint('train/checkpoints')
-                saver.restore(sess, latest_checkpoint)
+            if USE_LOGGED_WEIGHTS and os.path.exists(self.named_checkpoint_path): 
+                saver = tf.train.Saver()
+                # restore only if files exist
+                if os.listdir(self.named_checkpoint_path):
+                    latest_checkpoint = tf.train.latest_checkpoint(self.named_checkpoint_path)
+                    saver.restore(sess, latest_checkpoint)
             else:
                 tf.initialize_all_variables().run()
 
@@ -167,7 +188,8 @@ class Trainer:
                 TSNE(self.model, self.alphabet.decode_dict)
 
             summaries = tf.merge_all_summaries()
-            writer = tf.train.SummaryWriter("train/logs", sess.graph_def)
+            if self.named_log_path and os.path.exists(self.named_log_path):
+                writer = tf.train.SummaryWriter(self.named_log_path, sess.graph_def)
 
             print("## TRAINING...")
             combined_time = 0.0 # total time for each print
@@ -205,17 +227,14 @@ class Trainer:
 
                 combined_time += elapsed_it
 
-                # Maybe visualize predictions
                 if self.visualize and i % self.visualize == 0:
                     self.visualize_ys(res[1], t_batch)
 
-                # Write summaries for TensorBoard.
-                writer.add_summary(res[2], i)
+                if self.named_log_path and os.path.exists(self.named_log_path):
+                    writer.add_summary(res[2], i)
 
-                if self.save_freq and i and i % self.save_freq == 0:
-                    saver.save(sess,
-                               'train/checkpoints/checkpoint',
-                               global_step = self.model.global_step)
+                if self.save_freq and i and i % self.save_freq == 0 and self.named_checkpoint_path:
+                    saver.save(sess, self.checkpoint_file_path, self.model.global_step)
 
                 if self.log_freq and i % self.log_freq == 0:
                     batch_acc = res[4]
