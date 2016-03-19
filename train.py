@@ -3,6 +3,7 @@ import click
 import os
 import numpy as np
 import tensorflow as tf
+from warnings import warn
 
 import text_loader as tl
 
@@ -57,6 +58,7 @@ class Trainer:
         self.train()
 
     def setup_reload_path(self, name):
+        self.named_checkpoint_path, self.named_log_path, self.checkpoint_file_path = None, None, None
         if name:
             USE_LOGGED_WEIGHTS = True
 
@@ -69,8 +71,12 @@ class Trainer:
             # make sure checkpoint folder exists
             if not os.path.exists(self.named_checkpoint_path):
                 os.makedirs(self.named_checkpoint_path)
+            if not os.path.exists(self.named_log_path):
+                os.makedirs(self.named_log_path)
 
-            print("Will use '%s' for saving and restoring checkpoints" % (self.named_checkpoint_path))
+            print("Will read and write from '%s' (checkpoints and logs)" % (local_folder_path))
+            if not self.save_freq:
+                warn("Will not save checkpoints, because 'save_freq' was not above 0", UserWarning)
 
 
     def setup_placeholders(self):
@@ -175,12 +181,11 @@ class Trainer:
         print("## INITIATE TRAIN")
 
         with tf.Session() as sess:
-            if USE_LOGGED_WEIGHTS and os.path.exists(self.named_checkpoint_path): 
-                saver = tf.train.Saver()
-                # restore only if files exist
-                if os.listdir(self.named_checkpoint_path):
-                    latest_checkpoint = tf.train.latest_checkpoint(self.named_checkpoint_path)
-                    saver.restore(sess, latest_checkpoint)
+            saver = tf.train.Saver()
+            # restore only if files exist
+            if USE_LOGGED_WEIGHTS and os.path.exists(self.named_checkpoint_path) and os.listdir(self.named_checkpoint_path):
+                latest_checkpoint = tf.train.latest_checkpoint(self.named_checkpoint_path)
+                saver.restore(sess, latest_checkpoint)
             else:
                 tf.initialize_all_variables().run()
 
