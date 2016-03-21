@@ -3,16 +3,15 @@ from collections import Counter
 from nltk.util import ngrams
 
 
-def sentence_bleu(candidate, reference, weights=(0.25, 0.25, 0.25, 0.25)):
+def sentence_bleu(candidate, reference, weights=4):
     """Sentence bleu supporting a single reference."""
     p_ns = []
     # compute modified n-gram precision for each n:
-    for n in range(1, len(weights)+1):
+    for n in range(1, weights+1):
         if len(reference) < n:
-            p_ns.append(1)
             continue
         if len(candidate) < n:
-            p_ns.append(0)
+            p_ns.append(1)
             continue
 
         reference_ngrams = ngrams(reference, n)
@@ -26,9 +25,13 @@ def sentence_bleu(candidate, reference, weights=(0.25, 0.25, 0.25, 0.25)):
             if gram in reference_counts:
                 hits += min(count, reference_counts[gram])
 
+        # return poor score if no 1-grams match
+        if n == 1 and hits == 0:
+            return 0
+
         p_ns.append(hits/len(candidate_ngrams))
 
-    score = exp(sum([w * log(p_n) for w, p_n in zip(weights, p_ns) if p_n]))
+    score = exp(sum([1/len(p_ns) * log(p_n) for p_n in p_ns if p_n]))
 
     # compute brevity penalty (BP)
     if len(candidate) > len(reference):
