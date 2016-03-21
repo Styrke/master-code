@@ -25,13 +25,16 @@ def sentence_bleu(candidate, reference, weights=4):
             if gram in reference_counts:
                 hits += min(count, reference_counts[gram])
 
-        # return poor score if no 1-grams match
-        if n == 1 and hits == 0:
-            return 0
+        # avoid returning p_n = 0 because log(0) is undefined
+        if hits == 0:
+            if n == 1:
+                return 0
+            else:
+                hits = 1
 
         p_ns.append(hits/len(candidate_ngrams))
 
-    score = exp(sum([1/len(p_ns) * log(p_n) for p_n in p_ns if p_n]))
+    score = exp(sum([1/len(p_ns) * log(p_n) for p_n in p_ns]))
 
     # compute brevity penalty (BP)
     if len(candidate) > len(reference):
