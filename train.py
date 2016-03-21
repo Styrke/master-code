@@ -4,6 +4,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from warnings import warn
+from nltk.metrics.distance import edit_distance
 
 import text_loader as tl
 
@@ -276,7 +277,6 @@ class Trainer:
         valid_ys = []
         valid_ts = []
         for v_batch in self.eval_batch_generator['validation'].gen_batch():
-            # running the model only for inference
             fetches = [self.model.accuracy, self.model.ys]
 
             res, time = self.perform_iteration(
@@ -291,14 +291,34 @@ class Trainer:
             valid_ys.append(res[1])
             valid_ts.append(v_batch['t_encoded'])
             accuracies.append(res[0])
-        # getting validation
-        valid_acc = np.mean(accuracies)
-        print('accuray:\t%.2f%% \n' % (valid_acc * 100))
-        self.visualize_ys(res[1], v_batch)
+
         valid_ys = np.concatenate(valid_ys, axis=0)
         valid_ts = np.concatenate(valid_ts, axis=0)
+
+        # print visualization
+        self.visualize_ys(res[1], v_batch)
+
+        # accuracy
+        valid_acc = np.mean(accuracies)
+        print('\taccuracy:\t%.2f%%' % (valid_acc * 100))
+
+        # bleu score
         valid_bleu = utils.bleu_numpy(valid_ts, valid_ys, self.alphabet)
-        print(valid_bleu)
+        print('\tbleu:\t %f' % valid_bleu)
+
+        # edit distance
+        str_ts = []
+        str_ys = []
+        for i in range(valid_ys.shape[0]):
+            str_ts.append(self.alphabet.decode(valid_ts[i]))
+            str_ys.append(self.alphabet.decode(valid_ys[i]))
+        total_distance = 0
+        total_target_length = 0
+        for y, t in zip(str_ys, str_ts):
+            total_distance += edit_distance(y, t)
+            total_target_length += len(t)
+        print('\tMean edit dist per char:\t %f \n' % (total_distance/total_target_length))
+
         print("## VALIDATION DONE")
 
 if __name__ == '__main__':
