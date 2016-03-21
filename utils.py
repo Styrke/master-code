@@ -92,6 +92,9 @@ def bleu_numpy(references, hypotheses, alphabet):
     str_ts = []
     str_ys = []
     for i in range(references.shape[0]):
-        str_ts.append(alphabet.decode(references[i]))
-        str_ys.append(alphabet.decode(hypotheses[i]))
-    return blue(str_ts, str_ys)
+        str_ts.append(alphabet.decode(references[i]) \
+              .split(alphabet.eos_char)[0])
+        str_ys.append(alphabet.decode(hypotheses[i]) \
+              .split(alphabet.eos_char)[0])
+    
+    return bleu(str_ts, str_ys)
