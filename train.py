@@ -226,12 +226,7 @@ class Trainer:
                     self.visualize_ys(res[1], v_batch)
                     valid_ys = np.concatenate(valid_ys, axis = 0)
                     valid_ts = np.concatenate(valid_ts, axis = 0)
-                    str_ys = []
-                    str_ts = []
-                    for j in range(valid_ys.shape[0]):
-                        str_ys.append(self.alphabet.decode(valid_ys[j]))
-                        str_ts.append(self.alphabet.decode(valid_ts[j]))
-                    valid_bleu = utils.bleu(str_ts, str_ys)
+                    valid_bleu = utils.bleu_numpy(valid_ts, valid_ys)
                     print(valid_bleu)
                     print("## VALIDATION DONE")
                 ## VALIDATION END ##

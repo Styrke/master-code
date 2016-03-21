@@ -77,6 +77,21 @@ def bleu(references, hypotheses):
     references -- list of strings with target translations
     hypotheses -- list of strings with hypothesis translations to test
     """
-    hypotheses = [h.split() for h in hypotheses]
     references = [[r.split()] for r in references]
+    hypotheses = [h.split() for h in hypotheses]
     return bleu_score.corpus_bleu(references, hypotheses)
+
+
+def bleu_numpy(references, hypotheses, alphabet):
+    """Wrapper for numpy arrays
+
+    Keyword arguments:
+    references -- numpy array of target translations
+    hypotheses -- numpy array of predictions
+    """
+    str_ts = []
+    str_ys = []
+    for i in range(references.shape[0]):
+        str_ts.append(alphabet.decode(references[i]))
+        str_ys.append(alphabet.decode(hypotheses[i]))
+    return blue(str_ts, str_ys)
