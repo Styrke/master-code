@@ -9,6 +9,7 @@ import text_loader as tl
 
 from frostings import loader as fl
 from model import Model
+import utils
 from utils import acc, create_tsne as TSNE
 from dummy_loader import DummySampleGenerator
 
@@ -206,6 +207,8 @@ class Trainer:
                 if self.valid_freq and i % self.valid_freq == 0:
                     print("## VALIDATING")
                     accuracies = []
+                    valid_ys = []
+                    valid_ts = []
                     for v_batch in self.eval_batch_generator['validation'].gen_batch():
                         # running the model only for inference
                         fetches = [ self.model.accuracy, self.model.ys ]
@@ -214,11 +217,22 @@ class Trainer:
 
                         # TODO: accuracies should be weighted by batch sizes
                         # before averaging
+                        valid_ys.append(res[1])
+                        valid_ts.append(v_batch['t_encoded'])
                         accuracies.append(res[0])
                     # getting validation
                     valid_acc = np.mean(accuracies)
                     print('accuray:\t%.2f%% \n' % (valid_acc * 100))
                     self.visualize_ys(res[1], v_batch)
+                    valid_ys = np.concatenate(valid_ys, axis = 0)
+                    valid_ts = np.concatenate(valid_ts, axis = 0)
+                    str_ys = []
+                    str_ts = []
+                    for j in range(valid_ys.shape[0]):
+                        str_ys.append(self.alphabet.decode(valid_ys[j]))
+                        str_ts.append(self.alphabet.decode(valid_ts[j]))
+                    valid_bleu = utils.bleu(str_ts, str_ys)
+                    print(valid_bleu)
                     print("## VALIDATION DONE")
                 ## VALIDATION END ##
 
