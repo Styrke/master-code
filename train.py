@@ -203,34 +203,8 @@ class Trainer:
             print("## TRAINING...")
             combined_time = 0.0 # total time for each print
             for i, t_batch in enumerate(self.batch_generator['train'].gen_batch()):
-                ## VALIDATION START ##
                 if self.valid_freq and i % self.valid_freq == 0:
-                    print("## VALIDATING")
-                    accuracies = []
-                    valid_ys = []
-                    valid_ts = []
-                    for v_batch in self.eval_batch_generator['validation'].gen_batch():
-                        # running the model only for inference
-                        fetches = [ self.model.accuracy, self.model.ys ]
-
-                        res, elapsed_it = self.perform_iteration(sess, fetches, None, v_batch, True)
-
-                        # TODO: accuracies should be weighted by batch sizes
-                        # before averaging
-                        valid_ys.append(res[1])
-                        valid_ts.append(v_batch['t_encoded'])
-                        accuracies.append(res[0])
-                    # getting validation
-                    valid_acc = np.mean(accuracies)
-                    print('accuray:\t%.2f%% \n' % (valid_acc * 100))
-                    self.visualize_ys(res[1], v_batch)
-                    valid_ys = np.concatenate(valid_ys, axis = 0)
-                    valid_ts = np.concatenate(valid_ts, axis = 0)
-                    valid_bleu = utils.bleu_numpy(valid_ts, valid_ys,
-                        self.alphabet)
-                    print(valid_bleu)
-                    print("## VALIDATION DONE")
-                ## VALIDATION END ##
+                    self.validate(sess)
 
                 ## TRAIN START ##
                 fetches = [
@@ -295,6 +269,37 @@ class Trainer:
         elapsed = time.time() - start_time
 
         return (res, elapsed)
+
+    def validate(self, sess):
+        print("## VALIDATING")
+        accuracies = []
+        valid_ys = []
+        valid_ts = []
+        for v_batch in self.eval_batch_generator['validation'].gen_batch():
+            # running the model only for inference
+            fetches = [self.model.accuracy, self.model.ys]
+
+            res, time = self.perform_iteration(
+                sess,
+                fetches,
+                feed_dict=None,
+                batch=v_batch,
+                feedback=True)
+
+            # TODO: accuracies should be weighted by batch sizes
+            # before averaging
+            valid_ys.append(res[1])
+            valid_ts.append(v_batch['t_encoded'])
+            accuracies.append(res[0])
+        # getting validation
+        valid_acc = np.mean(accuracies)
+        print('accuray:\t%.2f%% \n' % (valid_acc * 100))
+        self.visualize_ys(res[1], v_batch)
+        valid_ys = np.concatenate(valid_ys, axis=0)
+        valid_ts = np.concatenate(valid_ts, axis=0)
+        valid_bleu = utils.bleu_numpy(valid_ts, valid_ys, self.alphabet)
+        print(valid_bleu)
+        print("## VALIDATION DONE")
 
 if __name__ == '__main__':
     trainer = Trainer()
