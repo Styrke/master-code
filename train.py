@@ -39,13 +39,16 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Warm up iterations for the batches')
 @click.option('--train-name', default=None,
     help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
+@click.option('--batch-size', default=32,
+    help='Size of batches')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len, train_name, warm_up):
+    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len, train_name, warm_up, batch_size):
         self.loader, self.tsne, self.visualize = loader, tsne, visualize
         self.log_freq, self.save_freq, self.valid_freq = log_freq, save_freq, valid_freq
         self.iterations, self.seq_len, self.warm_up = iterations, seq_len, warm_up
+        self.batch_size = batch_size
 
         self.setup_reload_path(train_name)
         self.setup_placeholders()
@@ -144,13 +147,13 @@ class Trainer:
         if self.loader is 'europarl':
              self.batch_generator['train'] = tl.BatchTrainWrapper(
                     self.sample_generator['train'],
-                    batch_size = 32,
+                    batch_size = self.batch_size,
                     seq_len = self.seq_len,
                     warm_up = self.warm_up )
         else:
              self.batch_generator['train'] = tl.TextBatchGenerator(
                     self.sample_generator['train'],
-                    batch_size = 32,
+                    batch_size = self.batch_size,
                     seq_len = self.seq_len )
 
         # If we have a validation frequency
@@ -160,11 +163,11 @@ class Trainer:
                     # TODO: this was too large to run for now
                     #'train': tl.TextBatchGenerator(
                     #    self.eval_sample_generator['train'],
-                    #    batch_size = 32,
+                    #    batch_size = self.batch_size,
                     #    seq_len = self.seq_len ),
                     'validation': tl.TextBatchGenerator(
                         self.eval_sample_generator['validation'],
-                        batch_size = 32,
+                        batch_size = self.batch_size,
                         seq_len = self.seq_len ) }
 
     def visualize_ys(self, ys, batch):
