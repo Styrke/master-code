@@ -13,6 +13,7 @@ from model import Model
 import utils
 from utils import acc, create_tsne as TSNE
 from dummy_loader import DummySampleGenerator
+import bleu
 
 SAVER_FOLDER_PATH = { 'base': 'train/', 'checkpoint': 'checkpoints/', 'log': 'logs/' }
 USE_LOGGED_WEIGHTS = False
@@ -303,8 +304,12 @@ class Trainer:
         print('\taccuracy:\t%.2f%%' % (valid_acc * 100))
 
         # bleu score
-        valid_bleu = utils.bleu_numpy(valid_ts, valid_ys, self.alphabet)
-        print('\tbleu:\t %f' % valid_bleu)
+        words_ts, words_ys = utils.numpy_to_words(valid_ts, valid_ys, self.alphabet)
+
+        #valid_nltk_bleu = utils.bleu(words_ts, words_ys)
+        valid_ours_bleu = sum([bleu.sentence_bleu(words_t, words_y) for words_t, words_y in zip(words_ts, words_ys)])/len(words_ts)  
+
+        print('\tbleu:\t %.5f' % valid_ours_bleu)
 
         # edit distance
         str_ts = []

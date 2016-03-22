@@ -2,8 +2,7 @@
 import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
-from nltk import bleu_score
-
+import nltk
 
 # for usage in printing output
 def reverse_dict(d):
@@ -70,19 +69,18 @@ def acc(out, label, mask):
     return  masked_sum / np.sum(mask).astype('float32')
 
 
-def bleu(references, hypotheses):
+def bleu(references, hypothesis):
     """Compute BLEU score.
 
     Keyword arguments:
     references -- list of strings with target translations
     hypotheses -- list of strings with hypothesis translations to test
     """
-    references = [[r.split()] for r in references]
-    hypotheses = [h.split() for h in hypotheses]
-    return bleu_score.corpus_bleu(references, hypotheses)
+    references = [[r] for r in references]
+    hypothesis = hypothesis
+    return nltk.bleu_score.corpus_bleu(references, hypothesis)
 
-
-def bleu_numpy(references, hypotheses, alphabet):
+def numpy_to_str(references, hypothesis, alphabet):
     """Wrapper for numpy arrays
 
     Keyword arguments:
@@ -94,7 +92,13 @@ def bleu_numpy(references, hypotheses, alphabet):
     for i in range(references.shape[0]):
         str_ts.append(alphabet.decode(references[i]) \
               .split(alphabet.eos_char)[0])
-        str_ys.append(alphabet.decode(hypotheses[i]) \
+        str_ys.append(alphabet.decode(hypothesis[i]) \
               .split(alphabet.eos_char)[0])
     
-    return bleu(str_ts, str_ys)
+    return str_ts, str_ys
+
+def numpy_to_words(*args):
+    str_ts, str_ys = numpy_to_str(*args)
+    words_ts = [nltk.word_tokenize(str_t) for str_t in str_ts]
+    words_ys = [nltk.word_tokenize(str_y) for str_y in str_ys]
+    return words_ts, words_ys
