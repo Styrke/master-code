@@ -3,6 +3,9 @@ import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import nltk
+import os
+
+nltk.download('punkt')
 
 # for usage in printing output
 def reverse_dict(d):
