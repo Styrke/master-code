@@ -44,14 +44,17 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
 @click.option('--batch-size', default=32,
     help='Size of batches')
+@click.option('--config-name', default=None,
+    help='Configuration file to use for model')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len, train_name, warm_up, batch_size):
+    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len, train_name, warm_up, batch_size, config_name):
         self.loader, self.tsne, self.visualize = loader, tsne, visualize
         self.log_freq, self.save_freq, self.valid_freq = log_freq, save_freq, valid_freq
         self.iterations, self.seq_len, self.warm_up = iterations, seq_len, warm_up
-        self.batch_size = batch_size
+        self.batch_size, self.config_name = batch_size, config_name
+
 
         self.setup_reload_path(train_name)
         self.setup_placeholders()
@@ -96,12 +99,15 @@ class Trainer:
     def setup_model(self):
         self.model = Model(
                 alphabet_size = 337,
+                Xs = self.Xs, 
+                X_len = self.X_len, 
+                ts = self.ts, 
+                ts_go = self.ts_go,
+                t_mask = self.t_mask, 
+                feedback = self.feedback,
                 max_x_seq_len = self.seq_len,
-                max_t_seq_len = self.seq_len )
-        self.model.build(self.Xs, self.X_len, self.ts_go, self.feedback)
-        self.model.build_loss(self.ts, self.t_mask)
-        self.model.build_prediction()
-        self.model.training(learning_rate = 0.1)
+                max_t_seq_len = self.seq_len,
+                config_name = self.config_name )
 
     def setup_loader(self):
         self.sample_generator = dict()

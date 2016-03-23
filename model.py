@@ -4,19 +4,46 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
-from utils.tfextensions import grid_gather
+#from utils.tfextensions import grid_gather
 
+import importlib
 
 class Model(object):
 
-    def __init__(self, alphabet_size, embedd_dims=16, max_x_seq_len=25,
-            max_t_seq_len=25):
+    def __init__(self, alphabet_size, Xs, X_len, ts, ts_go, t_mask, feedback, embedd_dims=16, max_x_seq_len=25, max_t_seq_len=25, config_name=None):
         self.alphabet_size = alphabet_size
-        self.embedd_dims = embedd_dims
+        self.embedd_dims   = embedd_dims
         self.max_x_seq_len = max_x_seq_len
         self.max_t_seq_len = max_t_seq_len
         # rnn output size must equal alphabet size for decoder feedback to work
         self.rnn_units = 400
+
+        self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
+        self.ts, self.ts_go, self.t_mask = ts, ts_go, t_mask
+    
+        builder = None
+        if config_name:
+            builder = importlib.import_module("configurations.%s" % config_name)
+
+        if builder and hasattr(builder, 'build'):
+            builder.build(self.Xs, self.X_len, self.ts_go, self.feedback)
+        else:
+            self.build(self.Xs, self.X_len, self.ts_go, self.feedback)
+
+        if builder and hasattr(builder, 'build_loss'):
+            builder.build_loss(self.ts, self.t_mask)
+        else:
+            self.build_loss(self.ts, self.t_mask)
+
+        if builder and hasattr(builder, 'build_prediction'):
+            builder.build_prediction()
+        else:
+            self.build_prediction()
+
+        if builder and hasattr(builder, 'training'):
+            builder.training(learning_rate = 0.1)
+        else:
+            self.training(learning_rate = 0.1)
 
     def build(self, Xs, X_len, ts, feedback):
         print('Building model')
