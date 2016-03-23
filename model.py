@@ -4,6 +4,8 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
+from utils.tfextensions import grid_gather
+
 
 class Model(object):
 
@@ -179,30 +181,3 @@ class Model(object):
         # make training op for applying the gradients
         self.train_op = optimizer.apply_gradients(clipped_grads_and_vars,
                                                   global_step=self.global_step)
-
-
-# TODO: put in custom_ops file
-# TODO: documentation ..!
-def _grid_gather(params, indices):
-    indices_shape = tf.shape(indices)
-    params_shape = tf.shape(params)
-
-    # reshape params
-    flat_params_dim0 = tf.reduce_prod(params_shape[:2])
-    flat_params_dim0_exp = tf.expand_dims(flat_params_dim0, 0)
-    flat_params_shape = tf.concat(0, [flat_params_dim0_exp, params_shape[2:]])
-    flat_params = tf.reshape(params, flat_params_shape)
-
-    # fix indices
-    rng = tf.expand_dims(tf.range(flat_params_dim0, delta=params_shape[1]), 1)
-    ones_shape_list = [
-        tf.expand_dims(tf.constant(1), 0),
-        tf.expand_dims(indices_shape[1], 0)
-    ]
-    ones_shape = tf.concat(0, ones_shape_list)
-    ones = tf.ones(ones_shape, dtype=tf.int32)
-    rng_array = tf.matmul(rng, ones)
-    indices = indices + rng_array
-
-    # gather and return
-    return tf.gather(flat_params, indices)
