@@ -10,8 +10,8 @@ import text_loader as tl
 
 from frostings import loader as fl
 from model import Model
-import utils
-from utils import acc, create_tsne as TSNE
+from utils import basic as utils
+from utils.basic import acc, create_tsne as TSNE
 from dummy_loader import DummySampleGenerator
 import bleu
 
