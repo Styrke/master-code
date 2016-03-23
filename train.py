@@ -99,11 +99,11 @@ class Trainer:
     def setup_model(self):
         self.model = Model(
                 alphabet_size = 337,
-                Xs = self.Xs, 
-                X_len = self.X_len, 
-                ts = self.ts, 
+                Xs = self.Xs,
+                X_len = self.X_len,
+                ts = self.ts,
                 ts_go = self.ts_go,
-                t_mask = self.t_mask, 
+                t_mask = self.t_mask,
                 feedback = self.feedback,
                 max_x_seq_len = self.seq_len,
                 max_t_seq_len = self.seq_len,
@@ -309,15 +309,14 @@ class Trainer:
         valid_acc = np.mean(accuracies)
         print('\t%s%.2f%%' % ('accuracy:'.ljust(25), (valid_acc * 100)))
 
-        # bleu score
+        # sentences
         words_ts, words_ys = utils.numpy_to_words(valid_ts,
                                                   valid_ys,
                                                   self.alphabet)
 
-        # valid_nltk_bleu = utils.bleu(words_ts, words_ys)
-        valid_ours_bleu = sum([pm.sentence_bleu(words_t, words_y) for words_t, words_y in zip(words_ts, words_ys)])/len(words_ts)
-
-        print('\t%s%.5f' % ('bleu'.ljust(25), valid_ours_bleu))
+        # BLEU score
+        corpus_bleu = pm.corpus_bleu(words_ys, words_ts)
+        print('\t%s%.5f' % ('BLEU:'.ljust(25), corpus_bleu))
 
         # edit distance
         str_ts = []
