@@ -301,15 +301,17 @@ class Trainer:
 
         # accuracy
         valid_acc = np.mean(accuracies)
-        print('\taccuracy:\t%.2f%%' % (valid_acc * 100))
+        print('\t%s%.2f%%' % ('accuracy:'.ljust(25), (valid_acc * 100)))
 
         # bleu score
-        words_ts, words_ys = utils.numpy_to_words(valid_ts, valid_ys, self.alphabet)
+        words_ts, words_ys = utils.numpy_to_words(valid_ts,
+                                                  valid_ys,
+                                                  self.alphabet)
 
-        #valid_nltk_bleu = utils.bleu(words_ts, words_ys)
-        valid_ours_bleu = sum([bleu.sentence_bleu(words_t, words_y) for words_t, words_y in zip(words_ts, words_ys)])/len(words_ts)  
+        # valid_nltk_bleu = utils.bleu(words_ts, words_ys)
+        valid_ours_bleu = sum([bleu.sentence_bleu(words_t, words_y) for words_t, words_y in zip(words_ts, words_ys)])/len(words_ts)
 
-        print('\tbleu:\t %.5f' % valid_ours_bleu)
+        print('\t%s%.5f' % ('bleu'.ljust(25), valid_ours_bleu))
 
         # edit distance
         str_ts = []
@@ -322,9 +324,10 @@ class Trainer:
         for y, t in zip(str_ys, str_ts):
             total_distance += edit_distance(y, t)
             total_target_length += len(t)
-        print('\tMean edit dist per char:\t %f \n' % (total_distance/total_target_length))
+        print('\t%s%f' % ('Mean edit dist per char:'.ljust(25),
+                          (total_distance/total_target_length)))
 
-        print("## VALIDATION DONE")
+        print("\n## VALIDATION DONE")
 
 if __name__ == '__main__':
     trainer = Trainer()
