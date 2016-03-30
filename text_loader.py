@@ -16,7 +16,7 @@ class TextLoadMethod(loader.LoadMethod):
 
     def _load_data(self):
         """Read data from files and create list of samples."""
-        
+
         data_X = []
         data_t = []
         for path_X, path_t in zip(self.paths_X, self.paths_t):
@@ -40,7 +40,8 @@ class TextLoadMethod(loader.LoadMethod):
         self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
 
         print("removing very long and very short samples ...")
-        self.samples = self._filter_samples(self.samples)
+        self.samples = self._filter_samples(self.samples, float('inf'))
+        self.samples = self._truncate_samples(self.samples)
 
         print("%i samples left in the data set" % len(self.samples))
 
@@ -54,18 +55,24 @@ class TextLoadMethod(loader.LoadMethod):
         self._load_data()
         self._preprocess_data()
 
-    def _filter_samples(self, samples):
+    def _filter_samples(self, samples, max_length):
         """Filter out samples of extreme length."""
         # remove input sentences that are too short or too long
-        samples = [(x, t) for x, t in samples if len(x) > 1 \
-            and len(x) <= self.seq_len-1]
+        samples = [(x, t) for x, t in samples
+                   if len(x) > 1 and len(x) <= max_length-1]
 
         # remove target sentences that are too short or too long
-        samples = [(x, t) for x, t in samples if len(t) > 1 \
-            and len(t) <= self.seq_len - 1]
+        samples = [(x, t) for x, t in samples
+                   if len(t) > 1 and len(t) <= max_length-1]
 
         samples = list(set(samples))
 
+        return samples
+
+    def _truncate_samples(self, samples):
+        """Truncate long sentences."""
+        end = self.seq_len - 1
+        samples = [(x[:end], t[:end]) for x, t in samples]
         return samples
 
 
