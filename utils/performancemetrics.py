@@ -1,6 +1,7 @@
 from math import exp, log
 from collections import Counter
 from nltk.util import ngrams
+from nltk.metrics.distance import edit_distance
 
 
 def corpus_bleu(candidates, references, max_n=4):
@@ -89,6 +90,14 @@ def sentence_bleu(candidate, reference, weights=4):
 
     return brevity_penalty * score
 
+
+def mean_char_edit_distance(candidates, references):
+    total_distance = 0
+    total_target_length = 0
+    for y, t in zip(candidates, references):
+        total_distance += edit_distance(y, t)
+        total_target_length += len(t)
+    return total_distance/total_target_length
 
 if __name__ == '__main__':
     candidate = ['this', 'is', 'a', 'test']

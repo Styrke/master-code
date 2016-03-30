@@ -4,7 +4,6 @@ import os
 import numpy as np
 import tensorflow as tf
 from warnings import warn
-from nltk.metrics.distance import edit_distance
 
 import text_loader as tl
 
@@ -305,32 +304,22 @@ class Trainer:
         # print visualization
         self.visualize_ys(res[1], v_batch)
 
+        # convert all predictions to strings
+        str_ts, str_ys = utils.numpy_to_words(valid_ts,
+                                              valid_ys,
+                                              self.alphabet)
+
         # accuracy
         valid_acc = np.mean(accuracies)
         print('\t%s%.2f%%' % ('accuracy:'.ljust(25), (valid_acc * 100)))
 
-        # sentences
-        words_ts, words_ys = utils.numpy_to_words(valid_ts,
-                                                  valid_ys,
-                                                  self.alphabet)
-
         # BLEU score
-        corpus_bleu = pm.corpus_bleu(words_ys, words_ts)
+        corpus_bleu = pm.corpus_bleu(str_ys, str_ts)
         print('\t%s%.5f' % ('BLEU:'.ljust(25), corpus_bleu))
 
         # edit distance
-        str_ts = []
-        str_ys = []
-        for i in range(valid_ys.shape[0]):
-            str_ts.append(self.alphabet.decode(valid_ts[i]))
-            str_ys.append(self.alphabet.decode(valid_ys[i]))
-        total_distance = 0
-        total_target_length = 0
-        for y, t in zip(str_ys, str_ts):
-            total_distance += edit_distance(y, t)
-            total_target_length += len(t)
-        print('\t%s%f' % ('Mean edit dist per char:'.ljust(25),
-                          (total_distance/total_target_length)))
+        edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
+        print('\t%s%f' % ('Mean edit dist per char:'.ljust(25), edit_dist))
 
         print("\n## VALIDATION DONE")
 
