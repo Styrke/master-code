@@ -135,10 +135,9 @@ def train():
   """Train a en->fr translation model using WMT data."""
   # Prepare WMT data.
   print("Preparing WMT data in %s" % FLAGS.data_dir)
-  en_train, fr_train, _, _, _, _ = data_utils.prepare_wmt_data(
+  # TODO
+  en_train, fr_train, en_dev, fr_dev, _, _ = data_utils.prepare_wmt_data(
       FLAGS.data_dir, FLAGS.en_vocab_size, FLAGS.fr_vocab_size)
-  #en_train, fr_train, en_dev, fr_dev, _, _ = data_utils.prepare_wmt_data(
-  #    FLAGS.data_dir, FLAGS.en_vocab_size, FLAGS.fr_vocab_size)
 
   with tf.Session() as sess:
     # Create model.
@@ -148,7 +147,8 @@ def train():
     # Read data into buckets and compute their sizes.
     print ("Reading development and training data (limit: %d)."
            % FLAGS.max_train_data_size)
-    #dev_set = read_data(en_dev, fr_dev)
+    # TODO
+    dev_set = read_data(en_dev, fr_dev)
     train_set = read_data(en_train, fr_train, FLAGS.max_train_data_size)
     train_bucket_sizes = [len(train_set[b]) for b in xrange(len(_buckets))]
     train_total_size = float(sum(train_bucket_sizes))
@@ -195,17 +195,18 @@ def train():
         checkpoint_path = os.path.join(FLAGS.train_dir, "translate.ckpt")
         model.saver.save(sess, checkpoint_path, global_step=model.global_step)
         step_time, loss = 0.0, 0.0
+        # TODO
         # Run evals on development set and print their perplexity.
-        #for bucket_id in xrange(len(_buckets)):
-        #  if len(dev_set[bucket_id]) == 0:
-        #    print("  eval: empty bucket %d" % (bucket_id))
-        #    continue
-        #  encoder_inputs, decoder_inputs, target_weights = model.get_batch(
-        #      dev_set, bucket_id)
-        #  _, eval_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
-        #                               target_weights, bucket_id, True)
-        #  eval_ppx = math.exp(eval_loss) if eval_loss < 300 else float('inf')
-        #  print("  eval: bucket %d perplexity %.2f" % (bucket_id, eval_ppx))
+        for bucket_id in xrange(len(_buckets)):
+          if len(dev_set[bucket_id]) == 0:
+            print("  eval: empty bucket %d" % (bucket_id))
+            continue
+          encoder_inputs, decoder_inputs, target_weights = model.get_batch(
+              dev_set, bucket_id)
+          _, eval_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
+                                       target_weights, bucket_id, True)
+          eval_ppx = math.exp(eval_loss) if eval_loss < 300 else float('inf')
+          print("  eval: bucket %d perplexity %.2f" % (bucket_id, eval_ppx))
         sys.stdout.flush()
 
 
