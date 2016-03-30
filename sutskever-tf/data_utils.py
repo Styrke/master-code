@@ -273,19 +273,19 @@ def prepare_wmt_data(data_dir, en_vocabulary_size, fr_vocabulary_size):
   train_path = os.path.join(data_dir, train_data)
 
   # Create vocabularies of the appropriate sizes.
-  fr_vocab_path = os.path.join(data_dir, "vocab%d.%s" % fr_vocabulary_size, langs[0])
-  en_vocab_path = os.path.join(data_dir, "vocab%d.%s" % en_vocabulary_size, langs[1])
+  fr_vocab_path = os.path.join(data_dir, "vocab{0}.{1}".format(fr_vocabulary_size, langs[0]))
+  en_vocab_path = os.path.join(data_dir, "vocab{0}.{1}".format(en_vocabulary_size, langs[1]))
   create_vocabulary(fr_vocab_path, train_path + "." + langs[0], fr_vocabulary_size)
   create_vocabulary(en_vocab_path, train_path + "." + langs[1], en_vocabulary_size)
 
   # Create token ids for the training data.
-  fr_train_ids_path = train_path + (".ids%d.%s" % fr_vocabulary_size, langs[0])
-  en_train_ids_path = train_path + (".ids%d.%s" % en_vocabulary_size, langs[1])
+  fr_train_ids_path = train_path + (".ids{0}.{1}".format(fr_vocabulary_size, langs[0]))
+  en_train_ids_path = train_path + (".ids{0}.{1}".format(en_vocabulary_size, langs[1]))
   data_to_token_ids(train_path + "." + langs[0], fr_train_ids_path, fr_vocab_path)
   data_to_token_ids(train_path + "." + langs[1], en_train_ids_path, en_vocab_path)
   # Create token ids for the development data.
-  fr_dev_ids_path = dev_path + (".ids%d.%s" % fr_vocabulary_size, langs[0])
-  en_dev_ids_path = dev_path + (".ids%d.%s" % en_vocabulary_size, langs[1])
+  fr_dev_ids_path = dev_path + (".ids{0}.{1}".format(fr_vocabulary_size, langs[0]))
+  en_dev_ids_path = dev_path + (".ids{0}.{1}".format(en_vocabulary_size, langs[1]))
   data_to_token_ids(dev_path + "." + langs[0], fr_dev_ids_path, fr_vocab_path)
   data_to_token_ids(dev_path + "." + langs[1], en_dev_ids_path, en_vocab_path)
 
