@@ -43,8 +43,9 @@ import tensorflow as tf
 
 #from tensorflow.models.rnn.translate import data_utils
 #from tensorflow.models.rnn.translate import seq2seq_model
-import data_utils
-import seq2seq_model
+from sutskever_tf import data_utils, seq2seq_model
+
+from utils import basic as mt_basic_utils
 
 
 tf.app.flags.DEFINE_float("learning_rate", 0.5, "Learning rate.")
@@ -203,8 +204,20 @@ def train():
             continue
           encoder_inputs, decoder_inputs, target_weights = model.get_batch(
               dev_set, bucket_id)
-          _, eval_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
+          # TODO
+          # outputs should be an index of the word in vocabulary
+          _, eval_loss, outputs = model.step(sess, encoder_inputs, decoder_inputs,
                                        target_weights, bucket_id, True)
+          # TODO
+          # find it in vocabulary
+          # convert all predictions to strings
+          # TODO not sure if this is the correct inputs to use
+          s_target, s_predict = mt_basic_utils.numpy_to_words(decoder_inputs,    #truth
+                                                              outputs,           #predictions, 
+                                                              dev_set[bucket_id])#target_vocabulary
+          # TODO calculate bleu and accuracy scores
+          print("{0} = {1}".format(s_predict[0], s_target[0]))
+
           eval_ppx = math.exp(eval_loss) if eval_loss < 300 else float('inf')
           print("  eval: bucket %d perplexity %.2f" % (bucket_id, eval_ppx))
         sys.stdout.flush()
