@@ -135,9 +135,16 @@ def create_model(session, forward_only):
 def train():
   """Train a en->fr translation model using WMT data."""
   from utils import performancemetrics as pm
+  import datetime
+
+  now = datetime.datetime.now().isoformat()
+  log_file_path = "{0}.dat".format(now)
+  print("Creating log file as {0}..".format(log_file_path))
+  with open(log_file_path, "w") as log_file:
+      print("step,bleu", file=log_file)
+
   # Prepare WMT data.
   print("Preparing WMT data in %s" % FLAGS.data_dir)
-  # TODO
   en_train, fr_train, en_dev, fr_dev, _, fr_vocab_path = data_utils.prepare_wmt_data(
       FLAGS.data_dir, FLAGS.en_vocab_size, FLAGS.fr_vocab_size)
 
@@ -199,16 +206,14 @@ def train():
         checkpoint_path = os.path.join(FLAGS.train_dir, "translate.ckpt")
         model.saver.save(sess, checkpoint_path, global_step=model.global_step)
         step_time, loss = 0.0, 0.0
-        # TODO
         # Run evals on development set and print their perplexity.
+        references, candidates = [], []
         for bucket_id in xrange(len(_buckets)):
           if len(dev_set[bucket_id]) == 0:
             print("  eval: empty bucket %d" % (bucket_id))
             continue
           encoder_inputs, decoder_inputs, target_weights = model.get_batch(dev_set, bucket_id)
 
-          ####
-          ####
           _, eval_loss, output_logits = model.step(sess, encoder_inputs, decoder_inputs, target_weights, bucket_id, True)
           predictions = []
           for batch in output_logits:
@@ -221,17 +226,18 @@ def train():
               # append output to list of results
               predictions.append(output)
           # decode into sentences
-          references, candidates = [], []
           for (result, expected) in zip(predictions, decoder_inputs):
               candidates.append(" ".join([rev_fr_vocab[word_arg] for word_arg in result]))
               references.append(" ".join([rev_fr_vocab[word_arg] for word_arg in expected]))
 
-          eval_corp_bleu = pm.corpus_bleu(candidates, references)
-          ###
-          ###
-
           eval_ppx = math.exp(eval_loss) if eval_loss < 300 else float('inf')
-          print("  eval: bucket %d perplexity %.2f corpus bleu %.5f" % (bucket_id, eval_ppx, eval_corp_bleu))
+          print("  eval: bucket %d perplexity %.2f" % (bucket_id, eval_ppx))
+        eval_corp_bleu = pm.corpus_bleu(candidates, references)
+        print("  combined bleu score: %.5f" % ( eval_corp_bleu))
+
+        with open(log_file_path, "a") as log_file:
+            print("{0},{1}".format(current_step, eval_corp_bleu), file=log_file)
+
         sys.stdout.flush()
 
 
