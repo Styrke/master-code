@@ -6,54 +6,41 @@ from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 #from utils.tfextensions import grid_gather
 
-import importlib
-
 class Model(object):
 
-    def __init__(self, alphabet_size, Xs, X_len, ts, ts_go, t_mask, feedback, embedd_dims=16, max_x_seq_len=25, max_t_seq_len=25, config_name=None):
+    def __init__(self, alphabet_size, Xs, X_len, ts, ts_go, t_mask, feedback,
+        embedd_dims=16, max_x_seq_len=25, max_t_seq_len=25,
+        learning_rate=0.01, reg_scale=0.0001, clip_norm=1):
+
         self.alphabet_size = alphabet_size
         self.embedd_dims   = embedd_dims
         self.max_x_seq_len = max_x_seq_len
         self.max_t_seq_len = max_t_seq_len
+        self.learning_rate = learning_rate
+        self.reg_scale = reg_scale
+        self.clip_norm = clip_norm
         # rnn output size must equal alphabet size for decoder feedback to work
-        self.rnn_units = 400
 
         self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
         self.ts, self.ts_go, self.t_mask = ts, ts_go, t_mask
     
-        builder = None
-        if config_name:
-            builder = importlib.import_module("configurations.%s" % config_name)
+        self.build()
 
-        if builder and hasattr(builder, 'build'):
-            builder.build(self.Xs, self.X_len, self.ts_go, self.feedback)
-        else:
-            self.build(self.Xs, self.X_len, self.ts_go, self.feedback)
+        self.build_loss()
 
-        if builder and hasattr(builder, 'build_loss'):
-            builder.build_loss(self.ts, self.t_mask)
-        else:
-            self.build_loss(self.ts, self.t_mask)
+        self.build_prediction()
 
-        if builder and hasattr(builder, 'build_prediction'):
-            builder.build_prediction()
-        else:
-            self.build_prediction()
+        self.training()
 
-        if builder and hasattr(builder, 'training'):
-            builder.training(learning_rate = 0.1)
-        else:
-            self.training(learning_rate = 0.1)
-
-    def build(self, Xs, X_len, ts, feedback):
+    def build(self):
         print('Building model')
-
+        rnn_units = 400
         self.embeddings = tf.Variable(
             tf.random_uniform([self.alphabet_size, self.embedd_dims]),
             name='embeddings')
 
-        X_embedded = tf.gather(self.embeddings, Xs, name='embed_X')
-        t_embedded = tf.gather(self.embeddings, ts, name='embed_t')
+        X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
+        t_embedded = tf.gather(self.embeddings, self.ts, name='embed_t')
 
         with tf.variable_scope('split_X_inputs'):
             X_list = tf.split(
@@ -77,17 +64,17 @@ class Model(object):
 
         with tf.variable_scope('dense_out'):
             W_out = tf.get_variable('W_out',
-                [self.rnn_units, self.alphabet_size])
+                [rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        cell = rnn_cell.GRUCell(self.rnn_units)
+        cell = rnn_cell.GRUCell(rnn_units)
 
         # encoder
         enc_outputs, enc_state = rnn.rnn(
             cell=cell,
             inputs=X_list,
             dtype=tf.float32,
-            sequence_length=X_len,
+            sequence_length=self.X_len,
             scope='rnn_encoder')
 
         # The loop function provides inputs to the decoder:
@@ -101,7 +88,7 @@ class Model(object):
                 # feedback is off, so just feed the decoder with t's
                 return t_list[i]
 
-            return tf.cond(feedback, feedback_on, feedback_off)
+            return tf.cond(self.feedback, feedback_on, feedback_off)
 
         # decoder
         dec_out, dec_state = seq2seq.rnn_decoder(
@@ -114,7 +101,7 @@ class Model(object):
         for d in dec_out:
             self.out.append(tf.matmul(d, W_out) + b_out)
 
-        # for debugging network
+        # for debugging network (should write this outside of build)
         out_packed = tf.pack(self.out)
         out_packed = tf.transpose(out_packed, perm=[1, 0, 2])
         print(out_packed.get_shape())
@@ -123,7 +110,7 @@ class Model(object):
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
 
-    def build_loss(self, ts, t_mask, reg_scale=0.0001):
+    def build_loss(self):
         """Build a loss function and accuracy for the model.
 
         Keyword arguments:
@@ -136,21 +123,22 @@ class Model(object):
 
         with tf.variable_scope('accuracy'):
             argmax = tf.to_int32(tf.argmax(self.out_tensor, 2))
-            correct = tf.to_float(tf.equal(argmax, ts)) * t_mask
-            self.accuracy = tf.reduce_sum(correct) / tf.reduce_sum(t_mask)
+            correct = tf.to_float(tf.equal(argmax, self.ts)) * self.t_mask
+            self.accuracy = tf.reduce_sum(correct) / tf.reduce_sum(self.t_mask)
 
             tf.scalar_summary('accuracy', self.accuracy)
 
         with tf.variable_scope('loss'):
             with tf.variable_scope('split_t_and_mask'):
+                # Why are we overwriting these values?
                 ts = tf.split(split_dim=1,
                               num_split=self.max_t_seq_len,
-                              value=ts)
+                              value=self.ts)
 
                 t_mask = tf.split(
                     split_dim=1,
                     num_split=self.max_t_seq_len,
-                    value=t_mask)
+                    value=self.t_mask)
 
                 t_mask = [tf.squeeze(weight) for weight in t_mask]
 
@@ -161,7 +149,7 @@ class Model(object):
                 self.max_t_seq_len)
 
             with tf.variable_scope('regularization'):
-                regularize = tf.contrib.layers.l2_regularizer(reg_scale)
+                regularize = tf.contrib.layers.l2_regularizer(self.reg_scale)
                 params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
                 reg_term = sum([regularize(param) for param in params])
 
@@ -181,11 +169,12 @@ class Model(object):
             self.ys = tf.argmax(packed_logits, dimension=2)
 
 
-    def training(self, learning_rate, clip_norm=1):
+    def training(self):
         print('Building model training')
 
+        # why 0?
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
-        optimizer = tf.train.AdamOptimizer()
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
 
         # Do gradient clipping
         # NOTE: this is the correct, but slower clipping by global norm.
@@ -193,7 +182,8 @@ class Model(object):
         # (See the documentation for tf.clip_by_global_norm() for more info)
         grads_and_vars = optimizer.compute_gradients(self.loss)
         grads, variables = zip(*grads_and_vars)  # unzip list of tuples
-        clipped_grads, global_norm = tf.clip_by_global_norm(grads, clip_norm)
+        clipped_grads, global_norm = tf.clip_by_global_norm(grads,
+            self.clip_norm)
         clipped_grads_and_vars = zip(clipped_grads, variables)
 
         # Create TensorBoard scalar summary for global gradient norm

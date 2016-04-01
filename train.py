@@ -4,6 +4,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from warnings import warn
+import importlib
 
 import text_loader as tl
 
@@ -43,7 +44,7 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
 @click.option('--batch-size', default=32,
     help='Size of batches')
-@click.option('--config-name', default=None,
+@click.option('--config-name', default='test',
     help='Configuration file to use for model')
 class Trainer:
     """Train a translation model."""
@@ -52,8 +53,10 @@ class Trainer:
         self.loader, self.tsne, self.visualize = loader, tsne, visualize
         self.log_freq, self.save_freq, self.valid_freq = log_freq, save_freq, valid_freq
         self.iterations, self.seq_len, self.warm_up = iterations, seq_len, warm_up
-        self.batch_size, self.config_name = batch_size, config_name
+        self.batch_size = batch_size
 
+        config_path = 'configurations.' + config_name
+        self.config = importlib.import_module(config_path)
 
         self.setup_reload_path(train_name)
         self.setup_placeholders()
@@ -96,7 +99,7 @@ class Trainer:
         self.feedback = tf.placeholder(tf.bool,                                name='feedback_indicator')
 
     def setup_model(self):
-        self.model = Model(
+        self.model = self.config.ConfigModel(
                 alphabet_size = 337,
                 Xs = self.Xs,
                 X_len = self.X_len,
@@ -105,8 +108,7 @@ class Trainer:
                 t_mask = self.t_mask,
                 feedback = self.feedback,
                 max_x_seq_len = self.seq_len,
-                max_t_seq_len = self.seq_len,
-                config_name = self.config_name )
+                max_t_seq_len = self.seq_len )
 
     def setup_loader(self):
         self.sample_generator = dict()

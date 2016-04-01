@@ -1,4 +1,6 @@
+import sys
+sys.path.insert(0, '..')
+import model
 
-def training(learning_rate):
-  print("TEST TRAINING")
-  print("learning rate is %s" % learning_rate)
+class ConfigModel(model.Model):
+    pass
