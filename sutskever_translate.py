@@ -134,11 +134,14 @@ def create_model(session, forward_only):
 
 def train():
   """Train a en->fr translation model using WMT data."""
+  from utils import performancemetrics as pm
   # Prepare WMT data.
   print("Preparing WMT data in %s" % FLAGS.data_dir)
   # TODO
-  en_train, fr_train, en_dev, fr_dev, _, _ = data_utils.prepare_wmt_data(
+  en_train, fr_train, en_dev, fr_dev, _, fr_vocab_path = data_utils.prepare_wmt_data(
       FLAGS.data_dir, FLAGS.en_vocab_size, FLAGS.fr_vocab_size)
+
+  _, rev_fr_vocab = data_utils.initialize_vocabulary(fr_vocab_path)
 
   with tf.Session() as sess:
     # Create model.
@@ -202,24 +205,33 @@ def train():
           if len(dev_set[bucket_id]) == 0:
             print("  eval: empty bucket %d" % (bucket_id))
             continue
-          encoder_inputs, decoder_inputs, target_weights = model.get_batch(
-              dev_set, bucket_id)
-          # TODO
-          # outputs should be an index of the word in vocabulary
-          _, eval_loss, outputs = model.step(sess, encoder_inputs, decoder_inputs,
-                                       target_weights, bucket_id, True)
-          # TODO
-          # find it in vocabulary
-          # convert all predictions to strings
-          # TODO not sure if this is the correct inputs to use
-          s_target, s_predict = mt_basic_utils.numpy_to_words(decoder_inputs,    #truth
-                                                              outputs,           #predictions, 
-                                                              dev_set[bucket_id])#target_vocabulary
-          # TODO calculate bleu and accuracy scores
-          print("{0} = {1}".format(s_predict[0], s_target[0]))
+          encoder_inputs, decoder_inputs, target_weights = model.get_batch(dev_set, bucket_id)
+
+          ####
+          ####
+          _, eval_loss, output_logits = model.step(sess, encoder_inputs, decoder_inputs, target_weights, bucket_id, True)
+          predictions = []
+          for batch in output_logits:
+              output = []
+              for logit in batch:
+                  output.append(int(np.argmax(logit)))
+              # If there is an EOS symbol in outputs, cut them at that point.
+              if data_utils.EOS_ID in output:
+                output = output[:output.index(data_utils.EOS_ID)]
+              # append output to list of results
+              predictions.append(output)
+          # decode into sentences
+          references, candidates = [], []
+          for (result, expected) in zip(predictions, decoder_inputs):
+              candidates.append(" ".join([rev_fr_vocab[word_arg] for word_arg in result]))
+              references.append(" ".join([rev_fr_vocab[word_arg] for word_arg in expected]))
+
+          eval_corp_bleu = pm.corpus_bleu(candidates, references)
+          ###
+          ###
 
           eval_ppx = math.exp(eval_loss) if eval_loss < 300 else float('inf')
-          print("  eval: bucket %d perplexity %.2f" % (bucket_id, eval_ppx))
+          print("  eval: bucket %d perplexity %.2f corpus bleu %.5f" % (bucket_id, eval_ppx, eval_corp_bleu))
         sys.stdout.flush()
 
 
