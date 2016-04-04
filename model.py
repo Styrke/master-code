@@ -9,11 +9,10 @@ from tensorflow.python.ops import rnn
 class Model(object):
 
     def __init__(self, alphabet_size, Xs, X_len, ts, ts_go, t_mask, feedback,
-        embedd_dims=16, max_x_seq_len=25, max_t_seq_len=25,
-        learning_rate=0.01, reg_scale=0.0001, clip_norm=1):
+        max_x_seq_len=25, max_t_seq_len=25, learning_rate=0.01,
+        reg_scale=0.0001, clip_norm=1):
 
         self.alphabet_size = alphabet_size
-        self.embedd_dims   = embedd_dims
         self.max_x_seq_len = max_x_seq_len
         self.max_t_seq_len = max_t_seq_len
         self.learning_rate = learning_rate
@@ -35,8 +34,9 @@ class Model(object):
     def build(self):
         print('Building model')
         rnn_units = 400
+        embedd_dims = 16
         self.embeddings = tf.Variable(
-            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
+            tf.random_uniform([self.alphabet_size, embedd_dims]),
             name='embeddings')
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
@@ -50,7 +50,7 @@ class Model(object):
 
             X_list = [tf.squeeze(X) for X in X_list]
 
-            [X.set_shape([None, self.embedd_dims]) for X in X_list]
+            [X.set_shape([None, embedd_dims]) for X in X_list]
 
         with tf.variable_scope('split_t_inputs'):
             t_list = tf.split(
@@ -60,7 +60,7 @@ class Model(object):
 
             t_list = [tf.squeeze(t) for t in t_list]
 
-            [t.set_shape([None, self.embedd_dims]) for t in t_list]
+            [t.set_shape([None, embedd_dims]) for t in t_list]
 
         with tf.variable_scope('dense_out'):
             W_out = tf.get_variable('W_out',

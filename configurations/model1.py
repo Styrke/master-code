@@ -7,15 +7,18 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
-#
+
+# hyperparams
 rnn_units = 100
+embedd_dims = 16
+
 
 class ConfigModel(model.Model):
 
     def build(self):
         print('Building model')
         self.embeddings = tf.Variable(
-            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
+            tf.random_uniform([self.alphabet_size, embedd_dims]),
             name='embeddings')
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
@@ -29,7 +32,7 @@ class ConfigModel(model.Model):
 
             X_list = [tf.squeeze(X) for X in X_list]
 
-            [X.set_shape([None, self.embedd_dims]) for X in X_list]
+            [X.set_shape([None, embedd_dims]) for X in X_list]
 
         with tf.variable_scope('split_t_inputs'):
             t_list = tf.split(
@@ -39,7 +42,7 @@ class ConfigModel(model.Model):
 
             t_list = [tf.squeeze(t) for t in t_list]
 
-            [t.set_shape([None, self.embedd_dims]) for t in t_list]
+            [t.set_shape([None, embedd_dims]) for t in t_list]
 
         with tf.variable_scope('dense_out'):
             W_out = tf.get_variable('W_out',
