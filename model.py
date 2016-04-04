@@ -102,7 +102,6 @@ class Model(object):
             self.out.append(tf.matmul(d, W_out) + b_out)
 
         # for debugging network (should write this outside of build)
-import tensorflow as tf
         out_packed = tf.pack(self.out)
         out_packed = tf.transpose(out_packed, perm=[1, 0, 2])
         print(out_packed.get_shape())
