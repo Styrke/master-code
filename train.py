@@ -15,14 +15,23 @@ from utils.basic import acc, create_tsne as TSNE
 from dummy_loader import DummySampleGenerator
 import utils.performancemetrics as pm
 
-SAVER_FOLDER_PATH = { 'base': 'train/', 'checkpoint': 'checkpoints/', 'log': 'logs/' }
+SAVER_FOLDER_PATH = {'base': 'train/',
+                     'checkpoint': 'checkpoints/',
+                     'log': 'logs/'}
 USE_LOGGED_WEIGHTS = False
 DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
+
 @click.command()
 @click.option(
-    '--loader', type=click.Choice(['europarl', 'normal', 'talord',
-    'talord_caps1', 'talord_caps2', 'talord_caps3']), default='europarl',
+    '--loader',
+    type=click.Choice(['europarl',
+                       'normal',
+                       'talord',
+                       'talord_caps1',
+                       'talord_caps2',
+                       'talord_caps3']),
+    default='europarl',
     help='Choose dataset to load. (default: europarl)')
 @click.option('--tsne', is_flag=True,
     help='Use t-sne to plot character embeddings.')
@@ -40,7 +49,7 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Maximum length of char sequences')
 @click.option('--warm-up', default=100,
     help='Warm up iterations for the batches')
-@click.option('--train-name', default=None,
+@click.option('--name', default=None,
     help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
 @click.option('--batch-size', default=64,
     help='Size of batches')
@@ -49,16 +58,24 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, visualize, log_freq, save_freq, iterations, valid_freq, seq_len, train_name, warm_up, batch_size, config_name):
-        self.loader, self.tsne, self.visualize = loader, tsne, visualize
-        self.log_freq, self.save_freq, self.valid_freq = log_freq, save_freq, valid_freq
-        self.iterations, self.seq_len, self.warm_up = iterations, seq_len, warm_up
+    def __init__(self, loader, tsne, visualize, log_freq, save_freq,
+                 iterations, valid_freq, seq_len, name, warm_up,
+                 batch_size, config_name):
+        self.loader = loader
+        self.tsne = tsne
+        self.visualize = visualize
+        self.log_freq = log_freq
+        self.save_freq = save_freq
+        self.valid_freq = valid_freq
+        self.iterations = iterations
+        self.seq_len = seq_len
+        self.warm_up = warm_up
         self.batch_size = batch_size
 
         config_path = 'configurations.' + config_name
         self.config = importlib.import_module(config_path)
 
-        self.setup_reload_path(train_name)
+        self.setup_reload_path(name)
         self.setup_placeholders()
         self.setup_model()
         self.setup_loader()
@@ -69,7 +86,7 @@ class Trainer:
         self.train()
 
     def setup_reload_path(self, name):
-        self.named_checkpoint_path, self.named_log_path, self.checkpoint_file_path = None, None, None
+        self.named_checkpoint_path = self.named_log_path = self.checkpoint_file_path = None
         if name:
             USE_LOGGED_WEIGHTS = True
 
@@ -113,85 +130,87 @@ class Trainer:
 
     def setup_model(self):
         self.model = self.config.ConfigModel(
-                alphabet_size = 337,
-                Xs = self.Xs,
-                X_len = self.X_len,
-                ts = self.ts,
-                ts_go = self.ts_go,
-                t_mask = self.t_mask,
-                feedback = self.feedback,
-                max_x_seq_len = self.seq_len,
-                max_t_seq_len = self.seq_len )
+                alphabet_size=337,
+                Xs=self.Xs,
+                X_len=self.X_len,
+                ts=self.ts,
+                ts_go=self.ts_go,
+                t_mask=self.t_mask,
+                feedback=self.feedback,
+                max_x_seq_len=self.seq_len,
+                max_t_seq_len=self.seq_len)
 
     def setup_loader(self):
         self.sample_generator = dict()
         if self.loader == 'europarl':
             print('Using europarl loader')
-            self.load_method = {
-                    'train': tl.TextLoadMethod(
-                        ['data/train/europarl-v7.da-en.en'],
-                        ['data/train/europarl-v7.da-en.da'],
-                        seq_len = self.seq_len ) }
+            lm = tl.TextLoadMethod(
+                paths_X=['data/train/europarl-v7.da-en.en'],
+                paths_t=['data/train/europarl-v7.da-en.da'],
+                seq_len=self.seq_len)
+            self.load_method = {'train': lm}
 
-            # TODO: making the validation split (should not just be True later on)
-            # something like: `if not os.path.isfile(DEFAULT_VALIDATION_SPLIT):`
+            # TODO: making the validation split (should not just be True later
+            # on) something like: `if not
+            # os.path.isfile(DEFAULT_VALIDATION_SPLIT):`
             if True:
                 import create_validation_split as v_split
                 no_training_samples = len(self.load_method['train'].samples)
-                v_split.create_split(no_training_samples, DEFAULT_VALIDATION_SPLIT)
+                v_split.create_split(no_training_samples,
+                                     DEFAULT_VALIDATION_SPLIT)
 
             split = np.load(DEFAULT_VALIDATION_SPLIT)
             self.sample_generator['train'] = tl.SampleTrainWrapper(
                     self.load_method['train'],
-                    permutation = split['indices_train'],
-                    num_splits = 32 )
+                    permutation=split['indices_train'],
+                    num_splits=32)
 
             # data loader for eval
             # notice repeat = false
             self.eval_sample_generator = {
-                'train':  fl.SampleGenerator(
+                'train': fl.SampleGenerator(
                     self.load_method['train'],
-                    permutation = split['indices_train'],
-                    repeat = False ),
+                    permutation=split['indices_train'],
+                    repeat=False),
                 'validation': fl.SampleGenerator(
-                    self.load_method['train'], #TODO: is this the correct load method?
-                    permutation = split['indices_valid'],
-                    repeat = False ) }
-        elif self.loader in [ 'normal', 'talord', 'talord_caps1', 'talord_caps2', 'talord_caps3']:
-            print('Using dummy loader (%s)' % (self.loader) )
+                    self.load_method['train'],  # TODO: is this the correct load method?
+                    permutation=split['indices_valid'],
+                    repeat=False)}
+        elif self.loader in ['normal', 'talord', 'talord_caps1', 'talord_caps2', 'talord_caps3']:
+            print('Using dummy loader (%s)' % (self.loader))
             self.sample_generator['train'] = DummySampleGenerator(
-                    max_len = self.seq_len/6,
-                    sampler = self.loader )
+                    max_len=self.seq_len/6,
+                    sampler=self.loader)
         else:
-            raise NotImplementedError("Given loader (%s) is not supported" % (self.loader) )
+            raise NotImplementedError("Given loader (%s) is not supported" % (self.loader))
 
     def setup_batch_generator(self):
         self.batch_generator = dict()
         if self.loader is 'europarl':
-             self.batch_generator['train'] = tl.BatchTrainWrapper(
-                    self.sample_generator['train'],
-                    batch_size = self.batch_size,
-                    seq_len = self.seq_len,
-                    warm_up = self.warm_up )
+            self.batch_generator['train'] = tl.BatchTrainWrapper(
+                self.sample_generator['train'],
+                batch_size=self.batch_size,
+                seq_len=self.seq_len,
+                warm_up=self.warm_up)
         else:
-             self.batch_generator['train'] = tl.TextBatchGenerator(
-                    self.sample_generator['train'],
-                    batch_size = self.batch_size,
-                    seq_len = self.seq_len )
+            self.batch_generator['train'] = tl.TextBatchGenerator(
+                self.sample_generator['train'],
+                batch_size=self.batch_size,
+                seq_len=self.seq_len)
 
         # If we have a validation frequency
         # setup needed evaluation generators
         if self.valid_freq:
             self.eval_batch_generator = {
                     # TODO: this was too large to run for now
-                    #'train': tl.TextBatchGenerator(
-                    #    self.eval_sample_generator['train'],
-                    #    batch_size = self.batch_size,
-                    #    seq_len = self.seq_len ),
+                    # 'train': tl.TextBatchGenerator(
+                    #     self.eval_sample_generator['train'],
+                    #     batch_size = self.batch_size,
+                    #     seq_len = self.seq_len ),
                     'validation': tl.TextBatchGenerator(
                         self.eval_sample_generator['validation'],
-                        batch_size = self.batch_size,
-                        seq_len = self.seq_len ) }
+                        batch_size=self.batch_size,
+                        seq_len=self.seq_len)}
 
     def visualize_ys(self, ys, batch):
         for j in range(batch['x_encoded'].shape[0]):
@@ -200,8 +219,6 @@ class Trainer:
                 self.alphabet.decode(ys[j]),
                 self.alphabet.decode(batch['t_encoded'][j])
                 ))
-
-
 
     def train(self):
         print("## INITIATE TRAIN")
@@ -226,7 +243,7 @@ class Trainer:
                 self.writer = writer
 
             print("## TRAINING...")
-            combined_time = 0.0 # total time for each print
+            combined_time = 0.0  # total time for each print
             for i, t_batch in enumerate(self.batch_generator['train'].gen_batch()):
                 if self.valid_freq and i % self.valid_freq == 0:
                     self.validate(sess)
@@ -263,17 +280,23 @@ class Trainer:
                     click.echo('reached max iteration: %d' % i)
                     break
 
-    def perform_iteration(self, sess, fetches, feed_dict=None, batch=None, feedback=False):
+    def perform_iteration(self, sess, fetches, feed_dict=None, batch=None,
+                          feedback=False):
         """ Performs one iteration/run.
+
             Returns tuple containing result and elapsed iteration time.
 
             Keyword arguments:
             sess:       Tensorflow Session
-            fetches:    A single graph element, or a list of graph elements
-            feed_dict:  A dictionary that maps graph elements to values (default: None)
-            batch:      A batch with data used to fill feed_dict (default: None)
-            feedback:   If true the decoder will get its own prediction the previous time step.
-                        If false it will get target for previous time step (default: False)
+            fetches:    A single graph element, or a list of graph
+                        elements.
+            feed_dict:  A dictionary that maps graph elements to values
+                        (default: None)
+            batch:      A batch with data used to fill feed_dict
+                        (default: None)
+            feedback:   If true the decoder will get its own prediction
+                        the previous time step. If false it will get
+                        target for previous time step (default: False)
         """
         if not fetches:
             raise ValueError("fetches argument must be a non-empty list")
@@ -287,7 +310,7 @@ class Trainer:
                     self.ts_go:  batch['t_encoded_go'],
                     self.X_len:  batch['x_len'],
                     self.t_mask: batch['t_mask'],
-                    self.feedback: feedback }
+                    self.feedback: feedback}
 
         start_time = time.time()
         res = sess.run(fetches, feed_dict=feed_dict)
