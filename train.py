@@ -98,6 +98,19 @@ class Trainer:
         self.t_mask   = tf.placeholder(tf.float32, shape=[None, self.seq_len], name='t_mask')
         self.feedback = tf.placeholder(tf.bool,                                name='feedback_indicator')
 
+    def setup_validation_summaries(self):
+        """A hack for recording performance metrics with TensorBoard."""
+        self.bleu = tf.placeholder(tf.float32)
+        self.edit_dist = tf.placeholder(tf.float32)
+
+        valid_summaries = [
+            tf.scalar_summary('validation/accuracy', self.model.accuracy),
+            tf.scalar_summary('validation/bleu', self.bleu),
+            tf.scalar_summary('validation/edit dist per char', self.edit_dist)
+        ]
+
+        return tf.merge_summary(valid_summaries)
+
     def setup_model(self):
         self.model = self.config.ConfigModel(
                 alphabet_size = 337,
@@ -205,9 +218,12 @@ class Trainer:
             if self.tsne:
                 TSNE(self.model, self.alphabet.decode_dict)
 
+            # prepare summary operations and summary writer
             summaries = tf.merge_all_summaries()
+            self.val_summaries = self.setup_validation_summaries()
             if self.named_log_path and os.path.exists(self.named_log_path):
                 writer = tf.train.SummaryWriter(self.named_log_path, sess.graph_def)
+                self.writer = writer
 
             print("## TRAINING...")
             combined_time = 0.0 # total time for each print
@@ -322,6 +338,16 @@ class Trainer:
         # edit distance
         edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
         print('\t%s%f' % ('Mean edit dist per char:'.ljust(25), edit_dist))
+
+        if self.named_log_path and os.path.exists(self.named_log_path):
+            feed_dict = {
+                self.model.accuracy: valid_acc,
+                self.bleu: corpus_bleu,
+                self.edit_dist: edit_dist
+            }
+            fetches = [self.val_summaries, self.model.global_step]
+            summaries, i = sess.run(fetches, feed_dict)
+            self.writer.add_summary(summaries, i)
 
         print("\n## VALIDATION DONE")
 

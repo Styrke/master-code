@@ -40,7 +40,7 @@ class Model(object):
             name='embeddings')
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
-        t_embedded = tf.gather(self.embeddings, self.ts, name='embed_t')
+        t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('split_X_inputs'):
             X_list = tf.split(
