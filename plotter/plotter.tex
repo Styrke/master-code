@@ -1,0 +1,38 @@
+\documentclass{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,automata}
+\usepackage{amsmath}
+
+\usepackage{pgf}
+\usepackage{pgfplots}
+\pgfplotsset{
+  compat        = newest,
+  table/col sep = semicolon
+}
+\begin{document}
+
+\begin{tikzpicture}
+  \begin{axis}[
+    ymajorgrids,
+    xmajorgrids,
+    ylabel={bleu},
+    xlabel={step},
+    legend style={
+      at={(0.95,0.05)},
+      anchor=south east,
+      column sep=1ex
+     },
+     no markers,
+     very thick 
+   ]
+
+    \addplot table [header=true, 
+                    col sep=comma, 
+                    x=step, 
+                    y=bleu] 
+                    {2016-04-01T12:32:40.550198.dat};
+    \addlegendentry{sutskever};
+  \end{axis}
+\end{tikzpicture}
+
+\end{document}

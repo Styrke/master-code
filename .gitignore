@@ -66,3 +66,32 @@ target/
 
 # ignore training logs
 **/train/
+
+**/*.aux
+**/*.glo
+**/*.idx
+**/*.log
+**/*.toc
+**/*.ist
+**/*.acn
+**/*.acr
+**/*.alg
+**/*.bbl
+**/*.blg
+**/*.dvi
+**/*.glg
+**/*.gls
+**/*.ilg
+**/*.ind
+**/*.lof
+**/*.lot
+**/*.maf
+**/*.mtc
+**/*.mtc1
+**/*.out
+**/*.synctex.gz
+**/*.DS_Store
+**/*.*~
+**/*.fdb_latexmk
+**/*.fls
+**/*.tdo
