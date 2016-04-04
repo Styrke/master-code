@@ -40,7 +40,7 @@ class Model(object):
             name='embeddings')
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
-        t_embedded = tf.gather(self.embeddings, self.ts, name='embed_t')
+        t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('split_X_inputs'):
             X_list = tf.split(
@@ -102,6 +102,7 @@ class Model(object):
             self.out.append(tf.matmul(d, W_out) + b_out)
 
         # for debugging network (should write this outside of build)
+import tensorflow as tf
         out_packed = tf.pack(self.out)
         out_packed = tf.transpose(out_packed, perm=[1, 0, 2])
         print(out_packed.get_shape())
