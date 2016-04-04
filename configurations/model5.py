@@ -45,7 +45,7 @@ class ConfigModel(model.Model):
 
             [t.set_shape([None, embedd_dims]) for t in t_list]
 
-        with tf.variable_score('dense_l1'):
+        with tf.variable_scope('dense_l1'):
             W_l1 = tf.get_variable('W_l1',
                 [rnn_units, l1_units])
             b_l1 = tf.get_variable('b_l1', [l1_units])
