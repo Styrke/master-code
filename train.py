@@ -263,7 +263,7 @@ class Trainer:
                 if self.visualize and i % self.visualize == 0:
                     self.visualize_ys(res[1], t_batch)
 
-                if self.named_log_path and os.path.exists(self.named_log_path):
+                if self.named_log_path and os.path.exists(self.named_log_path) and i % 40 == 0:
                     writer.add_summary(res[2], i)
 
                 if self.save_freq and i and i % self.save_freq == 0 and self.named_checkpoint_path:
