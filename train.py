@@ -104,8 +104,7 @@ class Trainer:
 
             print("Will read and write from '%s' (checkpoints and logs)" % (local_folder_path))
             if not self.save_freq:
-                warn("Will not save checkpoints, because 'save_freq' was not above 0", UserWarning)
-
+                warn("'save_freq' is 0, won't save checkpoints", UserWarning)
 
     def setup_placeholders(self):
         self.Xs       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='X_input')
