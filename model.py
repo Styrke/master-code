@@ -6,37 +6,38 @@ from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 #from utils.tfextensions import grid_gather
 
+
 class Model(object):
+    # settings that affect train.py
+    batch_size = 64
 
-    def __init__(self, alphabet_size, Xs, X_len, ts, ts_go, t_mask, feedback,
-        max_x_seq_len=25, max_t_seq_len=25, learning_rate=0.01,
-        reg_scale=0.0001, clip_norm=1):
+    # settings that are local to the model
+    alphabet_size = 337
+    rnn_units = 400
+    embedd_dims = 16
+    learning_rate = 0.01
+    reg_scale = 0.0001
 
-        self.alphabet_size = alphabet_size
+    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback,
+                 max_x_seq_len=25, max_t_seq_len=25, clip_norm=1):
+
         self.max_x_seq_len = max_x_seq_len
         self.max_t_seq_len = max_t_seq_len
-        self.learning_rate = learning_rate
-        self.reg_scale = reg_scale
         self.clip_norm = clip_norm
         # rnn output size must equal alphabet size for decoder feedback to work
 
         self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
         self.ts, self.ts_go, self.t_mask = ts, ts_go, t_mask
-    
+
         self.build()
-
         self.build_loss()
-
         self.build_prediction()
-
         self.training()
 
     def build(self):
         print('Building model')
-        rnn_units = 400
-        embedd_dims = 16
         self.embeddings = tf.Variable(
-            tf.random_uniform([self.alphabet_size, embedd_dims]),
+            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
             name='embeddings')
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
@@ -50,7 +51,7 @@ class Model(object):
 
             X_list = [tf.squeeze(X) for X in X_list]
 
-            [X.set_shape([None, embedd_dims]) for X in X_list]
+            [X.set_shape([None, self.embedd_dims]) for X in X_list]
 
         with tf.variable_scope('split_t_inputs'):
             t_list = tf.split(
@@ -60,14 +61,13 @@ class Model(object):
 
             t_list = [tf.squeeze(t) for t in t_list]
 
-            [t.set_shape([None, embedd_dims]) for t in t_list]
+            [t.set_shape([None, self.embedd_dims]) for t in t_list]
 
         with tf.variable_scope('dense_out'):
-            W_out = tf.get_variable('W_out',
-                [rnn_units, self.alphabet_size])
+            W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        cell = rnn_cell.GRUCell(rnn_units)
+        cell = rnn_cell.GRUCell(self.rnn_units)
 
         # encoder
         enc_outputs, enc_state = rnn.rnn(
@@ -104,21 +104,13 @@ class Model(object):
         # for debugging network (should write this outside of build)
         out_packed = tf.pack(self.out)
         out_packed = tf.transpose(out_packed, perm=[1, 0, 2])
-        print(out_packed.get_shape())
         self.out_tensor = out_packed
 
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
 
     def build_loss(self):
-        """Build a loss function and accuracy for the model.
-
-        Keyword arguments:
-        ts -- targets to predict
-        t_mask -- mask for the targets
-        reg_scale -- regularization scale in range [0.0, 1.0]. 0.0 to
-            disable.
-        """
+        """Build a loss function and accuracy for the model."""
         print('Building model loss and accuracy')
 
         with tf.variable_scope('accuracy'):
@@ -168,7 +160,6 @@ class Model(object):
 
             self.ys = tf.argmax(packed_logits, dimension=2)
 
-
     def training(self):
         print('Building model training')
 
@@ -183,7 +174,7 @@ class Model(object):
         grads_and_vars = optimizer.compute_gradients(self.loss)
         grads, variables = zip(*grads_and_vars)  # unzip list of tuples
         clipped_grads, global_norm = tf.clip_by_global_norm(grads,
-            self.clip_norm)
+                                                            self.clip_norm)
         clipped_grads_and_vars = zip(clipped_grads, variables)
 
         # Create TensorBoard scalar summary for global gradient norm

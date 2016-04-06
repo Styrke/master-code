@@ -51,16 +51,13 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Warm up iterations for the batches')
 @click.option('--name', default=None,
     help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
-@click.option('--batch-size', default=64,
-    help='Size of batches')
 @click.option('--config-name', default='test',
     help='Configuration file to use for model')
 class Trainer:
     """Train a translation model."""
 
     def __init__(self, loader, tsne, visualize, log_freq, save_freq,
-                 iterations, valid_freq, seq_len, name, warm_up,
-                 batch_size, config_name):
+                 iterations, valid_freq, seq_len, name, warm_up, config_name):
         self.loader = loader
         self.tsne = tsne
         self.visualize = visualize
@@ -70,14 +67,10 @@ class Trainer:
         self.iterations = iterations
         self.seq_len = seq_len
         self.warm_up = warm_up
-        self.batch_size = batch_size
-
-        config_path = 'configurations.' + config_name
-        self.config = importlib.import_module(config_path)
 
         self.setup_reload_path(name)
         self.setup_placeholders()
-        self.setup_model()
+        self.setup_model(config_name)
         self.setup_loader()
         self.setup_batch_generator()
 
@@ -127,9 +120,15 @@ class Trainer:
 
         return tf.merge_summary(valid_summaries)
 
-    def setup_model(self):
-        self.model = self.config.ConfigModel(
-                alphabet_size=337,
+    def setup_model(self, config_name):
+        # load the config module to use
+        config_path = 'configurations.' + config_name
+        config = importlib.import_module(config_path)
+
+        # copy settings that affect the training script
+        self.batch_size = config.Model.batch_size
+
+        self.model = config.Model(
                 Xs=self.Xs,
                 X_len=self.X_len,
                 ts=self.ts,
