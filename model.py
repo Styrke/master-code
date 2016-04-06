@@ -10,6 +10,7 @@ from tensorflow.python.ops import rnn
 class Model(object):
     # settings that affect train.py
     batch_size = 64
+    seq_len = 50
 
     # settings that are local to the model
     alphabet_size = 337
@@ -17,12 +18,10 @@ class Model(object):
     embedd_dims = 16
     learning_rate = 0.01
     reg_scale = 0.0001
+    max_x_seq_len = seq_len
+    max_t_seq_len = seq_len
 
-    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback,
-                 max_x_seq_len=25, max_t_seq_len=25, clip_norm=1):
-
-        self.max_x_seq_len = max_x_seq_len
-        self.max_t_seq_len = max_t_seq_len
+    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, clip_norm=1):
         self.clip_norm = clip_norm
         # rnn output size must equal alphabet size for decoder feedback to work
 

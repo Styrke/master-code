@@ -45,8 +45,6 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Number of iterations (default: 32000)')
 @click.option('--valid-freq', default=100,
     help='Validate every N iterations. 0 to disable. (default: 0)')
-@click.option('--seq-len', default=50,
-    help='Maximum length of char sequences')
 @click.option('--warm-up', default=100,
     help='Warm up iterations for the batches')
 @click.option('--name', default=None,
@@ -57,7 +55,7 @@ class Trainer:
     """Train a translation model."""
 
     def __init__(self, loader, tsne, visualize, log_freq, save_freq,
-                 iterations, valid_freq, seq_len, name, warm_up, config_name):
+                 iterations, valid_freq, name, warm_up, config_name):
         self.loader = loader
         self.tsne = tsne
         self.visualize = visualize
@@ -65,11 +63,9 @@ class Trainer:
         self.save_freq = save_freq
         self.valid_freq = valid_freq
         self.iterations = iterations
-        self.seq_len = seq_len
         self.warm_up = warm_up
 
         self.setup_reload_path(name)
-        self.setup_placeholders()
         self.setup_model(config_name)
         self.setup_loader()
         self.setup_batch_generator()
@@ -99,13 +95,13 @@ class Trainer:
             if not self.save_freq:
                 warn("'save_freq' is 0, won't save checkpoints", UserWarning)
 
-    def setup_placeholders(self):
-        self.Xs       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='X_input')
-        self.ts       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='t_input')
-        self.ts_go    = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='t_input_go')
-        self.X_len    = tf.placeholder(tf.int32,   shape=[None],               name='X_len')
-        self.t_mask   = tf.placeholder(tf.float32, shape=[None, self.seq_len], name='t_mask')
-        self.feedback = tf.placeholder(tf.bool,                                name='feedback_indicator')
+    def setup_placeholders(self, seq_len):
+        self.Xs       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='X_input')
+        self.ts       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input')
+        self.ts_go    = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input_go')
+        self.X_len    = tf.placeholder(tf.int32,   shape=[None],          name='X_len')
+        self.t_mask   = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
+        self.feedback = tf.placeholder(tf.bool,                           name='feedback_indicator')
 
     def setup_validation_summaries(self):
         """A hack for recording performance metrics with TensorBoard."""
@@ -127,16 +123,17 @@ class Trainer:
 
         # copy settings that affect the training script
         self.batch_size = config.Model.batch_size
+        self.seq_len = config.Model.seq_len
 
+        # Create placeholders and construct model
+        self.setup_placeholders(config.Model.seq_len)
         self.model = config.Model(
                 Xs=self.Xs,
                 X_len=self.X_len,
                 ts=self.ts,
                 ts_go=self.ts_go,
                 t_mask=self.t_mask,
-                feedback=self.feedback,
-                max_x_seq_len=self.seq_len,
-                max_t_seq_len=self.seq_len)
+                feedback=self.feedback)
 
     def setup_loader(self):
         self.sample_generator = dict()
