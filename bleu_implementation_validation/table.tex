@@ -1,0 +1,182 @@
+\documentclass[a4paper]{article}
+\usepackage{booktabs}
+\usepackage{graphics}
+
+\begin{document}
+
+\begin{table}
+  \begin{tabular}{l l l}
+    \toprule
+    We must bear in mind the Community as a whole. & custom & nltk \\
+    \midrule
+                            & 1.0 & 0.8120 \\
+    This is not correct. & 0.03884 & 0.6828 \\
+    We must bear in mind the Community ALTOGETHER. & 0.7579 & 0.7909 \\
+    Bear in mind the Community as a whole. & 0.7879 & 0.7909 \\
+    We must KEEP in mind the Community as a whole. & 0.8752 & 0.7909 \\
+    \bottomrule
+  \end{tabular}
+  \caption{}
+\end{table}
+    
+
+\begin{table}
+  \begin{tabular}{l l l}
+    \toprule
+    But we must reach agreement on what to put in this constitution. & custom & nltk \\
+    \midrule
+                                                                     & 1.0 & 0.7282\\
+    This is not correct. & 0.02772 & 0.6438 \\
+    But we must NEGOTIATE on what to put in this constitution. & 0.7334 & 0.7071 \\
+    But we must AGREE on what to put in the constitution. & 0.6721 & 0.7071 \\
+    But we SHOULD reach agreement on what to put in this constitution. & 0.8831 & 0.7282 \\
+    \bottomrule
+  \end{tabular}
+  \caption{}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{l l l}
+    \toprule
+    This does not mean that everything has to happen at once. & custom & nltk \\
+    \midrule
+                                                              & 1.0 & 0.7598 \\
+    This is not correct. & 0.0738 & 0.6773 \\
+    This does not mean that everything has to happen INSTANTLY. & 0.8301 & 0.7496 \\
+    It does not mean that everything has to happen at the same time. & 0.7665 & 0.7389 \\
+    This does not mean that ALL has to happen at once. & 0.7878 & 0.7162 \\
+    \bottomrule
+  \end{tabular}
+  \caption{}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{l l l}
+    \toprule
+    Vote & custom & nltk \\
+    \midrule 
+         & 1.0 & 1.0 \\
+    This is not correct. & 0.07126 & 0.9306 \\
+    CHOOSE & 0 & 1.0 \\
+    CHOICE & 0 & 1.0 \\
+    CHOOSE & 0 & 1.0 \\
+    \bottomrule
+  \end{tabular}
+  \caption{}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{l l l}
+    \toprule
+    It cannot serve as a basis for the establishment of a European constitution. & custom & nltk \\
+    \midrule
+                                                                                 & 1.0 & 0.7002 \\
+    This is not correct. & 0.0182 & 0.6168 \\
+    It cannot BE a basis for the establishment of a European constitution. & 0.8705 & 0.7162 \\
+    It cannot BE a basis for the CREATION of a European constitution. & 0.6700 & 0.6976 \\
+    It cannot serve as a basis for the FORMATION of a European constitution. & 0.8046 & 0.7071 \\
+    \bottomrule
+  \end{tabular}
+  \caption{}
+\end{table}
+
+\begin{table}
+  \resizebox{15cm}{!}{
+    \begin{tabular}{l l l}
+      \toprule
+      The advantages are already there; they are visible and everyone stands to gain. & custom & nltk \\
+      \midrule
+                                                                                      & 1.0 & 0.7250 \\
+      This is not correct. & 0.0087 & 0.6108 \\
+      The advantages are CLEAR; they are visible and everyone stands to gain. & 0.8094 & 0.7002 \\
+      The advantages are already PRESENT; they are CLEAR and everyone stands to gain. & 0.8053 & 0.6908 \\
+      The advantages are already there; they are visible and everyone stands to ADVANCE. & 0.9036 & 0.7002 \\
+      \bottomrule
+    \end{tabular}
+  }
+  \caption{}
+\end{table}
+
+\begin{table}
+  \resizebox{15cm}{!}{
+    \begin{tabular}{l l l}
+      \toprule
+      We can help countries catch up, but not by putting their neighbours on hold. & custom & nltk \\
+      \midrule
+                                                                                   & 1.0 & 0.7250 \\
+      This is not correct. & 0.0194 & 0.6168 \\
+      We can help countries catch up, but not by OBSTRUCTING their neighbours. & 0.7674 & 0.7162 \\
+      We can help countries KEEP up, but DEFINITELY not by PUSHING their neighbours BACKWARDS. & 0.5899 & 0.7162 \\
+      We can help countries KEEP up, but not by putting their neighbours on hold. & 0.9125 & 0.7250 \\
+      \bottomrule
+    \end{tabular}
+  }
+  \caption{}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{l l l}
+    \toprule
+    Several years ago in Copenhagen we defined the requisite criteria. & custom & nltk \\
+    \midrule
+                                                                       & 1.0 & 0.7765 \\
+    This is not correct. & 0.0167 & 0.6389 \\
+    AGES ago in Copenhagen we defined the requisite criteria. & 0.7960 & 0.7510 \\
+    MANY years ago in Copenhagen we AGREED UPON the requisite criteria. & 0.7474 & 0.7324 \\
+    MANY years ago in Copenhagen we defined the requisite criteria. & 0.8914 & 0.7510 \\
+    \bottomrule
+  \end{tabular}
+  \caption{}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{l l l}
+    \toprule
+    Our support and commitment continue - to a large extent, for our own sake. & custom & nltk \\
+    \midrule
+                                                                               & 1.0 & 0.7546 \\
+    This is not correct. & 0.0126 & 0.6063 \\
+    Our ENGAGEMENT continue - to a large extent, for our own sake. & 0.6668 & 0.7298 \\
+    Our COMMITMENT continue - MOSTLY for our own sake. & 0.3740 & 0.6923 \\
+    Our BACKING and commitment continue - to a large extent, for our own sake. & 0.8823 & 0.7466 \\
+    \bottomrule
+  \end{tabular}
+  \caption{}
+\end{table}
+
+\begin{table}
+  \resizebox{15cm}{!}{
+    \begin{tabular}{l l l}
+      \toprule
+      The environment is the area which will constitute a stumbling block in the negotiations. & custom & nltk \\
+      \midrule
+                                                                                               & 1.0 & 0.6989 \\
+      This is not correct. & 0.0091 & 0.6076 \\
+      The environment is the area which will constitute a HINDRANCE in the negotiations. & 0.8078 & 0.6816 \\
+      The environment will constitute a HINDRANCE in the DISCUSSIONS. & 0.4194 & 0.6725 \\
+      The environment is the area which will constitute a stumbling block in the DISCUSSIONS. & 0.8526 & 0.6989 \\
+      \bottomrule
+    \end{tabular}
+  }
+  \caption{}
+\end{table}
+
+\begin{table}
+  \resizebox{15cm}{!}{
+    \begin{tabular}{l l l}
+      \toprule
+      They are simply not entitled to chide this Baltic country like a stupid schoolboy. & custom & nltk \\
+      \midrule
+                                                                                         & 1.0 & 0.7197 \\
+      This is not correct. & 0.0193 & 0.6185 \\
+      They are simply not entitled to chide this Baltic country like a FOOL. & 0.7839 & 0.7113 \\
+      They SIMPLY HAVE NO RIGHT to chide this Baltic country like a FOOL. & 0.4862 & 0.6938 \\
+      They are simply not entitled to CRITICIZE this Baltic country like a stupid schoolboy. & 0.8754 & 0.7197 \\
+      \bottomrule
+    \end{tabular}
+  }
+  \caption{}
+\end{table}
+
+
+\end{document}
