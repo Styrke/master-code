@@ -64,6 +64,19 @@ candidates_multiple_differences = [
 "The environment will constitute a HINDRANCE in the DISCUSSIONS.",
 "They SIMPLY HAVE NO RIGHT to chide this Baltic country like a FOOL." ]
 
+candidates_different = [
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct.",
+"This is not correct." ]
+
 import sys,os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
@@ -76,6 +89,7 @@ IDENTICAL = 'identical'
 SINGLE    = 'single_word'
 MANY_ONE  = 'many_to_one'
 MULTIPLE  = 'multiple'
+DIFFERENT = 'different'
 
 def calc(c, r):
     return (custom_corpus_bleu([c], [r]), nltk_corpus_bleu([c],[r]))
@@ -91,3 +105,4 @@ perform(candidates_identical, references, BASE_NAME + IDENTICAL + EXT)
 perform(candidates_single_word, references, BASE_NAME + SINGLE + EXT)
 perform(candidates_many_to_one, references, BASE_NAME + MANY_ONE + EXT)
 perform(candidates_multiple_differences, references, BASE_NAME + MULTIPLE + EXT)
+perform(candidates_different, references, BASE_NAME + DIFFERENT + EXT)
