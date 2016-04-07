@@ -106,6 +106,7 @@ class Trainer:
         self.valid_freq = config.Model.valid_freq
         self.iterations = config.Model.iterations
         self.warm_up = config.Model.warmup
+        self.train_feedback = config.Model.train_feedback
 
         # Create placeholders and construct model
         self.setup_placeholders(config.Model.seq_len)
@@ -230,7 +231,11 @@ class Trainer:
                         self.model.train_op,
                         self.model.accuracy ]
 
-                res, elapsed_it = self.perform_iteration(sess, fetches, None, t_batch)
+                res, elapsed_it = self.perform_iteration(
+                    sess,
+                    fetches,
+                    batch=t_batch,
+                    feedback=self.train_feedback)
                 ## TRAIN END ##
 
                 combined_time += elapsed_it

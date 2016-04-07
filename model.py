@@ -18,6 +18,7 @@ class Model(object):
     valid_freq = 100  # How often to validate.
     iterations = 32000  # How many iterations to train for before stopping.
     warmup = 100  # How many iterations to warm up for.
+    train_feedback = False  # Enable feedback during training?
 
     # settings that are local to the model
     alphabet_size = 337
