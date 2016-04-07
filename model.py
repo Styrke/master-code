@@ -19,11 +19,11 @@ class Model(object):
     embedd_dims = 16
     learning_rate = 0.01
     reg_scale = 0.0001
+    clip_norm = 1
     max_x_seq_len = seq_len
     max_t_seq_len = seq_len
 
-    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, clip_norm=1):
-        self.clip_norm = clip_norm
+    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback):
         # rnn output size must equal alphabet size for decoder feedback to work
 
         self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
