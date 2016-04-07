@@ -4,7 +4,6 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
-#from utils.tfextensions import grid_gather
 
 
 class Model(object):
@@ -30,8 +29,6 @@ class Model(object):
     clip_norm = 1
 
     def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback):
-        # rnn output size must equal alphabet size for decoder feedback to work
-
         self.max_x_seq_len = self.seq_len
         self.max_t_seq_len = self.seq_len
 
@@ -172,7 +169,6 @@ class Model(object):
     def training(self):
         print('Building model training')
 
-        # why 0?
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
 
