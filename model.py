@@ -11,6 +11,7 @@ class Model(object):
     # settings that affect train.py
     batch_size = 64
     seq_len = 50
+    name = None  # for saving logs and checkpoints. (None to disable.)
 
     # settings that are local to the model
     alphabet_size = 337

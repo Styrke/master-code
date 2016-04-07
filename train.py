@@ -47,15 +47,13 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Validate every N iterations. 0 to disable. (default: 0)')
 @click.option('--warm-up', default=100,
     help='Warm up iterations for the batches')
-@click.option('--name', default=None,
-    help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
 @click.option('--config-name', default='test',
     help='Configuration file to use for model')
 class Trainer:
     """Train a translation model."""
 
     def __init__(self, loader, tsne, visualize, log_freq, save_freq,
-                 iterations, valid_freq, name, warm_up, config_name):
+                 iterations, valid_freq, warm_up, config_name):
         self.loader = loader
         self.tsne = tsne
         self.visualize = visualize
@@ -65,8 +63,8 @@ class Trainer:
         self.iterations = iterations
         self.warm_up = warm_up
 
-        self.setup_reload_path(name)
         self.setup_model(config_name)
+        self.setup_reload_path()
         self.setup_loader()
         self.setup_batch_generator()
 
@@ -74,12 +72,12 @@ class Trainer:
 
         self.train()
 
-    def setup_reload_path(self, name):
+    def setup_reload_path(self):
         self.named_checkpoint_path = self.named_log_path = self.checkpoint_file_path = None
-        if name:
+        if self.name:
             USE_LOGGED_WEIGHTS = True
 
-            local_folder_path           = os.path.join(SAVER_FOLDER_PATH['base'], name)
+            local_folder_path           = os.path.join(SAVER_FOLDER_PATH['base'], self.name)
             self.named_checkpoint_path  = os.path.join(local_folder_path, SAVER_FOLDER_PATH['checkpoint'])
             self.named_log_path         = os.path.join(local_folder_path, SAVER_FOLDER_PATH['log'])
 
@@ -124,6 +122,7 @@ class Trainer:
         # copy settings that affect the training script
         self.batch_size = config.Model.batch_size
         self.seq_len = config.Model.seq_len
+        self.name = config.Model.name
 
         # Create placeholders and construct model
         self.setup_placeholders(config.Model.seq_len)
