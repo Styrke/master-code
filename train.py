@@ -11,7 +11,6 @@ import text_loader as tl
 from frostings import loader as fl
 from model import Model
 from utils import basic as utils
-from utils.basic import acc, create_tsne as TSNE
 from dummy_loader import DummySampleGenerator
 import utils.performancemetrics as pm
 
@@ -33,16 +32,13 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
                        'talord_caps3']),
     default='europarl',
     help='Choose dataset to load. (default: europarl)')
-@click.option('--tsne', is_flag=True,
-    help='Use t-sne to plot character embeddings.')
 @click.option('--config-name', default='test',
     help='Configuration file to use for model')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, config_name):
+    def __init__(self, loader, config_name):
         self.loader = loader
-        self.tsne = tsne
 
         self.setup_model(config_name)
         self.setup_reload_path()
@@ -212,9 +208,6 @@ class Trainer:
                 saver.restore(sess, latest_checkpoint)
             else:
                 tf.initialize_all_variables().run()
-
-            if self.tsne:
-                TSNE(self.model, self.alphabet.decode_dict)
 
             # prepare summary operations and summary writer
             summaries = tf.merge_all_summaries()
