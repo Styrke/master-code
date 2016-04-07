@@ -35,33 +35,14 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
     help='Choose dataset to load. (default: europarl)')
 @click.option('--tsne', is_flag=True,
     help='Use t-sne to plot character embeddings.')
-@click.option('--visualize', default=1000,
-    help='Print visualizations every N iterations.')
-@click.option('--log-freq', default=10,
-    help='Print updates every N iterations. (default: 10)')
-@click.option('--save-freq', default=0,
-    help='Create checkpoint every N iterations.')
-@click.option('--iterations', default=32000,
-    help='Number of iterations (default: 32000)')
-@click.option('--valid-freq', default=100,
-    help='Validate every N iterations. 0 to disable. (default: 0)')
-@click.option('--warm-up', default=100,
-    help='Warm up iterations for the batches')
 @click.option('--config-name', default='test',
     help='Configuration file to use for model')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, visualize, log_freq, save_freq,
-                 iterations, valid_freq, warm_up, config_name):
+    def __init__(self, loader, tsne, config_name):
         self.loader = loader
         self.tsne = tsne
-        self.visualize = visualize
-        self.log_freq = log_freq
-        self.save_freq = save_freq
-        self.valid_freq = valid_freq
-        self.iterations = iterations
-        self.warm_up = warm_up
 
         self.setup_model(config_name)
         self.setup_reload_path()
@@ -123,6 +104,12 @@ class Trainer:
         self.batch_size = config.Model.batch_size
         self.seq_len = config.Model.seq_len
         self.name = config.Model.name
+        self.visualize = config.Model.visualize_freq
+        self.log_freq = config.Model.log_freq
+        self.save_freq = config.Model.save_freq
+        self.valid_freq = config.Model.valid_freq
+        self.iterations = config.Model.iterations
+        self.warm_up = config.Model.warmup
 
         # Create placeholders and construct model
         self.setup_placeholders(config.Model.seq_len)

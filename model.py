@@ -11,7 +11,13 @@ class Model(object):
     # settings that affect train.py
     batch_size = 64
     seq_len = 50
-    name = None  # for saving logs and checkpoints. (None to disable.)
+    name = None  # (string) For saving logs and checkpoints. (None to disable.)
+    visualize_freq = 1000  # Visualize training X, y, and t. (0 to disable.)
+    log_freq = 10  # How often to print updates during training.
+    save_freq = 0  # How often to save checkpoints. (0 to disable.)
+    valid_freq = 100  # How often to validate.
+    iterations = 32000  # How many iterations to train for before stopping.
+    warmup = 100  # How many iterations to warm up for.
 
     # settings that are local to the model
     alphabet_size = 337
