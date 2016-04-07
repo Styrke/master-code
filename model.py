@@ -28,11 +28,12 @@ class Model(object):
     learning_rate = 0.01
     reg_scale = 0.0001
     clip_norm = 1
-    max_x_seq_len = seq_len
-    max_t_seq_len = seq_len
 
     def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback):
         # rnn output size must equal alphabet size for decoder feedback to work
+
+        self.max_x_seq_len = self.seq_len
+        self.max_t_seq_len = self.seq_len
 
         self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
         self.ts, self.ts_go, self.t_mask = ts, ts_go, t_mask
