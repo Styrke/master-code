@@ -107,6 +107,7 @@ class Trainer:
         self.iterations = config.Model.iterations
         self.warm_up = config.Model.warmup
         self.train_feedback = config.Model.train_feedback
+        self.tb_log_freq = config.Model.tb_log_freq
 
         # Create placeholders and construct model
         self.setup_placeholders(config.Model.seq_len)
@@ -243,7 +244,7 @@ class Trainer:
                 if self.visualize and i % self.visualize == 0:
                     self.visualize_ys(res[1], t_batch)
 
-                if self.named_log_path and os.path.exists(self.named_log_path) and i % 40 == 0:
+                if self.named_log_path and os.path.exists(self.named_log_path) and i % self.tb_log_freq == 0:
                     writer.add_summary(res[2], i)
 
                 if self.save_freq and i and i % self.save_freq == 0 and self.named_checkpoint_path:

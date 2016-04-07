@@ -19,6 +19,7 @@ class Model(object):
     iterations = 32000  # How many iterations to train for before stopping.
     warmup = 100  # How many iterations to warm up for.
     train_feedback = False  # Enable feedback during training?
+    tb_log_freq = 40  # How often to save logs for TensorBoard
 
     # settings that are local to the model
     alphabet_size = 337
