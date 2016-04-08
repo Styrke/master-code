@@ -14,6 +14,6 @@ class Model(model.Model):
     script and model architecture.
     """
     # overwrite config
-    batch_size = 32
-    seq_len = 25
+    name = '2016-04-07_1'
+    train_feedback = True
     rnn_units = 100

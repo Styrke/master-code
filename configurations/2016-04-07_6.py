@@ -14,6 +14,8 @@ class Model(model.Model):
     script and model architecture.
     """
     # overwrite config
-    batch_size = 32
-    seq_len = 25
-    rnn_units = 100
+    name = '2016-04-07_6'
+    iterations = 5*32000
+    train_feedback = True
+    rnn_units = 1000
+    embedd_dims = 64

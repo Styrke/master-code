@@ -11,7 +11,6 @@ import text_loader as tl
 from frostings import loader as fl
 from model import Model
 from utils import basic as utils
-from utils.basic import acc, create_tsne as TSNE
 from dummy_loader import DummySampleGenerator
 import utils.performancemetrics as pm
 
@@ -33,51 +32,16 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
                        'talord_caps3']),
     default='europarl',
     help='Choose dataset to load. (default: europarl)')
-@click.option('--tsne', is_flag=True,
-    help='Use t-sne to plot character embeddings.')
-@click.option('--visualize', default=1000,
-    help='Print visualizations every N iterations.')
-@click.option('--log-freq', default=10,
-    help='Print updates every N iterations. (default: 10)')
-@click.option('--save-freq', default=0,
-    help='Create checkpoint every N iterations.')
-@click.option('--iterations', default=32000,
-    help='Number of iterations (default: 32000)')
-@click.option('--valid-freq', default=100,
-    help='Validate every N iterations. 0 to disable. (default: 0)')
-@click.option('--seq-len', default=50,
-    help='Maximum length of char sequences')
-@click.option('--warm-up', default=100,
-    help='Warm up iterations for the batches')
-@click.option('--name', default=None,
-    help='Name of training used for saving and restoring checkpoints (nothing is saved by default)')
-@click.option('--batch-size', default=64,
-    help='Size of batches')
 @click.option('--config-name', default='test',
     help='Configuration file to use for model')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, tsne, visualize, log_freq, save_freq,
-                 iterations, valid_freq, seq_len, name, warm_up,
-                 batch_size, config_name):
+    def __init__(self, loader, config_name):
         self.loader = loader
-        self.tsne = tsne
-        self.visualize = visualize
-        self.log_freq = log_freq
-        self.save_freq = save_freq
-        self.valid_freq = valid_freq
-        self.iterations = iterations
-        self.seq_len = seq_len
-        self.warm_up = warm_up
-        self.batch_size = batch_size
 
-        config_path = 'configurations.' + config_name
-        self.config = importlib.import_module(config_path)
-
-        self.setup_reload_path(name)
-        self.setup_placeholders()
-        self.setup_model()
+        self.setup_model(config_name)
+        self.setup_reload_path()
         self.setup_loader()
         self.setup_batch_generator()
 
@@ -85,12 +49,12 @@ class Trainer:
 
         self.train()
 
-    def setup_reload_path(self, name):
+    def setup_reload_path(self):
         self.named_checkpoint_path = self.named_log_path = self.checkpoint_file_path = None
-        if name:
+        if self.name:
             USE_LOGGED_WEIGHTS = True
 
-            local_folder_path           = os.path.join(SAVER_FOLDER_PATH['base'], name)
+            local_folder_path           = os.path.join(SAVER_FOLDER_PATH['base'], self.name)
             self.named_checkpoint_path  = os.path.join(local_folder_path, SAVER_FOLDER_PATH['checkpoint'])
             self.named_log_path         = os.path.join(local_folder_path, SAVER_FOLDER_PATH['log'])
 
@@ -106,13 +70,13 @@ class Trainer:
             if not self.save_freq:
                 warn("'save_freq' is 0, won't save checkpoints", UserWarning)
 
-    def setup_placeholders(self):
-        self.Xs       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='X_input')
-        self.ts       = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='t_input')
-        self.ts_go    = tf.placeholder(tf.int32,   shape=[None, self.seq_len], name='t_input_go')
-        self.X_len    = tf.placeholder(tf.int32,   shape=[None],               name='X_len')
-        self.t_mask   = tf.placeholder(tf.float32, shape=[None, self.seq_len], name='t_mask')
-        self.feedback = tf.placeholder(tf.bool,                                name='feedback_indicator')
+    def setup_placeholders(self, seq_len):
+        self.Xs       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='X_input')
+        self.ts       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input')
+        self.ts_go    = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input_go')
+        self.X_len    = tf.placeholder(tf.int32,   shape=[None],          name='X_len')
+        self.t_mask   = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
+        self.feedback = tf.placeholder(tf.bool,                           name='feedback_indicator')
 
     def setup_validation_summaries(self):
         """A hack for recording performance metrics with TensorBoard."""
@@ -127,17 +91,33 @@ class Trainer:
 
         return tf.merge_summary(valid_summaries)
 
-    def setup_model(self):
-        self.model = self.config.ConfigModel(
-                alphabet_size=337,
+    def setup_model(self, config_name):
+        # load the config module to use
+        config_path = 'configurations.' + config_name
+        config = importlib.import_module(config_path)
+
+        # copy settings that affect the training script
+        self.batch_size = config.Model.batch_size
+        self.seq_len = config.Model.seq_len
+        self.name = config.Model.name
+        self.visualize = config.Model.visualize_freq
+        self.log_freq = config.Model.log_freq
+        self.save_freq = config.Model.save_freq
+        self.valid_freq = config.Model.valid_freq
+        self.iterations = config.Model.iterations
+        self.warm_up = config.Model.warmup
+        self.train_feedback = config.Model.train_feedback
+        self.tb_log_freq = config.Model.tb_log_freq
+
+        # Create placeholders and construct model
+        self.setup_placeholders(config.Model.seq_len)
+        self.model = config.Model(
                 Xs=self.Xs,
                 X_len=self.X_len,
                 ts=self.ts,
                 ts_go=self.ts_go,
                 t_mask=self.t_mask,
-                feedback=self.feedback,
-                max_x_seq_len=self.seq_len,
-                max_t_seq_len=self.seq_len)
+                feedback=self.feedback)
 
     def setup_loader(self):
         self.sample_generator = dict()
@@ -231,9 +211,6 @@ class Trainer:
             else:
                 tf.initialize_all_variables().run()
 
-            if self.tsne:
-                TSNE(self.model, self.alphabet.decode_dict)
-
             # prepare summary operations and summary writer
             summaries = tf.merge_all_summaries()
             self.val_summaries = self.setup_validation_summaries()
@@ -255,7 +232,11 @@ class Trainer:
                         self.model.train_op,
                         self.model.accuracy ]
 
-                res, elapsed_it = self.perform_iteration(sess, fetches, None, t_batch)
+                res, elapsed_it = self.perform_iteration(
+                    sess,
+                    fetches,
+                    batch=t_batch,
+                    feedback=self.train_feedback)
                 ## TRAIN END ##
 
                 combined_time += elapsed_it
@@ -263,7 +244,7 @@ class Trainer:
                 if self.visualize and i % self.visualize == 0:
                     self.visualize_ys(res[1], t_batch)
 
-                if self.named_log_path and os.path.exists(self.named_log_path) and i % 40 == 0:
+                if self.named_log_path and os.path.exists(self.named_log_path) and i % self.tb_log_freq == 0:
                     writer.add_summary(res[2], i)
 
                 if self.save_freq and i and i % self.save_freq == 0 and self.named_checkpoint_path:
