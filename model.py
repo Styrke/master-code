@@ -27,13 +27,15 @@ class Model(object):
     reg_scale = 0.0001
     clip_norm = 1
 
-    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, X_spaces):
+    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, X_spaces,
+                 X_spaces_len):
         self.max_x_seq_len = self.seq_len
         self.max_t_seq_len = self.seq_len
 
         self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
         self.ts, self.ts_go, self.t_mask = ts, ts_go, t_mask
         self.X_spaces = X_spaces
+        self.X_spaces_len = X_spaces_len
 
         self.build()
         self.build_loss()
