@@ -92,7 +92,7 @@ MULTIPLE  = 'multiple'
 DIFFERENT = 'different'
 
 def calc(c, r):
-    return (custom_corpus_bleu([c], [r]), nltk_corpus_bleu([c],[r]))
+    return (custom_corpus_bleu([c.lower()], [r.lower()]), nltk_corpus_bleu([c.lower()],[r.lower()]))
 
 def perform(cs, rs, filename):
     with open(filename, 'w') as f:
