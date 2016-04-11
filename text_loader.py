@@ -132,7 +132,7 @@ class TextBatchGenerator(loader.BatchGenerator):
         self.batch['t_encoded'] = self._make_array(t, self.alphabet.encode,
             self.seq_len)
         self.batch['x_spaces'] = self._make_array(x, self._spaces,
-            self.seq_len/2)
+            self.seq_len//4)
         self.batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
 
         self.batch['t_encoded_go'] = self._add_sos(self.batch['t_encoded'])
@@ -140,7 +140,8 @@ class TextBatchGenerator(loader.BatchGenerator):
         offset = self.add_eos_character  # Maybe count EOS character
         self.batch['x_len'] = self._make_len_vec(x, offset=offset)
         self.batch['t_len'] = self._make_len_vec(t, offset=offset)
-        self.batch['x_spaces_len'] = self._make_len_vec(map(self._spaces, x))
+        self.batch['x_spaces_len'] = self._make_len_vec(map(self._spaces, x),
+                                                        max_len=self.seq_len//4)
         # NOTE: The way we make self.batch['x_spaces_len'] here is not elegant,
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
@@ -177,11 +178,12 @@ class TextBatchGenerator(loader.BatchGenerator):
         # copy data into the array:
         for sample_idx, seq in enumerate(sequences):
             processed_seq = function(seq)
-            array[sample_idx, :len(processed_seq)] = processed_seq
+            length = min(max_len, len(processed_seq))
+            array[sample_idx, :length] = processed_seq[:max_len]
 
         return array
 
-    def _make_len_vec(self, sequences, offset=0):
+    def _make_len_vec(self, sequences, offset=0, max_len=100000):
         """Get length of each sequence in list of sequences.
 
         Return as numpy vector.
@@ -191,7 +193,7 @@ class TextBatchGenerator(loader.BatchGenerator):
         offset    -- (optional) value to be added to each length.
             Useful for including EOS characters.
         """
-        return np.array([len(seq)+offset for seq in sequences])
+        return np.array([min(len(seq)+offset, max_len) for seq in sequences])
 
     def _spaces(self, sentence):
         """Locate the spaces and the end of the sentence.

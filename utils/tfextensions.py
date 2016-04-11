@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 # TODO: put in custom_ops file
 # TODO: documentation ..!
 def _grid_gather(params, indices):

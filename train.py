@@ -75,6 +75,8 @@ class Trainer:
         self.ts       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input')
         self.ts_go    = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input_go')
         self.X_len    = tf.placeholder(tf.int32,   shape=[None],          name='X_len')
+        self.X_spaces = tf.placeholder(tf.int32,   shape=[None, seq_len//4], name='X_spaces')
+        self.X_spaces_len = tf.placeholder(tf.int32, shape=[None],        name='X_spaces_len')
         self.t_mask   = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
         self.feedback = tf.placeholder(tf.bool,                           name='feedback_indicator')
 
@@ -117,7 +119,9 @@ class Trainer:
                 ts=self.ts,
                 ts_go=self.ts_go,
                 t_mask=self.t_mask,
-                feedback=self.feedback)
+                feedback=self.feedback,
+                X_spaces=self.X_spaces,
+                X_spaces_len=self.X_spaces_len)
 
     def setup_loader(self):
         self.sample_generator = dict()
@@ -290,7 +294,9 @@ class Trainer:
                     self.ts_go:  batch['t_encoded_go'],
                     self.X_len:  batch['x_len'],
                     self.t_mask: batch['t_mask'],
-                    self.feedback: feedback}
+                    self.feedback: feedback,
+                    self.X_spaces: batch['x_spaces'],
+                    self.X_spaces_len: batch['x_spaces_len']}
 
         start_time = time.time()
         res = sess.run(fetches, feed_dict=feed_dict)
