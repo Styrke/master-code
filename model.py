@@ -27,6 +27,17 @@ class Model(object):
     reg_scale = 0.0001
     clip_norm = 1
 
+    swap_schedule = {
+            0: 0.0,
+            5000: 0.05,
+            10000: 0.1,
+            20000: 0.15,
+            30000: 0.25,
+            40000: 0.3,
+            50000: 0.35,
+            60000: 0.39,
+            }
+
     def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, X_spaces,
                  X_spaces_len):
         self.max_x_seq_len = self.seq_len
