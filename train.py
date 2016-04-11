@@ -8,6 +8,7 @@ import importlib
 
 import text_loader as tl
 
+from augmentor import Augmentor
 from frostings import loader as fl
 from model import Model
 from utils import basic as utils
@@ -224,7 +225,17 @@ class Trainer:
 
             print("## TRAINING...")
             combined_time = 0.0  # total time for each print
+            swap_amount = None
+            augmentor = Augmentor()
             for i, t_batch in enumerate(self.batch_generator['train'].gen_batch()):
+
+                if i in self.model.swap_schedule:
+                    swap_amount = self.model.swap_schedule[i]
+                    print(" setting swap amount to %0.4f" % swap_amount)
+                if swap_amount > 0.0:
+                    t_batch['t_encoded_go'] = augmentor.run(
+                        t_batch['t_encoded_go'], t_batch['t_len'], swap_amount)
+
                 if self.valid_freq and i % self.valid_freq == 0:
                     self.validate(sess)
 
