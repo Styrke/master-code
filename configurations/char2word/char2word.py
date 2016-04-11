@@ -9,9 +9,7 @@ from utils.tfextensions import _grid_gather
 
 
 class Model(model.Model):
-    # overwrite config
-    batch_size = 32
-    seq_len = 25
+    """Configuration where the model has a char2word encoder."""
     char_enc_units = 100
     word_enc_units = 100
     dec_units = 100
