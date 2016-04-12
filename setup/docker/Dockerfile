@@ -6,6 +6,8 @@ MAINTAINER Elias Obeid <ekobeid@gmail.com>
 RUN apt-get update && apt-get install -y \
 	python3-pip \
 	python3-dev \
+        libjpeg-dev \
+        libjpeg8-dev \
 	python3-matplotlib \
 	build-essential \
 	libblas-dev \
@@ -19,6 +21,6 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip3 install --upgrade http://ci.tensorflow.org/view/Nightly/job/nigntly-matrix-linux-gpu/TF_BUILD_CONTAINER_TYPE=GPU,TF_BUILD_IS_OPT=OPT,TF_BUILD_IS_PIP=PIP,TF_BUILD_PYTHON_VERSION=PYTHON3,label=gpu-working/lastSuccessfulBuild/artifact/pip_test/whl/tensorflow-0.7.1-cp34-cp34m-linux_x86_64.whl
 # unable to install from requirements file -- installing manually
-RUN pip3 install numpy scipy matplotlib sklearn click nltk
+RUN pip3 install numpy scipy matplotlib sklearn scikit-image click nltk
 
 CMD ["/bin/bash"]
