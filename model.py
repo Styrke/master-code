@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
@@ -28,12 +27,26 @@ class Model(object):
     reg_scale = 0.0001
     clip_norm = 1
 
-    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback):
+    swap_schedule = {
+            0: 0.0,
+            5000: 0.05,
+            10000: 0.1,
+            20000: 0.15,
+            30000: 0.25,
+            40000: 0.3,
+            50000: 0.35,
+            60000: 0.39,
+            }
+
+    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, X_spaces,
+                 X_spaces_len):
         self.max_x_seq_len = self.seq_len
         self.max_t_seq_len = self.seq_len
 
         self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
         self.ts, self.ts_go, self.t_mask = ts, ts_go, t_mask
+        self.X_spaces = X_spaces
+        self.X_spaces_len = X_spaces_len
 
         self.build()
         self.build_loss()
