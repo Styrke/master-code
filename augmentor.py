@@ -37,7 +37,8 @@ def simple_string_augmentor(sentences):
     return augmented
 
 
-def swap_chars_by_percent(elements, element_lens, augment_amount):
+def swap_chars_by_percent(elements, element_lens, augment_amount, skip_left=0,
+        skip_right=0):
     """ Each list in elements will have `augment_amount` percent of list
     swapped. Will not swap elements that have been in an earlier step. If
     augment_amount is None, it will perform
@@ -46,16 +47,20 @@ def swap_chars_by_percent(elements, element_lens, augment_amount):
     elements -- list of list of numbers
     element_lens -- list indicating where padding begins in list of elements
     augment_amount -- float indicating augment percentage
+    skip_left -- how many elements should not be swapable from the left
+    skip_right -- how many elements should not be swapable from the right
     """
     assert(isinstance(elements, list) or isinstance(elements, np.ndarray))
     assert(isinstance(elements[0], list) or isinstance(elements[0], np.ndarray))
     assert(augment_amount is None or augment_amount < 0.4)
+    assert(skip_left >= 0 and skip_right >= 0)
     assert(isinstance(element_lens, list) or isinstance(element_lens, np.ndarray))
 
     augmented = []
     for idx, element in enumerate(elements):
         elems = list(element)
-        max_idx = element_lens[idx] - 2
+        max_idx = element_lens[idx] - 2 - skip_right
+        min_idx = 0 + skip_left
 
         if max_idx <= 5:
             augmented.append(elems)
@@ -66,10 +71,10 @@ def swap_chars_by_percent(elements, element_lens, augment_amount):
                 if augment_amount is not None else 1 )
 
         while len(indices_swapped) <= max_steps:
-            swap_idx = get_random_int(0, max_idx)
+            swap_idx = get_random_int(min_idx, max_idx)
             # do not swap indices that have already been swapped
             while swap_idx in indices_swapped or swap_idx+1 in indices_swapped:
-                swap_idx = get_random_int(0, max_idx)
+                swap_idx = get_random_int(min_idx, max_idx)
 
             # swap by reference
             swap(elems, swap_idx, swap_idx+1)
@@ -91,7 +96,8 @@ class Augmentor:
     self.augmentor = augmentor
 
 
-  def run(self, elements, element_lens=None, augment_amount=None):
+  def run(self, elements, element_lens=None, augment_amount=None, skip_left=0,
+          skip_right=0):
     """ Perform augmentation on list of elements.
     If default augmentor `augment_amount` is ignored.
   
@@ -100,8 +106,13 @@ class Augmentor:
     element_lens -- list indicating where padding begins in list of elements
     (default: None)
     augment_amount -- percent of element to augment (default: None)
+    skip_left -- how many elements should not be swapable from the left
+    (default: 0)
+    skip_right -- how many elements should not be swapable from the right
+    (default: 0)
     """
-    return self.augmentor(elements, element_lens, augment_amount)
+    return self.augmentor(elements, element_lens, augment_amount, skip_left,
+            skip_right)
 
 
 if __name__ == "__main__":

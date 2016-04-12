@@ -234,7 +234,8 @@ class Trainer:
                     print(" setting swap amount to %0.4f" % swap_amount)
                 if swap_amount > 0.0:
                     t_batch['t_encoded_go'] = augmentor.run(
-                        t_batch['t_encoded_go'], t_batch['t_len'], swap_amount)
+                        t_batch['t_encoded_go'], t_batch['t_len'], swap_amount,
+                        1)
 
                 if self.valid_freq and i % self.valid_freq == 0:
                     self.validate(sess)
