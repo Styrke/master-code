@@ -96,6 +96,8 @@ class Model(object):
             sequence_length=self.X_len,
             scope='rnn_encoder')
 
+        tf.histogram_summary('final_encoder_state', enc_state)
+
         # The loop function provides inputs to the decoder:
         def decoder_loop_function(prev, i):
             def feedback_on():
