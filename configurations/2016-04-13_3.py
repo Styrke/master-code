@@ -1,9 +1,10 @@
-import sys
-sys.path.insert(0, '..')
-from configurations import seperate_embeddings
+import sys,os
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
+from configurations import separate_embeddings
 
 
-class Model(seperate_embeddings.Model):
+class Model(separate_embeddings.Model):
     """Debugging configuration.
 
     This is the default configuration that is used when the training
