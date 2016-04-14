@@ -14,10 +14,9 @@ def run(session, fetches, feed_dict):
     fetches -- A list or dict of ops to fetch.
     feed_dict -- The dict of values to feed to the computation graph.
     """
-    if isinstance(fetches, list):
-        return session.run(fetches, feed_dict)
-    elif isinstance(fetches, dict):
+    if isinstance(fetches, dict):
         keys, values = fetches.keys(), list(fetches.values())
         res = session.run(values, feed_dict)
         return {key: value for key, value in zip(keys, res)}
-    raise TypeError('Fetches of type %s not supported.' % type(fetches))
+    else:
+        return session.run(fetches, feed_dict)
