@@ -14,6 +14,7 @@ from model import Model
 from utils import basic as utils
 from dummy_loader import DummySampleGenerator
 import utils.performancemetrics as pm
+from utils.tfhelper import run
 
 SAVER_FOLDER_PATH = {'base': 'train/',
                      'checkpoint': 'checkpoints/',
@@ -241,12 +242,13 @@ class Trainer:
                     self.validate(sess)
 
                 ## TRAIN START ##
-                fetches = [
-                        self.model.loss,
-                        self.model.ys,
-                        summaries,
-                        self.model.train_op,
-                        self.model.accuracy ]
+                fetches = {
+                    'loss':      self.model.loss,
+                    'ys':        self.model.ys,
+                    'train_op':  self.model.train_op,
+                    'accuracy':  self.model.accuracy,
+                    'summaries': summaries
+                }
 
                 res, elapsed_it = self.perform_iteration(
                     sess,
@@ -258,18 +260,18 @@ class Trainer:
                 combined_time += elapsed_it
 
                 if self.visualize and i % self.visualize == 0:
-                    self.visualize_ys(res[1], t_batch)
+                    self.visualize_ys(res['ys'], t_batch)
 
                 if self.named_log_path and os.path.exists(self.named_log_path) and i % self.tb_log_freq == 0:
-                    writer.add_summary(res[2], i)
+                    writer.add_summary(res['summaries'], i)
 
                 if self.save_freq and i and i % self.save_freq == 0 and self.named_checkpoint_path:
                     saver.save(sess, self.checkpoint_file_path, self.model.global_step)
 
                 if self.log_freq and i % self.log_freq == 0:
-                    batch_acc = res[4]
+                    batch_acc = res['accuracy']
                     click.echo('Iteration %i\t Loss: %f\t Acc: %f\t Elapsed: %f (%f)' % (
-                        i, np.mean(res[0]), batch_acc, combined_time, (combined_time/self.log_freq) ))
+                        i, np.mean(res['loss']), batch_acc, combined_time, (combined_time/self.log_freq) ))
                     combined_time = 0.0
 
                 if i >= self.iterations:
@@ -311,7 +313,7 @@ class Trainer:
                     self.X_spaces_len: batch['x_spaces_len']}
 
         start_time = time.time()
-        res = sess.run(fetches, feed_dict=feed_dict)
+        res = run(sess, fetches, feed_dict=feed_dict)
         elapsed = time.time() - start_time
 
         return (res, elapsed)
@@ -322,7 +324,8 @@ class Trainer:
         valid_ys = []
         valid_ts = []
         for v_batch in self.eval_batch_generator['validation'].gen_batch():
-            fetches = [self.model.accuracy, self.model.ys]
+            fetches = {'accuracy': self.model.accuracy,
+                       'ys': self.model.ys}
 
             res, time = self.perform_iteration(
                 sess,
@@ -333,15 +336,15 @@ class Trainer:
 
             # TODO: accuracies should be weighted by batch sizes
             # before averaging
-            valid_ys.append(res[1])
+            valid_ys.append(res['ys'])
             valid_ts.append(v_batch['t_encoded'])
-            accuracies.append(res[0])
+            accuracies.append(res['accuracy'])
 
         valid_ys = np.concatenate(valid_ys, axis=0)
         valid_ts = np.concatenate(valid_ts, axis=0)
 
         # print visualization
-        self.visualize_ys(res[1], v_batch)
+        self.visualize_ys(res['ys'], v_batch)
 
         # convert all predictions to strings
         str_ts, str_ys = utils.numpy_to_words(valid_ts,
