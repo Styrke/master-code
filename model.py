@@ -1,7 +1,8 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import seq2seq
-from tensorflow.python.ops import rnn_cell
+import rnn_cell
+#from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 
 

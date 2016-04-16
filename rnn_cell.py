@@ -111,7 +111,8 @@ class Gate(object):
         # Don't store a cell weight vector when cell is None
         if W_cell is not None:
             self.W_cell = W_cell
-        self.b = b
+        if b is not None:
+          self.b = b
         # For the activation, if None is supplied, use identity
         if activation is None:
             self.activation = control_flow_ops.identity
@@ -151,10 +152,10 @@ class GRUCell(rnn_cell.RNNCell):
         r, u = array_ops.split(1, 2, GRU_linear([inputs, state],
           [(self._num_units, "Reset", self._resetgate),
            (self._num_units, "Update", self._updategate)]))
-        r, u = self.resetgate.activation(r), self.updategate.activation(u)
+        r, u = self._resetgate.activation(r), self._updategate.activation(u)
       with vs.variable_scope("Candidate"):
         c = GRU_linear([inputs, r * state],
-          (self._num_units, None, self.candidategate))
+          (self._num_units, "Candidate", self._candidategate))
         c = self._candidategate.activation(c)
       new_h = u * state + (1 - u) * c
     return new_h, new_h
@@ -181,8 +182,9 @@ def GRU_linear(args, output, scope=None):
     raise ValueError("`args` must be specified")
   if not isinstance(args, (list, tuple)):
     args = [args]
-  if not isinstance(args, list):
+  if not isinstance(output, list):
     output = [output]
+  shapes = [a.get_shape().as_list() for a in args]
   for shape in shapes:
     if len(shape) != 2:
       raise ValueError("Linear is expecting 2D arguments: %s" % str(shapes))
@@ -198,26 +200,23 @@ def GRU_linear(args, output, scope=None):
           initializer=gate.W_in)
         W_hid = vs.get_variable("W_hid", [args[1].get_shape()[1], output_size],
           initializer=gate.W_hid)
-        b = vs.get_variable("b", [output_size], initializer=gate.b)
-        if hasattr(gate, W_cell):
+        if hasattr(gate, 'b'):
+          b = vs.get_variable("Bias", [output_size],
+            initializer=gate.b)
+          biases.append(b)
+        if hasattr(gate, "W_cell"):
           pass
           # do some LSTM stuff ...
         else:
           matrix = array_ops.concat(0, [W_in, W_hid])
         matrices.append(matrix)
-        if b_init is not None:
-          bias = vs.get_variable("Bias", [output_size],
-            initializer=b_init)
-          biases.append(bias)
-        else:
-          bias = None
 
   total_matrix = array_ops.concat(1, matrices)
   res = math_ops.matmul(array_ops.concat(1, args), total_matrix)
 
-  if total_bias is not []:
+  if biases is not []:
     total_bias = array_ops.concat(0, biases)
-    if total_matrix.get_shape()[1] == total_bias.get_shape()[0]:
+    if total_matrix.get_shape()[1] != total_bias.get_shape()[0]:
       raise ValueError('Must have same output dimensions for W and b')
     res += total_bias
   return res
