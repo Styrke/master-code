@@ -38,12 +38,18 @@ class TextLoadMethod(loader.LoadMethod):
         """
         # Strip sorrounding whitespace characters from each sentence
         self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
+        
+        samples_before = len(self.samples)  # Count before filtering
 
         print("removing very long and very short samples ...")
         self.samples = self._filter_samples(self.samples, float('inf'))
         self.samples = self._truncate_samples(self.samples)
 
-        print("%i samples left in the data set" % len(self.samples))
+        # Print status (number and percentage of samples left)
+        samples_after = len(self.samples)
+        samples_percentage = samples_after/samples_before*100
+        subs_tuple = (samples_after, samples_before, samples_percentage)
+        print("{:d} of {:d} ({:.2f}%) samples remaining".format(*subs_tuple))
 
         print("sorting data ...")
         self.samples = sorted(self.samples,

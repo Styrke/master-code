@@ -34,15 +34,14 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
                        'talord_caps3']),
     default='europarl',
     help='Choose dataset to load. (default: europarl)')
-@click.option('--config-name', default='test',
-    help='Configuration file to use for model')
+@click.option('--config', default='test', help='Config file to use for training')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, config_name):
+    def __init__(self, loader, config):
         self.loader = loader
 
-        self.setup_model(config_name)
+        self.setup_model(config)
         self.setup_reload_path()
         self.setup_loader()
         self.setup_batch_generator()
