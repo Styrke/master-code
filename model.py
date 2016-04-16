@@ -57,8 +57,8 @@ class Model(object):
     def build(self):
         print('Building model')
         self.embeddings = tf.Variable(
-            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
-            name='embeddings')
+            tf.random_normal([self.alphabet_size, self.embedd_dims],
+            stddev=0.1), name='embeddings')
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
