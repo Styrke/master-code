@@ -28,7 +28,7 @@ class Model(object):
     reg_scale = 0.0001
     clip_norm = 1
     embedd_init = tf.random_uniform
-    w_d_init = tf.contrib.layer.xavier_initializer
+    w_d_init = tf.contrib.layers.xavier_initializer
     b_d_init = tf.constant_initializer(value=0.)
 
     swap_schedule = {
@@ -61,8 +61,7 @@ class Model(object):
         print('Building model')
         self.embeddings = tf.get_variable('embeddings',
             [self.alphabet_size, self.embedd_dims],
-            initializer=self.embeddings_init)
-
+                initializer=self.embedd_init)
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
