@@ -27,6 +27,9 @@ class Model(object):
     learning_rate = 0.01
     reg_scale = 0.0001
     clip_norm = 1
+    embedd_init = tf.random_uniform
+    w_d_init = tf.contrib.layer.xavier_initializer
+    b_d_init = tf.constant_initializer(value=0.)
 
     swap_schedule = {
             0: 0.0,
@@ -56,9 +59,9 @@ class Model(object):
 
     def build(self):
         print('Building model')
-        self.embeddings = tf.Variable(
-            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
-            name='embeddings')
+        self.embeddings = tf.get_variable('embeddings',
+            [self.alphabet_size, self.embedd_dims],
+            initializer=self.embeddings_init)
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
@@ -84,8 +87,10 @@ class Model(object):
             [t.set_shape([None, self.embedd_dims]) for t in t_list]
 
         with tf.variable_scope('dense_out'):
-            W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
-            b_out = tf.get_variable('b_out', [self.alphabet_size])
+            W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size],
+                initializer=self.w_d_init)
+            b_out = tf.get_variable('b_out', [self.alphabet_size],
+                initializer=self.b_d_init)
 
         cell = rnn_cell.GRUCell(self.rnn_units)
 
