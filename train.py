@@ -16,10 +16,9 @@ from dummy_loader import DummySampleGenerator
 import utils.performancemetrics as pm
 from utils.tfhelper import run
 
-SAVER_FOLDER_PATH = {'base': 'train/',
+SAVER_PATH = {'base': 'train/',
                      'checkpoint': 'checkpoints/',
                      'log': 'logs/'}
-USE_LOGGED_WEIGHTS = False
 DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
 
@@ -51,25 +50,33 @@ class Trainer:
         self.train()
 
     def setup_reload_path(self):
-        self.named_checkpoint_path = self.named_log_path = self.checkpoint_file_path = None
-        if self.name:
-            USE_LOGGED_WEIGHTS = True
+        self.latest_checkpoint = None
+        self.checkpoint_saver = None
+        self.summarywriter = None
+        if not self.name:
+            return  # Nothing more to do
+             
+        local_path        = os.path.join(SAVER_PATH['base'], self.name)
+        self.summary_path = os.path.join(local_path, SAVER_PATH['log'])
 
-            local_folder_path           = os.path.join(SAVER_FOLDER_PATH['base'], self.name)
-            self.named_checkpoint_path  = os.path.join(local_folder_path, SAVER_FOLDER_PATH['checkpoint'])
-            self.named_log_path         = os.path.join(local_folder_path, SAVER_FOLDER_PATH['log'])
-
-            self.checkpoint_file_path   = os.path.join(self.named_checkpoint_path, 'checkpoint')
-
-            # make sure checkpoint folder exists
-            if not os.path.exists(self.named_checkpoint_path):
-                os.makedirs(self.named_checkpoint_path)
-            if not os.path.exists(self.named_log_path):
-                os.makedirs(self.named_log_path)
-
-            print("Will read and write from '%s' (checkpoints and logs)" % (local_folder_path))
-            if not self.save_freq:
-                warn("'save_freq' is 0, won't save checkpoints", UserWarning)
+        print("Will read and write from '%s' (checkpoints and logs)" % (local_path))
+        
+        # Prepare for saving checkpoints
+        if self.save_freq:
+            self.checkpoint_saver = tf.train.Saver()
+            checkpoint_path = os.path.join(local_path, SAVER_PATH['checkpoint'])
+            self.checkpoint_file_path = os.path.join(checkpoint_path, 'checkpoint')
+            if not os.path.exists(checkpoint_path):
+                os.makedirs(checkpoint_path)
+            self.latest_checkpoint = tf.train.latest_checkpoint(checkpoint_path)
+        else:
+            print("WARNING: 'save_freq' is 0 so checkpoints won't be saved!")
+            
+        # Prepare for writing TensorBoard summaries
+        if self.tb_log_freq:
+            if not os.path.exists(self.summary_path) and self.tb_log_freq:
+                os.makedirs(self.summary_path)
+            self.summarywriter = tf.train.SummaryWriter(self.summary_path)
 
     def setup_placeholders(self, seq_len):
         self.Xs       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='X_input')
@@ -208,20 +215,14 @@ class Trainer:
         print("## INITIATE TRAIN")
 
         with tf.Session() as sess:
-            saver = tf.train.Saver()
-            # restore only if files exist
-            if USE_LOGGED_WEIGHTS and os.path.exists(self.named_checkpoint_path) and os.listdir(self.named_checkpoint_path):
-                latest_checkpoint = tf.train.latest_checkpoint(self.named_checkpoint_path)
-                saver.restore(sess, latest_checkpoint)
+            if self.latest_checkpoint:
+                self.checkpoint_saver.restore(sess, self.latest_checkpoint)
             else:
                 tf.initialize_all_variables().run()
 
             # prepare summary operations and summary writer
             summaries = tf.merge_all_summaries()
             self.val_summaries = self.setup_validation_summaries()
-            if self.named_log_path and os.path.exists(self.named_log_path):
-                writer = tf.train.SummaryWriter(self.named_log_path, sess.graph_def)
-                self.writer = writer
 
             print("## TRAINING...")
             combined_time = 0.0  # total time for each print
@@ -261,11 +262,15 @@ class Trainer:
                 if self.visualize and i % self.visualize == 0:
                     self.visualize_ys(res['ys'], t_batch)
 
-                if self.named_log_path and os.path.exists(self.named_log_path) and i % self.tb_log_freq == 0:
-                    writer.add_summary(res['summaries'], i)
+                if self.summarywriter and i % self.tb_log_freq == 0:
+                    self.summarywriter.add_summary(res['summaries'], i)
 
-                if self.save_freq and i and i % self.save_freq == 0 and self.named_checkpoint_path:
-                    saver.save(sess, self.checkpoint_file_path, self.model.global_step)
+                if self.checkpoint_saver and i and i % self.save_freq == 0:
+                    self.checkpoint_saver.save(
+                        sess,
+                        self.checkpoint_file_path,
+                        self.model.global_step
+                    )
 
                 if self.log_freq and i % self.log_freq == 0:
                     batch_acc = res['accuracy']
@@ -362,7 +367,7 @@ class Trainer:
         edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
         print('\t%s%f' % ('Mean edit dist per char:'.ljust(25), edit_dist))
 
-        if self.named_log_path and os.path.exists(self.named_log_path):
+        if self.summarywriter:
             feed_dict = {
                 self.model.accuracy: valid_acc,
                 self.bleu: corpus_bleu,
@@ -370,7 +375,7 @@ class Trainer:
             }
             fetches = [self.val_summaries, self.model.global_step]
             summaries, i = sess.run(fetches, feed_dict)
-            self.writer.add_summary(summaries, i)
+            self.summarywriter.add_summary(summaries, i)
 
         print("\n## VALIDATION DONE")
 
