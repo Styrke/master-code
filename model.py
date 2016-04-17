@@ -1,7 +1,8 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import seq2seq
-from tensorflow.python.ops import rnn_cell
+import rnn_cell
+#from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 
 
@@ -29,13 +30,13 @@ class Model(object):
 
     swap_schedule = {
             0: 0.0,
-            5000: 0.05,
-            10000: 0.1,
-            20000: 0.15,
-            30000: 0.25,
-            40000: 0.3,
-            50000: 0.35,
-            60000: 0.39,
+#            5000: 0.05,
+#            10000: 0.1,
+#            20000: 0.15,
+#            30000: 0.25,
+#            40000: 0.3,
+#            50000: 0.35,
+#            60000: 0.39,
             }
 
     def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, X_spaces,
@@ -56,8 +57,8 @@ class Model(object):
     def build(self):
         print('Building model')
         self.embeddings = tf.Variable(
-            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
-            name='embeddings')
+            tf.random_normal([self.alphabet_size, self.embedd_dims],
+            stddev=0.1), name='embeddings')
 
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
