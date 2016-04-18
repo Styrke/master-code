@@ -3,7 +3,6 @@ import click
 import os
 import numpy as np
 import tensorflow as tf
-from warnings import warn
 import importlib
 
 import text_loader as tl
