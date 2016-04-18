@@ -1,5 +1,5 @@
-import numpy as np
-import os
+from numpy.random import permutation as perm
+
 from . import utils
 
 class LoadMethod:
@@ -44,28 +44,35 @@ class LoadMethod:
 
 
 class SampleGenerator:
+    """ Purpose is to fetch a sample from a LoadMethod instance and yield the 
+    result.
+    """
 
-    def __init__(self, load_method, permutation=None,
-        shuffle=False, repeat=False):
-
+    def __init__(self, load_method, permutation=None, shuffle=False,
+            repeat=False):
+        """ Mandatory LoadMethod instance.
+        Optional arguments:
+        permutation -- a list of indices to permute over
+        shuffle -- whether or not to shuffle list to iterate over
+        repeat -- whether or not to repeat yielding samples from LoadMethod
+        """
+        self.permutation = permutation or range(len(load_method.samples))
         self.load_method = load_method
         self.shuffle = shuffle
         self.repeat = repeat
 
-        if permutation is None:
-            self.num_samples = len(self.load_method.samples)
-            self.permutation = range(self.num_samples)
-        else:
-            self.permutation = permutation
-            self.num_samples = len(self.permutation)
 
     def gen_sample(self):
+        """ Fetch samples from LoadMethod by iterating over indices of
+        permutation list.
+        If we are training, shuffling should be enabled.
+        List of permutation can be shuffled.
+        """
         while True:
             if self.shuffle:
-                num_samples = self.num_samples
-                self.permutation = np.random.permutation(self.permutation)
-            for num in range(self.num_samples):
-                yield self.load_method(self.permutation[num])
+                self.permutation = perm(self.permutation)
+            for i in range(len(self.permutation)):
+                yield self.load_method(self.permutation[i])
             if not self.repeat:
                 break
 
