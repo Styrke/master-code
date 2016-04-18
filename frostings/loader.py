@@ -63,7 +63,7 @@ class SampleGenerator:
         while True:
             if self.shuffle:
                 num_samples = self.num_samples
-                self.permutation = np.random.permutation(num_samples)
+                self.permutation = np.random.permutation(self.permutation)
             for num in range(self.num_samples):
                 yield self.load_method(self.permutation[num])
             if not self.repeat:
