@@ -54,7 +54,8 @@ class SampleGenerator:
         shuffle -- whether or not to shuffle list to iterate over
         repeat -- whether or not to repeat yielding samples from LoadMethod
         """
-        self.permutation = permutation or range(len(load_method.samples))
+        self.permutation = permutation if permutation is not None else range(
+                len(load_method.samples))
         self.load_method = load_method
         self.shuffle = shuffle
         self.repeat = repeat
