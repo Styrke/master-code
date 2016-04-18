@@ -11,7 +11,6 @@ from augmentor import Augmentor
 from frostings import loader as fl
 from model import Model
 from utils import basic as utils
-from dummy_loader import DummySampleGenerator
 import utils.performancemetrics as pm
 from utils.tfhelper import run
 
@@ -22,23 +21,11 @@ DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
 
 @click.command()
-@click.option(
-    '--loader',
-    type=click.Choice(['europarl',
-                       'normal',
-                       'talord',
-                       'talord_caps1',
-                       'talord_caps2',
-                       'talord_caps3']),
-    default='europarl',
-    help='Choose dataset to load. (default: europarl)')
 @click.option('--config', default='test', help='Config file to use for training')
 class Trainer:
     """Train a translation model."""
 
-    def __init__(self, loader, config):
-        self.loader = loader
-
+    def __init__(self, config):
         self.setup_model(config)
         self.setup_reload_path()
         self.setup_loader()
@@ -54,12 +41,12 @@ class Trainer:
         self.summarywriter = None
         if not self.name:
             return  # Nothing more to do
-             
+
         local_path        = os.path.join(SAVER_PATH['base'], self.name)
         self.summary_path = os.path.join(local_path, SAVER_PATH['log'])
 
         print("Will read and write from '%s' (checkpoints and logs)" % (local_path))
-        
+
         # Prepare for saving checkpoints
         if self.save_freq:
             self.checkpoint_saver = tf.train.Saver()
@@ -70,7 +57,7 @@ class Trainer:
             self.latest_checkpoint = tf.train.latest_checkpoint(checkpoint_path)
         else:
             print("WARNING: 'save_freq' is 0 so checkpoints won't be saved!")
-            
+
         # Prepare for writing TensorBoard summaries
         if self.tb_log_freq:
             if not os.path.exists(self.summary_path) and self.tb_log_freq:
@@ -132,61 +119,46 @@ class Trainer:
 
     def setup_loader(self):
         self.sample_generator = dict()
-        if self.loader == 'europarl':
-            print('Using europarl loader')
-            lm = tl.TextLoadMethod(
-                paths_X=['data/train/europarl-v7.da-en.en'],
-                paths_t=['data/train/europarl-v7.da-en.da'],
-                seq_len=self.seq_len)
-            self.load_method = {'train': lm}
+        lm = tl.TextLoadMethod(
+            paths_X=['data/train/europarl-v7.da-en.en'],
+            paths_t=['data/train/europarl-v7.da-en.da'],
+            seq_len=self.seq_len)
+        self.load_method = {'train': lm}
 
-            # TODO: making the validation split (should not just be True later
-            # on) something like: `if not
-            # os.path.isfile(DEFAULT_VALIDATION_SPLIT):`
-            if True:
-                import create_validation_split as v_split
-                no_training_samples = len(self.load_method['train'].samples)
-                v_split.create_split(no_training_samples,
-                                     DEFAULT_VALIDATION_SPLIT)
+        # TODO: making the validation split (should not just be True later
+        # on) something like: `if not
+        # os.path.isfile(DEFAULT_VALIDATION_SPLIT):`
+        if True:
+            import create_validation_split as v_split
+            no_training_samples = len(self.load_method['train'].samples)
+            v_split.create_split(no_training_samples,
+                                 DEFAULT_VALIDATION_SPLIT)
 
-            split = np.load(DEFAULT_VALIDATION_SPLIT)
-            self.sample_generator['train'] = tl.SampleTrainWrapper(
-                    self.load_method['train'],
-                    permutation=split['indices_train'],
-                    num_splits=32)
+        split = np.load(DEFAULT_VALIDATION_SPLIT)
+        self.sample_generator['train'] = tl.SampleTrainWrapper(
+                self.load_method['train'],
+                permutation=split['indices_train'],
+                num_splits=32)
 
-            # data loader for eval
-            # notice repeat = false
-            self.eval_sample_generator = {
-                'train': fl.SampleGenerator(
-                    self.load_method['train'],
-                    permutation=split['indices_train'],
-                    repeat=False),
-                'validation': fl.SampleGenerator(
-                    self.load_method['train'],  # TODO: is this the correct load method?
-                    permutation=split['indices_valid'],
-                    repeat=False)}
-        elif self.loader in ['normal', 'talord', 'talord_caps1', 'talord_caps2', 'talord_caps3']:
-            print('Using dummy loader (%s)' % (self.loader))
-            self.sample_generator['train'] = DummySampleGenerator(
-                    max_len=self.seq_len/6,
-                    sampler=self.loader)
-        else:
-            raise NotImplementedError("Given loader (%s) is not supported" % (self.loader))
+        # data loader for eval
+        # notice repeat = false
+        self.eval_sample_generator = {
+            'train': fl.SampleGenerator(
+                self.load_method['train'],
+                permutation=split['indices_train'],
+                repeat=False),
+            'validation': fl.SampleGenerator(
+                self.load_method['train'],  # TODO: is this the correct load method?
+                permutation=split['indices_valid'],
+                repeat=False)}
 
     def setup_batch_generator(self):
         self.batch_generator = dict()
-        if self.loader is 'europarl':
-            self.batch_generator['train'] = tl.BatchTrainWrapper(
-                self.sample_generator['train'],
-                batch_size=self.batch_size,
-                seq_len=self.seq_len,
-                warm_up=self.warm_up)
-        else:
-            self.batch_generator['train'] = tl.TextBatchGenerator(
-                self.sample_generator['train'],
-                batch_size=self.batch_size,
-                seq_len=self.seq_len)
+        self.batch_generator['train'] = tl.BatchTrainWrapper(
+            self.sample_generator['train'],
+            batch_size=self.batch_size,
+            seq_len=self.seq_len,
+            warm_up=self.warm_up)
 
         # If we have a validation frequency
         # setup needed evaluation generators
