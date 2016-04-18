@@ -1,7 +1,5 @@
 from numpy.random import permutation as perm
 
-from . import utils
-
 class LoadMethod:
     """ Skeleton class for loading data from memory.
     As a minimum it must include following functionality:
@@ -78,33 +76,42 @@ class SampleGenerator:
 
 
 class BatchGenerator:
+    """ Purpose is to generate batches of samples from a SampleGenerator. """
 
     def __init__(self, sample_generator, batch_size):
+        """ Must have a SampleGenerator and wanted batch size. """
         self.sample_generator = sample_generator
         self.batch_size = batch_size
-        self.samples = []
+        self.samples = [] # make sure it is defined
+
 
     def _make_batch(self):
-        raise NotImplementedError
+        """ Format samples as needed. """
+        raise NotImplementedError("Please implement `_make_batch()`")
+
 
     def gen_batch(self):
-        self.samples = []
+        """ Generate a batch of max `batch_size` length. 
+        Initialises samples to empty list. 
+        Calls SampleGenerator to fetch samples from LoadMethod.
+        Yields SampleGenerator's `_make_batch` to format batch. 
+        """
+        self.samples = [] # make sure to reset list
         for sample in self.sample_generator.gen_sample():
             self.samples.append(sample)
             if len(self.samples) == self.batch_size:
                 yield self._make_batch()
                 self.samples = []  # reset batch
-
-        # make a smaller batch from any remaining samples
+        # if samples is not empty, we want to return it.
+        # NOTE don't reset samples, as we check size of latest batch
         if len(self.samples) > 0:
             yield self._make_batch()
+
 
     @property
     def latest_batch_size(self):
         """Actual size of the most recently produced batch.
-
-        This is useful if there weren't enough samples left in the data
-        set to make a full size batch.
+        This is useful if there wasn't enough samples left in the data set to 
+        make a full size batch.
         """
         return len(self.samples)
-
