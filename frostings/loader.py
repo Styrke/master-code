@@ -2,29 +2,45 @@ import numpy as np
 import os
 from . import utils
 
-# Method YOU should implement!
-class LoadMethod(object):
+class LoadMethod:
+    """ Skeleton class for loading data from memory.
+    As a minimum it must include following functionality:
+    - load/read data from memory (mandatory)
+    - pre-process the read data
+    - fetch next set of samples
+    """
 
     def __init__(self):
-        self._prepare_data()
+        """ Constructor where we need to pass all needed arguments such as
+        relevant memory paths, wanted sequence lengths, etc.
+        Furthermore, we implicitly load and pre-process data.
+        """
+        self._load_data()
+        self._preprocess_data()
 
-    def _load_data(self):
-        self.train_X = []
-        self.train_t = []
-        self.samples = zip(self.train_X, self.train_t)
-
-    def _preprocess_data(self):
-        pass
-
-    def _prepare_data(self):
-        if not os.path.exists("data/train.npy.gz"):
-            self._load_data()
-            self._preprocess_data()
-        else:
-            self.samples = utils.load_gz("data/train.npy.gz")
 
     def __call__(self, idx):
+        """ Fetch specific tuple of input and target. """
         return self.samples[idx]
+
+
+    def _load_data(self):
+        """ Load data from memory.
+        List of samples should an instance variable of a zip object, e.g.: 
+        
+          train_X, train_t = [], []
+          self.samples = list(zip(train_X, train_t))
+        """
+        raise NotImplementedError("Please implement `_load_data()`")
+
+
+    def _preprocess_data(self):
+        """ Pre-process read data, e.g. strip whitespace, filter samples by
+        length, sort samples, augment samples, etc.
+        """
+        print("Data pre-processing functionality has not been implemented..")
+        print("  No pre-processing will be performed..")
+        pass
 
 
 class SampleGenerator(object):
