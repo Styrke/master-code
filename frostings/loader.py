@@ -43,7 +43,7 @@ class LoadMethod:
         pass
 
 
-class SampleGenerator(object):
+class SampleGenerator:
 
     def __init__(self, load_method, permutation=None,
         shuffle=False, repeat=False):
@@ -58,8 +58,6 @@ class SampleGenerator(object):
         else:
             self.permutation = permutation
             self.num_samples = len(self.permutation)
-   
-#        print("SampleGenerator initiated")
 
     def gen_sample(self):
         while True:
@@ -72,7 +70,7 @@ class SampleGenerator(object):
                 break
 
 
-class BatchGenerator(object):
+class BatchGenerator:
 
     def __init__(self, sample_generator, batch_size):
         self.sample_generator = sample_generator
@@ -104,7 +102,7 @@ class BatchGenerator(object):
         return len(self.samples)
 
 
-class ChunkInfo(object):
+class ChunkInfo:
 
     def __init__(self, chunk_size=4096, num_chunks=800):
         self.chunk_size = chunk_size
@@ -112,7 +110,7 @@ class ChunkInfo(object):
         print("ChunkInfo initiated")
 
 
-class ChunkGenerator(object):
+class ChunkGenerator:
 
     def __init__(self, batch_generator, chunk_info, rng=np.random):
         self.batch_generator = batch_generator
