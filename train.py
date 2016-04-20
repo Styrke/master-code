@@ -184,8 +184,8 @@ class Trainer:
 
     def train(self):
         print("## INITIATE TRAIN")
-
-        with tf.Session() as sess:
+        gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
+        with tf.Session(config=tf.ConfigProto(gpu_options=gpu_opts)) as sess:
             if self.latest_checkpoint:
                 self.checkpoint_saver.restore(sess, self.latest_checkpoint)
             else:
