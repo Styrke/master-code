@@ -1,4 +1,4 @@
-from numpy.random import permutation as perm
+from numpy.random import permutation as permute
 
 class LoadMethod:
     """ Skeleton class for loading data from memory.
@@ -69,7 +69,7 @@ class SampleGenerator:
         """
         while True:
             if self.shuffle:
-                self.permutation = perm(self.permutation)
+                self.permutation = permute(self.permutation)
             for i in range(len(self.permutation)):
                 yield self.load_method(self.permutation[i])
             if not self.repeat:
