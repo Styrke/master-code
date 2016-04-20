@@ -12,7 +12,6 @@ class TextLoader(Loader.Loader):
         self.paths_t = paths_t
         self.seq_len = seq_len
 
-        print("prepare_data started")
         self._load_data()
         self._preprocess_data()
 
@@ -27,7 +26,7 @@ class TextLoader(Loader.Loader):
                 data_X += f.read().split("\n")
             print("loading t data ...")
             with open(path_t, "r", encoding="utf-8") as f:
-                data_t = f.read().split("\n")
+                data_t += f.read().split("\n")
 
         self.samples = zip(data_X, data_t)
 
@@ -40,7 +39,7 @@ class TextLoader(Loader.Loader):
         """
         # Strip sorrounding whitespace characters from each sentence
         self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
-        
+
         samples_before = len(self.samples)  # Count before filtering
 
         print("removing very long and very short samples ...")

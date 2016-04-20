@@ -5,10 +5,9 @@ import numpy as np
 import tensorflow as tf
 import importlib
 
+import frostings.loader as frost
 import text_loader as tl
-
 from augmentor import Augmentor
-from frostings import loader as fl
 from model import Model
 from utils import basic as utils
 import utils.performancemetrics as pm
@@ -17,7 +16,6 @@ from utils.tfhelper import run
 SAVER_PATH = {'base': 'train/',
                      'checkpoint': 'checkpoints/',
                      'log': 'logs/'}
-DEFAULT_VALIDATION_SPLIT = './data/validation_split_v1.pkl'
 
 
 @click.command()
@@ -29,7 +27,6 @@ class Trainer:
         self.setup_model(config)
         self.setup_reload_path()
         self.setup_loader()
-        self.setup_batch_generator()
 
         self.alphabet = self.batch_generator['train'].alphabet
 
@@ -118,61 +115,43 @@ class Trainer:
                 X_spaces_len=self.X_spaces_len)
 
     def setup_loader(self):
-        self.sample_generator = dict()
-        lm = tl.TextLoader(
+        """Load the datasets"""
+        # TODO: this will be moved to config files
+        self.batch_generator = dict()
+
+        # load training set
+        print('\nload training set')
+        train_loader = tl.TextLoader(
             paths_X=['data/train/europarl-v7.da-en.en'],
             paths_t=['data/train/europarl-v7.da-en.da'],
-            seq_len=self.seq_len)
-        self.loader = {'train': lm}
-
-        # TODO: making the validation split (should not just be True later
-        # on) something like: `if not
-        # os.path.isfile(DEFAULT_VALIDATION_SPLIT):`
-        if True:
-            import create_validation_split as v_split
-            no_training_samples = len(self.loader['train'].samples)
-            v_split.create_split(no_training_samples,
-                                 DEFAULT_VALIDATION_SPLIT)
-
-        split = np.load(DEFAULT_VALIDATION_SPLIT)
-        self.sample_generator['train'] = tl.SampleTrainWrapper(
-                self.loader['train'],
-                indexes=split['indices_train'],
-                num_splits=32)
-
-        # data loader for eval
-        # notice repeat = false
-        self.eval_sample_generator = {
-            'train': fl.SampleGenerator(
-                self.loader['train'],
-                indexes=split['indices_train'],
-                repeat=False),
-            'validation': fl.SampleGenerator(
-                self.loader['train'],  # TODO: is this the correct load method?
-                indexes=split['indices_valid'],
-                repeat=False)}
-
-    def setup_batch_generator(self):
-        self.batch_generator = dict()
-        self.batch_generator['train'] = tl.BatchTrainWrapper(
-            self.sample_generator['train'],
+            seq_len=self.seq_len
+        )
+        train_sample_generator = frost.SampleGenerator(
+            loader=train_loader,
+            shuffle=True,
+            repeat=True
+        )
+        self.batch_generator['train'] = tl.TextBatchGenerator(
+            sample_generator=train_sample_generator,
             batch_size=self.batch_size,
-            seq_len=self.seq_len,
-            warm_up=self.warm_up)
+            seq_len=self.seq_len
+        )
 
-        # If we have a validation frequency
-        # setup needed evaluation generators
-        if self.valid_freq:
-            self.eval_batch_generator = {
-                    # TODO: this was too large to run for now
-                    # 'train': tl.TextBatchGenerator(
-                    #     self.eval_sample_generator['train'],
-                    #     batch_size = self.batch_size,
-                    #     seq_len = self.seq_len ),
-                    'validation': tl.TextBatchGenerator(
-                        self.eval_sample_generator['validation'],
-                        batch_size=self.batch_size,
-                        seq_len=self.seq_len)}
+        # load validation set
+        print('\nload validation set')
+        valid_loader = tl.TextLoader(
+            paths_X=['data/test/devtest2006.en', 'data/test/test2006.en'],
+            paths_t=['data/test/devtest2006.da', 'data/test/test2006.da'],
+            seq_len=self.seq_len
+        )
+        valid_sample_generator = frost.SampleGenerator(
+            loader=valid_loader
+        )
+        self.batch_generator['valid'] = tl.TextBatchGenerator(
+            sample_generator=valid_sample_generator,
+            batch_size=self.batch_size,
+            seq_len=self.seq_len
+        )
 
     def visualize_ys(self, ys, batch):
         for j in range(batch['x_encoded'].shape[0]):
@@ -298,7 +277,7 @@ class Trainer:
         accuracies = []
         valid_ys = []
         valid_ts = []
-        for v_batch in self.eval_batch_generator['validation'].gen_batch():
+        for v_batch in self.batch_generator['valid'].gen_batch():
             fetches = {'accuracy': self.model.accuracy,
                        'ys': self.model.ys}
 
