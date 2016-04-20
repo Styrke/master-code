@@ -24,7 +24,7 @@ class Model(object):
     alphabet_size = 337
     rnn_units = 400
     embedd_dims = 16
-    learning_rate = 0.01
+    learning_rate = 0.001
     reg_scale = 0.0001
     clip_norm = 1
 
