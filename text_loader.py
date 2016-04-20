@@ -1,18 +1,20 @@
-from frostings import loader
 import numpy as np
 
+from frostings import loader as Loader
 from data.alphabet import Alphabet
 
-
-class TextLoadMethod(loader.LoadMethod):
+class TextLoader(Loader.Loader):
     """Load and prepare text data."""
 
     def __init__(self, paths_X, paths_t, seq_len):
-        """Initialize instance of TextLoadMethod."""
+        """Initialize instance of TextLoader."""
         self.paths_X = paths_X
         self.paths_t = paths_t
         self.seq_len = seq_len
-        self._prepare_data()
+
+        print("prepare_data started")
+        self._load_data()
+        self._preprocess_data()
 
     def _load_data(self):
         """Read data from files and create list of samples."""
@@ -55,11 +57,6 @@ class TextLoadMethod(loader.LoadMethod):
         self.samples = sorted(self.samples,
                               key=lambda x: len(x[0])*10000 + len(x[1]))
 
-    def _prepare_data(self):
-        """Load and preprocess data."""
-        print("prepare_data started")
-        self._load_data()
-        self._preprocess_data()
 
     def _filter_samples(self, samples, max_length):
         """Filter out samples of extreme length."""
@@ -83,7 +80,7 @@ class TextLoadMethod(loader.LoadMethod):
 
 
 
-class TextBatchGenerator(loader.BatchGenerator):
+class TextBatchGenerator(Loader.BatchGenerator):
     """Generates processed batches of text.
 
     Extends BatchGenerator
@@ -100,7 +97,7 @@ class TextBatchGenerator(loader.BatchGenerator):
 
         Keyword arguments:
         sample_generator -- instance of SampleGenerator that has been
-            initialized with a TextLoadMethod instance.
+            initialized with a TextLoader instance.
         batch_size -- the max number of samples to include in each
             batch.
         add_feature_dim -- (default: False) whether or not to add
@@ -230,10 +227,10 @@ class TextBatchGenerator(loader.BatchGenerator):
 
 
 class SampleTrainWrapper(object):
-    def __init__(self, load_method, permutation = None, num_splits=1):
+    def __init__(self, loader, indexes = None, num_splits=1):
 
-        self.load_method = load_method
-        self.permutation = permutation
+        self.loader = loader
+        self.indexes = indexes
         self.num_splits = num_splits
         self.cur_split = None # hack for batch_wrapper
 
@@ -242,25 +239,25 @@ class SampleTrainWrapper(object):
 
     def _make_splits(self):
         self.splits = []
-        if self.permutation is None:
-            num_samples = len(self.load_method.samples)
-            self.permutation = range(num_samples)
+        if self.indexes is None:
+            num_samples = len(self.loader.samples)
+            self.indexes = range(num_samples)
         else:
-            num_samples = len(self.permutation)
+            num_samples = len(self.indexes)
         split_size = num_samples//self.num_splits
         for split in range(self.num_splits):
-            self.splits.append(list(self.permutation[
+            self.splits.append(list(self.indexes[
                 split * split_size:
                 (split + 1) * split_size]))
         if num_samples - (split_size * self.num_splits):
-            self.splits[-1] += list(self.permutation[
+            self.splits[-1] += list(self.indexes[
                 split_size * self.num_splits:])
 
     def _make_samplers(self):
         self.samplers = []
         for split in self.splits:
             self.samplers.append(
-                loader.SampleGenerator(self.load_method, permutation=split,
+                Loader.SampleGenerator(self.loader, indexes=split,
                     shuffle=True, repeat=True))
 
     def gen_sample(self):
@@ -299,10 +296,10 @@ class BatchTrainWrapper(TextBatchGenerator):
 
 
 if __name__ == '__main__':
-    text_load_method = TextLoadMethod(
+    text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
         ['data/train/europarl-v7.fr-en.fr'], seq_len=40)
-    sample_gen = loader.SampleGenerator(text_load_method)
+    sample_gen = Loader.SampleGenerator(text_loader)
     text_batch_gen = TextBatchGenerator(sample_gen, batch_size=32, seq_len=40)
 
     for batch in text_batch_gen.gen_batch():
@@ -312,7 +309,7 @@ if __name__ == '__main__':
     for key, item in batch.items():
         print(key, item.shape)
 
-    sample_wrapper = SampleTrainWrapper(text_load_method, num_splits=16)
+    sample_wrapper = SampleTrainWrapper(text_loader, num_splits=16)
     batch_wrapper = BatchTrainWrapper(sample_wrapper,
         batch_size=32, seq_len=40, warm_up=5000)
     batch = next(batch_wrapper.gen_batch())

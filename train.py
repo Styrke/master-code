@@ -119,37 +119,37 @@ class Trainer:
 
     def setup_loader(self):
         self.sample_generator = dict()
-        lm = tl.TextLoadMethod(
+        lm = tl.TextLoader(
             paths_X=['data/train/europarl-v7.da-en.en'],
             paths_t=['data/train/europarl-v7.da-en.da'],
             seq_len=self.seq_len)
-        self.load_method = {'train': lm}
+        self.loader = {'train': lm}
 
         # TODO: making the validation split (should not just be True later
         # on) something like: `if not
         # os.path.isfile(DEFAULT_VALIDATION_SPLIT):`
         if True:
             import create_validation_split as v_split
-            no_training_samples = len(self.load_method['train'].samples)
+            no_training_samples = len(self.loader['train'].samples)
             v_split.create_split(no_training_samples,
                                  DEFAULT_VALIDATION_SPLIT)
 
         split = np.load(DEFAULT_VALIDATION_SPLIT)
         self.sample_generator['train'] = tl.SampleTrainWrapper(
-                self.load_method['train'],
-                permutation=split['indices_train'],
+                self.loader['train'],
+                indexes=split['indices_train'],
                 num_splits=32)
 
         # data loader for eval
         # notice repeat = false
         self.eval_sample_generator = {
             'train': fl.SampleGenerator(
-                self.load_method['train'],
-                permutation=split['indices_train'],
+                self.loader['train'],
+                indexes=split['indices_train'],
                 repeat=False),
             'validation': fl.SampleGenerator(
-                self.load_method['train'],  # TODO: is this the correct load method?
-                permutation=split['indices_valid'],
+                self.loader['train'],  # TODO: is this the correct load method?
+                indexes=split['indices_valid'],
                 repeat=False)}
 
     def setup_batch_generator(self):

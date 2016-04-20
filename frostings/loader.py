@@ -1,6 +1,6 @@
 from numpy.random import permutation as permute
 
-class LoadMethod:
+class Loader:
     """ Skeleton class for loading data from memory.
     As a minimum it must include following functionality:
     - load/read data from memory (mandatory)
@@ -42,36 +42,32 @@ class LoadMethod:
 
 
 class SampleGenerator:
-    """ Purpose is to fetch a sample from a LoadMethod instance and yield the 
-    result.
-    """
+    """ Fetch a sample from a Loader instance and yield the result. """
 
-    def __init__(self, load_method, permutation=None, shuffle=False,
-            repeat=False):
-        """ Mandatory LoadMethod instance.
+    def __init__(self, loader, indexes=None, shuffle=False, repeat=False):
+        """ Mandatory Loader instance.
         Optional arguments:
-        permutation -- a list of indices to permute over
+        indexes -- a list of indexes to permute over
         shuffle -- whether or not to shuffle list to iterate over
-        repeat -- whether or not to repeat yielding samples from LoadMethod
+        repeat -- whether or not to repeat yielding samples from Loader
         """
-        self.permutation = permutation if permutation is not None else range(
-                len(load_method.samples))
-        self.load_method = load_method
+        self.indexes = indexes if indexes is not None else range(
+                len(loader.samples))
+        self.loader = loader
         self.shuffle = shuffle
         self.repeat = repeat
 
 
     def gen_sample(self):
-        """ Fetch samples from LoadMethod by iterating over indices of
-        permutation list.
+        """ Fetch samples from Loader by iterating over indexes list.
         If we are training, shuffling should be enabled.
-        List of permutation can be shuffled.
+        List of indexes can be shuffled.
         """
         while True:
             if self.shuffle:
-                self.permutation = permute(self.permutation)
-            for i in range(len(self.permutation)):
-                yield self.load_method(self.permutation[i])
+                self.indexes = permute(self.indexes)
+            for i in range(len(self.indexes)):
+                yield self.loader(self.indexes[i])
             if not self.repeat:
                 break
 
@@ -94,7 +90,7 @@ class BatchGenerator:
     def gen_batch(self):
         """ Generate a batch of max `batch_size` length. 
         Initialises samples to empty list. 
-        Calls SampleGenerator to fetch samples from LoadMethod.
+        Calls SampleGenerator to fetch samples from Loader.
         Yields SampleGenerator's `_make_batch` to format batch. 
         """
         self.samples = [] # make sure to reset list
