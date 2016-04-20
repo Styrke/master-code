@@ -126,15 +126,12 @@ class Trainer:
             paths_t=['data/train/europarl-v7.da-en.da'],
             seq_len=self.seq_len
         )
-        train_sample_generator = frost.SampleGenerator(
-            loader=train_loader,
-            shuffle=True,
-            repeat=True
-        )
+        train_iteration_schedule = frost.IterationSchedule(shuffle=True, repeat=True)
         self.batch_generator['train'] = tl.TextBatchGenerator(
-            sample_generator=train_sample_generator,
+            loader=train_loader,
             batch_size=self.batch_size,
-            seq_len=self.seq_len
+            seq_len=self.seq_len,
+            iteration_schedule=train_iteration_schedule
         )
 
         # load validation set
@@ -144,11 +141,8 @@ class Trainer:
             paths_t=['data/test/devtest2006.da', 'data/test/test2006.da'],
             seq_len=self.seq_len
         )
-        valid_sample_generator = frost.SampleGenerator(
-            loader=valid_loader
-        )
         self.batch_generator['valid'] = tl.TextBatchGenerator(
-            sample_generator=valid_sample_generator,
+            loader=valid_loader,
             batch_size=self.batch_size,
             seq_len=self.seq_len
         )
@@ -191,7 +185,6 @@ class Trainer:
                 if self.valid_freq and i % self.valid_freq == 0:
                     self.validate(sess)
 
-                ## TRAIN START ##
                 fetches = {
                     'loss':      self.model.loss,
                     'ys':        self.model.ys,
@@ -205,7 +198,6 @@ class Trainer:
                     fetches,
                     batch=t_batch,
                     feedback=self.train_feedback)
-                ## TRAIN END ##
 
                 combined_time += elapsed_it
 

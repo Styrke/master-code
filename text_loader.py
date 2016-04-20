@@ -1,9 +1,9 @@
 import numpy as np
 
-from frostings import loader as Loader
+import frostings.loader as frost
 from data.alphabet import Alphabet
 
-class TextLoader(Loader.Loader):
+class TextLoader(frost.Loader):
     """Load and prepare text data."""
 
     def __init__(self, paths_X, paths_t, seq_len):
@@ -78,14 +78,13 @@ class TextLoader(Loader.Loader):
         return samples
 
 
-
-class TextBatchGenerator(Loader.BatchGenerator):
+class TextBatchGenerator(frost.BatchGenerator):
     """Generates processed batches of text.
 
     Extends BatchGenerator
     """
 
-    def __init__(self, sample_generator, batch_size, seq_len,
+    def __init__(self, loader, batch_size, seq_len, iteration_schedule=None,
             add_feature_dim=False, use_dynamic_array_sizes=False,
             alphabet=None):
         """Initialize instance of TextBatchGenerator.
@@ -95,10 +94,12 @@ class TextBatchGenerator(Loader.BatchGenerator):
         batch.
 
         Keyword arguments:
-        sample_generator -- instance of SampleGenerator that has been
-            initialized with a TextLoader instance.
+        loader -- instance of TextLoader.
         batch_size -- the max number of samples to include in each
             batch.
+        seq_len -- the length of the sequences from the loader.
+        iteration_schedule -- instance of IterationSchedule to be used.
+            (default: frostings.IterationSchedule)
         add_feature_dim -- (default: False) whether or not to add
             artificial 2nd axis to numpy arrays produced by this
             BatchGenerator.
@@ -109,7 +110,7 @@ class TextBatchGenerator(Loader.BatchGenerator):
             encoding.
         """
         # call superclass constructor
-        super(TextBatchGenerator, self).__init__(sample_generator, batch_size)
+        super(TextBatchGenerator, self).__init__(loader, batch_size, iteration_schedule)
 
         if alphabet:
             self.alphabet = alphabet
@@ -152,7 +153,6 @@ class TextBatchGenerator(Loader.BatchGenerator):
         if self.add_feature_dim:
             for key, array in self.batch.iteritems():
                 self.batch[key] = np.expand_dims(array, axis=-1)
-
         return self.batch
 
     def _make_array(self, sequences, function, max_len=None):
@@ -226,12 +226,12 @@ class TextBatchGenerator(Loader.BatchGenerator):
 
 
 class SampleTrainWrapper(object):
-    def __init__(self, loader, indexes = None, num_splits=1):
+    def __init__(self, loader, indexes=None, num_splits=1):
 
         self.loader = loader
         self.indexes = indexes
         self.num_splits = num_splits
-        self.cur_split = None # hack for batch_wrapper
+        self.cur_split = None  # hack for batch_wrapper
 
         self._make_splits()
         self._make_samplers()
@@ -256,7 +256,7 @@ class SampleTrainWrapper(object):
         self.samplers = []
         for split in self.splits:
             self.samplers.append(
-                Loader.SampleGenerator(self.loader, indexes=split,
+                frost.SampleGenerator(self.loader, indexes=split,
                     shuffle=True, repeat=True))
 
     def gen_sample(self):
@@ -295,25 +295,20 @@ class BatchTrainWrapper(TextBatchGenerator):
 
 
 if __name__ == '__main__':
+    seq_len = 300
     text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
-        ['data/train/europarl-v7.fr-en.fr'], seq_len=40)
-    sample_gen = Loader.SampleGenerator(text_loader)
-    text_batch_gen = TextBatchGenerator(sample_gen, batch_size=32, seq_len=40)
+        ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
+    itersched = frost.IterationSchedule(shuffle=True)
+    text_batch_gen = TextBatchGenerator(text_loader, batch_size=32, seq_len=seq_len,
+                                        iteration_schedule=itersched)
 
-    for batch in text_batch_gen.gen_batch():
-        pass
+    for i, batch in enumerate(text_batch_gen.gen_batch()):
+        if i == 100:
+            break
+    print(batch['x_len'])
+    print(batch['t_len'])
     print(type(batch))
     print(len(batch.items()))
-    for key, item in batch.items():
-        print(key, item.shape)
-
-    sample_wrapper = SampleTrainWrapper(text_loader, num_splits=16)
-    batch_wrapper = BatchTrainWrapper(sample_wrapper,
-        batch_size=32, seq_len=40, warm_up=5000)
-    batch = next(batch_wrapper.gen_batch())
-    print(type(batch))
-    print(len(batch.items()))
-
     for key, item in batch.items():
         print(key, item.shape)
