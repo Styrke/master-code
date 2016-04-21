@@ -75,7 +75,13 @@ class TextLoader(frost.Loader):
 
 
 class BucketIterationSchedule(frost.IterationSchedule):
-    def gen_indices(self, loader, batch_size, fuzzyness=3):
+    def __init__(self, shuffle=False, repeat=False, fuzzyness=3, sort=False):
+        self.shuffle = shuffle
+        self.repeat = repeat
+        self.fuzzyness = fuzzyness
+        self.sort = sort
+
+    def gen_indices(self, loader, batch_size):
         """Yields lists of indices that make up batches.
 
         Make batches using the lists of indices that this function yields
@@ -89,9 +95,12 @@ class BucketIterationSchedule(frost.IterationSchedule):
             varied from one epoch to the next.
         """
         sample_indices = np.array(
-            [(i, (len(x[0])//fuzzyness)*10000 + len(x[1])//fuzzyness)
+            [(i, (len(x[0])//self.fuzzyness)*10000 + len(x[1])//self.fuzzyness)
              for i, x in enumerate(loader.samples)]
         )
+        if self.sort:
+            sample_indices = sample_indices[
+                sample_indices[:, 1].argsort(kind='mergesort')]
         num_samples = len(sample_indices)
         num_batches = math.ceil(num_samples/batch_size)
 
@@ -115,6 +124,44 @@ class BucketIterationSchedule(frost.IterationSchedule):
 
             if not self.repeat:
                 break
+
+
+class WarmupIterationSchedule(BucketIterationSchedule):
+    def __init__(self, shuffle=False, repeat=False, fuzzyness=3, sort=False,
+                 warmup_iterations=10):
+        self.shuffle = shuffle
+        self.repeat = repeat
+        self.fuzzyness = fuzzyness
+        self.sort = sort
+        self.warmup_iterations = warmup_iterations
+
+    def gen_indices(self, loader, batch_size):
+        # Back up attributes before changing them
+        shuffle = self.shuffle
+        repeat = self.repeat
+        fuzzyness = self.fuzzyness
+        self.shuffle = False
+        self.repeat = False
+        self.fuzzyness = 1
+        self.sort = True
+        # Do warmup
+        generator = super(WarmupIterationSchedule, self).gen_indices(
+            loader, batch_size)
+        for i, indices in enumerate(generator):
+            if i == self.warmup_iterations:
+                break
+            yield indices
+
+        # Restore backed up attributes
+        self.shuffle = shuffle
+        self.repeat = repeat
+        self.fuzzyness = fuzzyness
+        self.sort = False
+        # Start the real schedule
+        generator = super(WarmupIterationSchedule, self).gen_indices(
+            loader, batch_size)
+        for indices in generator:
+            yield indices
 
 
 class TextBatchGenerator(frost.BatchGenerator):
@@ -340,14 +387,15 @@ if __name__ == '__main__':
     text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
         ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
-    itersched = BucketIterationSchedule(shuffle=True)
+    itersched = WarmupIterationSchedule(shuffle=True)
     text_batch_gen = TextBatchGenerator(text_loader, batch_size=32, seq_len=seq_len,
                                         iteration_schedule=itersched)
 
     for i, batch in enumerate(text_batch_gen.gen_batch()):
-        print(batch['x_len'])
-        print(batch['t_len'])
-        if i == 10:
+        #print(batch['x_len'])
+        #print(batch['t_len'])
+        print(batch['x_len'][0])
+        if i == 20:
             break
 
     print(type(batch))
