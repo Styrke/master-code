@@ -80,6 +80,10 @@ class IterationSchedule:
 
         Make batches using the lists of indices that this function yields
         by picking the samples from the loader that have the given indices.
+
+        Keyword arguments:
+        loader -- Loader whose samples should be iterated over.
+        batch_size -- Desired batch size.
         """
         num_samples = len(loader.samples)
         num_batches = math.ceil(num_samples/batch_size)

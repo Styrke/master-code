@@ -80,6 +80,13 @@ class BucketIterationSchedule(frost.IterationSchedule):
 
         Make batches using the lists of indices that this function yields
         by picking the samples from the loader that have the given indices.
+
+        Keyword arguments:
+        loader -- Loader whose samples should be iterated over.
+        batch_size -- Desired batch size.
+        fuzzyness -- Sequence lengths within a batch will typically
+            vary this much. More fuzzyness means batches will be more
+            varied from one epoch to the next.
         """
         sample_indices = np.array(
             [(i, (len(x[0])//fuzzyness)*10000 + len(x[1])//fuzzyness)
