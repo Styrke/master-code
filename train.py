@@ -5,7 +5,6 @@ import numpy as np
 import tensorflow as tf
 import importlib
 
-import frostings.loader as frost
 import text_loader as tl
 from augmentor import Augmentor
 from model import Model
@@ -126,7 +125,7 @@ class Trainer:
             paths_t=['data/train/europarl-v7.da-en.da'],
             seq_len=self.seq_len
         )
-        train_iteration_schedule = frost.IterationSchedule(shuffle=True, repeat=True)
+        train_iteration_schedule = tl.BucketIterationSchedule(shuffle=True, repeat=True)
         self.batch_generator['train'] = tl.TextBatchGenerator(
             loader=train_loader,
             batch_size=self.batch_size,

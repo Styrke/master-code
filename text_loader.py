@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 import frostings.loader as frost
@@ -52,11 +53,6 @@ class TextLoader(frost.Loader):
         subs_tuple = (samples_after, samples_before, samples_percentage)
         print("{:d} of {:d} ({:.2f}%) samples remaining".format(*subs_tuple))
 
-        print("sorting data ...")
-        self.samples = sorted(self.samples,
-                              key=lambda x: len(x[0])*10000 + len(x[1]))
-
-
     def _filter_samples(self, samples, max_length):
         """Filter out samples of extreme length."""
         # remove input sentences that are too short or too long
@@ -76,6 +72,42 @@ class TextLoader(frost.Loader):
         end = self.seq_len - 1
         samples = [(x[:end], t[:end]) for x, t in samples]
         return samples
+
+
+class BucketIterationSchedule(frost.IterationSchedule):
+    def gen_indices(self, loader, batch_size, fuzzyness=3):
+        """Yields lists of indices that make up batches.
+
+        Make batches using the lists of indices that this function yields
+        by picking the samples from the loader that have the given indices.
+        """
+        sample_indices = np.array(
+            [(i, (len(x[0])//fuzzyness)*10000 + len(x[1])//fuzzyness)
+             for i, x in enumerate(loader.samples)]
+        )
+        num_samples = len(sample_indices)
+        num_batches = math.ceil(num_samples/batch_size)
+
+        batch_numbers = range(num_batches)
+        while True:
+            if self.shuffle:
+                # shuffling and then sorting the indices makes the batches differ between
+                # epochs (unless there are so few samples that the sort operation makes
+                # the samples end up in the same order no matter how they were ordered
+                # before)
+                np.random.shuffle(sample_indices)
+                # use stable sorting algorithm so result depends on the shuffled indices.
+                print('sorting samples by lengths')
+                sample_indices = sample_indices[
+                    sample_indices[:, 1].argsort(kind='mergesort')]
+                batch_numbers = np.random.permutation(num_batches)
+            for batch in batch_numbers:
+                start_index = batch*batch_size
+                end_index = min((batch+1)*batch_size, num_samples-1)
+                yield sample_indices[start_index:end_index, 0]
+
+            if not self.repeat:
+                break
 
 
 class TextBatchGenerator(frost.BatchGenerator):
@@ -109,6 +141,8 @@ class TextBatchGenerator(frost.BatchGenerator):
         alphabet -- (optional) A custom Alphabet instance to use for
             encoding.
         """
+        if not iteration_schedule:
+            iteration_schedule = BucketIterationSchedule()
         # call superclass constructor
         super(TextBatchGenerator, self).__init__(loader, batch_size, iteration_schedule)
 
@@ -299,15 +333,16 @@ if __name__ == '__main__':
     text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
         ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
-    itersched = frost.IterationSchedule(shuffle=True)
+    itersched = BucketIterationSchedule(shuffle=True)
     text_batch_gen = TextBatchGenerator(text_loader, batch_size=32, seq_len=seq_len,
                                         iteration_schedule=itersched)
 
     for i, batch in enumerate(text_batch_gen.gen_batch()):
-        if i == 100:
+        print(batch['x_len'])
+        print(batch['t_len'])
+        if i == 10:
             break
-    print(batch['x_len'])
-    print(batch['t_len'])
+
     print(type(batch))
     print(len(batch.items()))
     for key, item in batch.items():
