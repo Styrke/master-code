@@ -16,7 +16,7 @@ class Model(object):
     visualize_freq = 1000  # Visualize training X, y, and t. (0 to disable.)
     log_freq = 10  # How often to print updates during training.
     save_freq = 0  # How often to save checkpoints. (0 to disable.)
-    valid_freq = 100  # How often to validate.
+    valid_freq = 500  # How often to validate.
     iterations = 32000  # How many iterations to train for before stopping.
     warmup = 100  # How many iterations to warm up for.
     train_feedback = False  # Enable feedback during training?
@@ -25,8 +25,10 @@ class Model(object):
     # datasets
     train_x_files = ['data/train/europarl-v7.da-en.en']
     train_t_files = ['data/train/europarl-v7.da-en.da']
-    valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en']
-    valid_t_files = ['data/valid/devtest2006.da', 'data/valid/test2006.da']
+    valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
+                     'data/valid/test2007.en', 'data/valid/test2008.en']
+    valid_t_files = ['data/valid/devtest2006.da', 'data/valid/test2006.da',
+                     'data/valid/test2007.da', 'data/valid/test2008.da']
 
     # settings that are local to the model
     alphabet_size = 337
