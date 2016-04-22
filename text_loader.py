@@ -4,6 +4,21 @@ import numpy as np
 import frostings.loader as frost
 from data.alphabet import Alphabet
 
+def _filter_samples(samples, max_length):
+    """Filter out samples of extreme length."""
+    # remove input sentences that are too short or too long
+    samples = [(x, t) for x, t in samples
+               if len(x) > 1 and len(x) <= max_length-1]
+    # remove target sentences that are too short or too long
+    samples = [(x, t) for x, t in samples
+               if len(t) > 1 and len(t) <= max_length-1]
+    return list(set(samples))
+
+def _truncate_samples(samples, limit):
+    """Truncate long sentences."""
+    return [(x[:limit], t[:limit]) for x, t in samples]
+
+
 class TextLoader(frost.Loader):
     """Load and prepare text data."""
 
@@ -25,13 +40,12 @@ class TextLoader(frost.Loader):
     def _load_data(self):
         """Read data from files and create list of samples."""
 
-        data_X = []
-        data_t = []
+        data_X, data_t = [], []
         for path_X, path_t in zip(self.paths_X, self.paths_t):
-            print("loading X data ...")
+            print("loading X data ({0})...".format(path_X))
             with open(path_X, "r", encoding="utf-8") as f:
                 data_X += f.read().split("\n")
-            print("loading t data ...")
+            print("loading t data ({0})...".format(path_t))
             with open(path_t, "r", encoding="utf-8") as f:
                 data_t += f.read().split("\n")
 
@@ -40,44 +54,23 @@ class TextLoader(frost.Loader):
     def _preprocess_data(self):
         """Clean up, filter, and sort the data samples before use.
 
-        - Remove sorrounding whitespace characters.
+        - Remove surrounding whitespace characters.
         - Filter the samples by their lengths.
         - Sort the samples for easy bucketing.
         """
-        # Strip sorrounding whitespace characters from each sentence
+        # Strip surrounding whitespace characters from each sentence
         self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
 
-        samples_before = len(self.samples)  # Count before filtering
-
         print("removing very long and very short samples ...")
-        self.samples = self._filter_samples(self.samples, float('inf'))
-        self.samples = self._truncate_samples(self.samples)
+        samples_before = len(self.samples)  # Count before filtering
+        self.samples = _filter_samples(self.samples, float('inf'))
+        self.samples = _truncate_samples(self.samples, self.seq_len-1)
+        samples_after = len(self.samples)  # Count after filtering
 
         # Print status (number and percentage of samples left)
-        samples_after = len(self.samples)
         samples_percentage = samples_after/samples_before*100
         subs_tuple = (samples_after, samples_before, samples_percentage)
         print("{:d} of {:d} ({:.2f}%) samples remaining".format(*subs_tuple))
-
-    def _filter_samples(self, samples, max_length):
-        """Filter out samples of extreme length."""
-        # remove input sentences that are too short or too long
-        samples = [(x, t) for x, t in samples
-                   if len(x) > 1 and len(x) <= max_length-1]
-
-        # remove target sentences that are too short or too long
-        samples = [(x, t) for x, t in samples
-                   if len(t) > 1 and len(t) <= max_length-1]
-
-        samples = list(set(samples))
-
-        return samples
-
-    def _truncate_samples(self, samples):
-        """Truncate long sentences."""
-        end = self.seq_len - 1
-        samples = [(x[:end], t[:end]) for x, t in samples]
-        return samples
 
 
 class BucketIterationSchedule(frost.IterationSchedule):
