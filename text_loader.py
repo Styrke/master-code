@@ -18,6 +18,20 @@ def _truncate_samples(samples, limit):
     """Truncate long sentences."""
     return [(x[:limit], t[:limit]) for x, t in samples]
 
+def _make_len_vec(sequences, offset=0, max_len=100000):
+    """Get length of each sequence in list of sequences.
+
+    Return as numpy vector.
+
+    Keyword arguments:
+    sequences -- list of sequences.
+    offset -- (optional) value to be added to each length.
+        Useful for including EOS characters.
+    max_len -- (optional) (default:100,000) returned sequence length will
+        not exceed this value.
+    """
+    return np.array([min(len(seq)+offset, max_len) for seq in sequences])
+
 
 class TextLoader(frost.Loader):
     """Load and prepare text data."""
@@ -206,32 +220,31 @@ class TextBatchGenerator(frost.BatchGenerator):
         Process the list of samples stored in self.samples. Return the
         result as a dict with nicely formatted numpy arrays.
         """
+        encode = self.alphabet.encode
         x, t = zip(*self.samples)  # unzip samples
-        self.batch = dict()
-        self.batch['x_encoded'] = self._make_array(x, self.alphabet.encode,
-            self.seq_len)
-        self.batch['t_encoded'] = self._make_array(t, self.alphabet.encode,
-            self.seq_len)
-        self.batch['x_spaces'] = self._make_array(x, self._spaces,
-            self.seq_len//4)
-        self.batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
+        batch = dict()
 
-        self.batch['t_encoded_go'] = self._add_sos(self.batch['t_encoded'])
+        batch['x_encoded'] = self._make_array(x, encode, self.seq_len)
+        batch['t_encoded'] = self._make_array(t, encode, self.seq_len)
+        batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
 
-        offset = self.add_eos_character  # Maybe count EOS character
-        self.batch['x_len'] = self._make_len_vec(x, offset=offset)
-        self.batch['t_len'] = self._make_len_vec(t, offset=offset)
-        self.batch['x_spaces_len'] = self._make_len_vec(map(self._spaces, x),
-                                                        max_len=self.seq_len//4)
-        # NOTE: The way we make self.batch['x_spaces_len'] here is not elegant,
+        batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len//4)
+        batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
+
+        batch['x_len'] = _make_len_vec(x, self.add_eos_character)
+        batch['t_len'] = _make_len_vec(t, self.add_eos_character)
+
+        # NOTE: The way we make batch['x_spaces_len'] here is not elegant,
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
+        spaces_x = map(self._spaces, x)
+        batch['x_spaces_len'] = _make_len_vec(spaces_x, 0, (self.seq_len//4))
 
         # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:
-            for key, array in self.batch.iteritems():
-                self.batch[key] = np.expand_dims(array, axis=-1)
-        return self.batch
+            for key, array in batch.iteritems():
+                batch[key] = np.expand_dims(array, axis=-1)
+        return batch
 
     def _make_array(self, sequences, function, max_len=None):
         """Use function to preprocess each sequence in the batch.
@@ -262,18 +275,6 @@ class TextBatchGenerator(frost.BatchGenerator):
             array[sample_idx, :length] = processed_seq[:max_len]
 
         return array
-
-    def _make_len_vec(self, sequences, offset=0, max_len=100000):
-        """Get length of each sequence in list of sequences.
-
-        Return as numpy vector.
-
-        Keyword arguments:
-        sequences -- list of sequences.
-        offset    -- (optional) value to be added to each length.
-            Useful for including EOS characters.
-        """
-        return np.array([min(len(seq)+offset, max_len) for seq in sequences])
 
     def _spaces(self, sentence):
         """Locate the spaces and the end of the sentence.
