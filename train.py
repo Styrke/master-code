@@ -5,7 +5,6 @@ import numpy as np
 import tensorflow as tf
 import importlib
 
-import text_loader as tl
 from augmentor import Augmentor
 from model import Model
 from utils import basic as utils
