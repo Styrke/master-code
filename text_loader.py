@@ -130,9 +130,9 @@ class BucketIterationSchedule(frost.IterationSchedule):
                 # before)
                 np.random.shuffle(sample_indices)
                 # use stable sorting algorithm so result depends on the shuffled indices.
-                print('sorting samples by lengths')
                 sample_indices = sample_indices[
-                    sample_indices[:, 1].argsort(kind='mergesort')]
+                    sample_indices[:, 1].argsort(kind='mergesort')
+                ]
                 batch_numbers = np.random.permutation(num_batches)
             for batch in batch_numbers:
                 start_index = batch*batch_size
