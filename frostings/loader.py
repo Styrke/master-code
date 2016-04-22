@@ -100,17 +100,14 @@ class IterationSchedule:
 
 
 class BatchGenerator:
-    """ Purpose is to generate batches of samples from a SampleGenerator. """
+    """ Purpose is to generate batches of samples from a Loader. """
 
     def __init__(self, loader, batch_size, iteration_schedule=None):
-        """ Must have a SampleGenerator and wanted batch size. """
+        """Must have a loader, wanted batch size, and an iteration schedule."""
         self.loader = loader
-        if not iteration_schedule:
-            self.iteration_schedule = IterationSchedule()
-        else:
-            self.iteration_schedule = iteration_schedule
+        self.iteration_schedule = iteration_schedule or IterationSchedule()
         self.batch_size = batch_size
-        self.samples = []  # make sure it is defined
+        self.samples = []  # just to make sure variable is defined
 
     def _make_batch(self):
         """ Format samples as needed. """
@@ -119,8 +116,8 @@ class BatchGenerator:
     def gen_batch(self):
         """ Generate a batch of max `batch_size` length.
         Initialises samples to empty list.
-        Calls SampleGenerator to fetch samples from Loader.
-        Yields SampleGenerator's `_make_batch` to format batch.
+        Fetches samples from Loader w.r.t. indices from iteration schedule.
+        Yields formatted batches from BatchGenerator's `_make_batch`.
         """
         for indices in self.iteration_schedule.gen_indices(self.loader, self.batch_size):
             self.samples = []  # make sure to reset list
