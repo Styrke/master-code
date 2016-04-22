@@ -8,7 +8,13 @@ class TextLoader(frost.Loader):
     """Load and prepare text data."""
 
     def __init__(self, paths_X, paths_t, seq_len):
-        """Initialize instance of TextLoader."""
+        """ Initialize TextLoader instance.
+
+        Keyword arguments:
+        paths_X -- list of paths for input sentences
+        paths_t -- list of paths for target sentences
+        seq_len -- wanted sequence length
+        """
         self.paths_X = paths_X
         self.paths_t = paths_t
         self.seq_len = seq_len
