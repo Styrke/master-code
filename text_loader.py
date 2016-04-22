@@ -108,12 +108,16 @@ class BucketIterationSchedule(frost.IterationSchedule):
             varied from one epoch to the next.
         """
         sample_indices = np.array(
-            [(i, (len(x[0])//self.fuzzyness)*10000 + len(x[1])//self.fuzzyness)
-             for i, x in enumerate(loader.samples)]
+            # second element in the tuple represents some order for the samples
+            # we weight the length of the input sentence greater than the
+            # target sentence (x = s[0] and t = s[1])
+            [(i, (len(s[0])//self.fuzzyness)<<14 + len(s[1])//self.fuzzyness)
+             for i, s in enumerate(loader.samples)]
         )
         if self.sort:
             sample_indices = sample_indices[
-                sample_indices[:, 1].argsort(kind='mergesort')]
+                sample_indices[:, 1].argsort(kind='mergesort')
+            ]
         num_samples = len(sample_indices)
         num_batches = math.ceil(num_samples/batch_size)
 
