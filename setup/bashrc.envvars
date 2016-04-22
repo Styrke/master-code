@@ -3,3 +3,5 @@ export DEVICES=$(\ls /dev/nvidia* | xargs -I{} echo '--device {}:{}')
 export LD_LIBRARY=$(\ls $HOME/tensorflow-cuda-symlinks/* | xargs -I{} echo '-v {}:{}')
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64/:$HOME/tensorflow-cuda-symlinks/"
 export CUDA_HOME=/usr/local/cuda
+
+export GPU_DOCKER_IMAGE_VERSION=1.2.0
