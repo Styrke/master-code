@@ -89,8 +89,7 @@ class TextLoader(frost.Loader):
 
 class BucketIterationSchedule(frost.IterationSchedule):
     def __init__(self, shuffle=False, repeat=False, fuzzyness=3, sort=False):
-        self.shuffle = shuffle
-        self.repeat = repeat
+        super(BucketIterationSchedule, self).__init__(shuffle, repeat)
         self.fuzzyness = fuzzyness
         self.sort = sort
 
@@ -146,37 +145,25 @@ class BucketIterationSchedule(frost.IterationSchedule):
 class WarmupIterationSchedule(BucketIterationSchedule):
     def __init__(self, shuffle=False, repeat=False, fuzzyness=3, sort=False,
                  warmup_iterations=10):
-        self.shuffle = shuffle
-        self.repeat = repeat
-        self.fuzzyness = fuzzyness
-        self.sort = sort
+        super(WarmupIterationSchedule, self).__init__(shuffle, repeat, fuzzyness, sort)
         self.warmup_iterations = warmup_iterations
 
     def gen_indices(self, loader, batch_size):
         # Back up attributes before changing them
-        shuffle = self.shuffle
-        repeat = self.repeat
-        fuzzyness = self.fuzzyness
-        self.shuffle = False
-        self.repeat = False
-        self.fuzzyness = 1
-        self.sort = True
+        shuffle, repeat, fuzzyness = self.shuffle, self.repeat, self.fuzzyness
+        self.shuffle, self.repeat, self.fuzzyness, self.sort = False, False, 1, True
         # Do warmup
-        generator = super(WarmupIterationSchedule, self).gen_indices(
-            loader, batch_size)
+        generator = super(WarmupIterationSchedule, self).gen_indices(loader, batch_size)
         for i, indices in enumerate(generator):
             if i == self.warmup_iterations:
                 break
             yield indices
 
         # Restore backed up attributes
-        self.shuffle = shuffle
-        self.repeat = repeat
-        self.fuzzyness = fuzzyness
+        self.shuffle, self.repeat, self.fuzzyness = shuffle, repeat, fuzzyness
         self.sort = False
         # Start the real schedule
-        generator = super(WarmupIterationSchedule, self).gen_indices(
-            loader, batch_size)
+        generator = super(WarmupIterationSchedule, self).gen_indices(loader, batch_size)
         for indices in generator:
             yield indices
 
