@@ -174,36 +174,27 @@ class TextBatchGenerator(frost.BatchGenerator):
             alphabet=None):
         """Initialize instance of TextBatchGenerator.
 
-        NOTE: The size of a produced batch can be smaller than
-        batch_size if there aren't enough samples left to make a full
-        batch.
+        NOTE: The size of a produced batch can be smaller than batch_size if 
+        there aren't enough samples left to make a full batch.
 
         Keyword arguments:
         loader -- instance of TextLoader.
-        batch_size -- the max number of samples to include in each
-            batch.
+        batch_size -- the max number of samples to include in each batch.
         seq_len -- the length of the sequences from the loader.
         iteration_schedule -- instance of IterationSchedule to be used.
-            (default: frostings.IterationSchedule)
+            (default: BucketIterationSchedule)
         add_feature_dim -- (default: False) whether or not to add
             artificial 2nd axis to numpy arrays produced by this
             BatchGenerator.
         use_dynamic_array_sizes -- (default: False) Allow producing
             arrays of varying size along the 1st axis, to fit the
             longest sample in the batch.
-        alphabet -- (optional) A custom Alphabet instance to use for
-            encoding.
+        alphabet -- (optional) A custom Alphabet instance to use for encoding.
         """
-        if not iteration_schedule:
-            iteration_schedule = BucketIterationSchedule()
-        # call superclass constructor
+        iteration_schedule = iteration_schedule or BucketIterationSchedule()
         super(TextBatchGenerator, self).__init__(loader, batch_size, iteration_schedule)
 
-        if alphabet:
-            self.alphabet = alphabet
-        else:
-            self.alphabet = Alphabet(eos='*', sos='')
-
+        self.alphabet = alphabet or Alphabet(eos='*', sos='')
         self.seq_len = seq_len
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
