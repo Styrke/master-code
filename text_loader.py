@@ -247,17 +247,17 @@ class TextBatchGenerator(frost.BatchGenerator):
         return batch
 
     def _make_array(self, sequences, function, max_len=None):
-        """Use function to preprocess each sequence in the batch.
+        """Use function to pre-process each sequence in the batch.
 
         Return as numpy array.
 
-        If self.use_dynamic_array_sizes is true, or max_len has not
+        If `self.use_dynamic_array_sizes` is True, or `max_len` has not
         been provided, the returned array's size along the 1st axis
         will be made large enough to hold the longest sequence.
 
         Keyword arguments:
         sequences -- list of sequences.
-        function  -- the function that should be used to preprocess
+        function  -- the function that should be used to pre-process
             each sequence in the list before packing.
         max_len   -- (optional) size of returned array along 1st axis
             if self.use_dynamic_array_sizes is false.
