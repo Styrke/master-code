@@ -23,10 +23,10 @@ class Trainer:
     """Train a translation model."""
 
     def __init__(self, config):
-        self.setup_model(config)
+        self.load_config(config)
         self.setup_reload_path()
-        self.setup_loader()
 
+        self.batch_generator = self.config.setup_batch_generators()
         self.alphabet = self.batch_generator['train'].alphabet
 
         self.train()
@@ -83,7 +83,7 @@ class Trainer:
 
         return tf.merge_summary(valid_summaries)
 
-    def setup_model(self, config_name):
+    def load_config(self, config_name):
         # load the config module to use
         config_path = 'configurations.' + config_name
         config = importlib.import_module(config_path)
@@ -113,38 +113,8 @@ class Trainer:
                 X_spaces=self.X_spaces,
                 X_spaces_len=self.X_spaces_len)
 
-    def setup_loader(self):
-        """Load the datasets"""
-        # TODO: this will be moved to config files
-        self.batch_generator = dict()
-
-        # load training set
-        print('\nload training set')
-        train_loader = tl.TextLoader(
-            paths_X=['data/train/europarl-v7.da-en.en'],
-            paths_t=['data/train/europarl-v7.da-en.da'],
-            seq_len=self.seq_len
-        )
-        train_iteration_schedule = tl.BucketIterationSchedule(shuffle=True, repeat=True)
-        self.batch_generator['train'] = tl.TextBatchGenerator(
-            loader=train_loader,
-            batch_size=self.batch_size,
-            seq_len=self.seq_len,
-            iteration_schedule=train_iteration_schedule
-        )
-
-        # load validation set
-        print('\nload validation set')
-        valid_loader = tl.TextLoader(
-            paths_X=['data/test/devtest2006.en', 'data/test/test2006.en'],
-            paths_t=['data/test/devtest2006.da', 'data/test/test2006.da'],
-            seq_len=self.seq_len
-        )
-        self.batch_generator['valid'] = tl.TextBatchGenerator(
-            loader=valid_loader,
-            batch_size=self.batch_size,
-            seq_len=self.seq_len
-        )
+        # self.config is just an alias for the model for now. This may change later
+        self.config = self.model
 
     def visualize_ys(self, ys, batch):
         for j in range(batch['x_encoded'].shape[0]):

@@ -5,6 +5,8 @@ import rnn_cell
 #from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 
+import text_loader as tl
+
 
 class Model(object):
     # settings that affect train.py
@@ -19,6 +21,12 @@ class Model(object):
     warmup = 100  # How many iterations to warm up for.
     train_feedback = False  # Enable feedback during training?
     tb_log_freq = 100  # How often to save logs for TensorBoard
+
+    # datasets
+    train_x_files = ['data/train/europarl-v7.da-en.en']
+    train_t_files = ['data/train/europarl-v7.da-en.da']
+    valid_x_files = ['data/test/devtest2006.en', 'data/test/test2006.en']
+    valid_t_files = ['data/test/devtest2006.da', 'data/test/test2006.da']
 
     # settings that are local to the model
     alphabet_size = 337
@@ -210,3 +218,37 @@ class Model(object):
         # make training op for applying the gradients
         self.train_op = optimizer.apply_gradients(clipped_grads_and_vars,
                                                   global_step=self.global_step)
+
+    def setup_batch_generators(self):
+        """Load the datasets"""
+        batch_generator = dict()
+
+        # load training set
+        print('\nload training set')
+        train_loader = tl.TextLoader(
+            paths_X=self.train_x_files,
+            paths_t=self.train_t_files,
+            seq_len=self.seq_len
+        )
+        train_iteration_schedule = tl.BucketIterationSchedule(shuffle=True, repeat=True)
+        batch_generator['train'] = tl.TextBatchGenerator(
+            loader=train_loader,
+            batch_size=self.batch_size,
+            seq_len=self.seq_len,
+            iteration_schedule=train_iteration_schedule
+        )
+
+        # load validation set
+        print('\nload validation set')
+        valid_loader = tl.TextLoader(
+            paths_X=self.valid_x_files,
+            paths_t=self.valid_t_files,
+            seq_len=self.seq_len
+        )
+        batch_generator['valid'] = tl.TextBatchGenerator(
+            loader=valid_loader,
+            batch_size=self.batch_size,
+            seq_len=self.seq_len
+        )
+
+        return batch_generator
