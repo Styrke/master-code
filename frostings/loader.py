@@ -1,6 +1,40 @@
 import math
 import numpy as np
 
+def get_start_end_indices(batch, batch_size, num_samples):
+    """ Return start and end indices with batch size difference.
+
+    NOTE: May return difference smaller than batch size if it exceeds number of
+    available samples.
+    """
+    return (batch*batch_size, min((batch+1)*batch_size, num_samples-1))
+
+def get_number_of_batches(batch_size, num_samples):
+    """ Return range representing the amount of possible batches possible from
+    batch size and number of available samples."""
+    return range(math.ceil(num_samples/batch_size))
+
+def default_schedule(loader, batch_size, shuffle=False, repeat=False):
+    """Yields lists of indices that make up batches.
+
+    Make batches using the lists of indices that this function yields
+    by picking the samples from the loader that have the given indices.
+
+    Keyword arguments:
+    """
+    num_samples = len(loader.samples)
+    batch_numbers = get_number_of_batches(batch_size, num_samples)
+
+    while True:
+        if shuffle:
+            batch_numbers = np.random.permutation(batch_numbers)
+        for batch in batch_numbers:
+            start, end = get_start_end_indices(batch, batch_size, num_samples)
+            yield range(start, end)
+        
+        if not repeat:
+            break
+
 
 class Loader:
     """ Skeleton class for loading data from memory.
@@ -40,56 +74,32 @@ class Loader:
         pass
 
 
-class IterationSchedule:
-    def __init__(self, shuffle=False, repeat=False):
-        self.shuffle = shuffle
-        self.repeat = repeat
-
-    def gen_indices(self, loader, batch_size):
-        """Yields lists of indices that make up batches.
-
-        Make batches using the lists of indices that this function yields
-        by picking the samples from the loader that have the given indices.
-
-        Keyword arguments:
-        loader -- Loader whose samples should be iterated over.
-        batch_size -- Desired batch size.
-        """
-        num_samples = len(loader.samples)
-        num_batches = math.ceil(num_samples/batch_size)
-
-        batch_numbers = range(num_batches)
-        while True:
-            if self.shuffle:
-                batch_numbers = np.random.permutation(num_batches)
-            for batch in batch_numbers:
-                yield range(batch*batch_size, min((batch+1)*batch_size, num_samples-1))
-
-            if not self.repeat:
-                break
-
-
 class BatchGenerator:
     """ Purpose is to generate batches of samples from a Loader. """
 
-    def __init__(self, loader, batch_size, iteration_schedule=None):
-        """Must have a loader, wanted batch size, and an iteration schedule."""
+    def __init__(self, loader, batch_size, **kwargs):
+        """Must have a loader and wanted batch size."""
         self.loader = loader
-        self.iteration_schedule = iteration_schedule or IterationSchedule()
         self.batch_size = batch_size
+        self.schedule_kwargs = kwargs
         self.samples = []  # just to make sure variable is defined
 
     def _make_batch(self):
         """ Format samples as needed. """
         raise NotImplementedError("Please implement `_make_batch()`")
 
-    def gen_batch(self):
+    def gen_batch(self, schedule_function=None):
         """ Generate a batch of max `batch_size` length.
         Initialises samples to empty list.
         Fetches samples from Loader w.r.t. indices from iteration schedule.
         Yields formatted batches from BatchGenerator's `_make_batch`.
+
+        Keyword arguments:
+        schedule_function -- function to use for fetching indices
+            (default: default_schedule)
         """
-        for indices in self.iteration_schedule.gen_indices(self.loader, self.batch_size):
+        schedule_function = schedule_function or default_schedule
+        for indices in schedule_function(self.loader, self.batch_size, **self.schedule_kwargs):
             self.samples = []  # make sure to reset list
             for index in indices:
                 self.samples.append(self.loader.samples[index])
