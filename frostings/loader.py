@@ -40,36 +40,6 @@ class Loader:
         pass
 
 
-class SampleGenerator:
-    """ Fetch a sample from a Loader instance and yield the result. """
-
-    def __init__(self, loader, indexes=None, shuffle=False, repeat=False):
-        """ Mandatory Loader instance.
-        Optional arguments:
-        indexes -- a list of indexes to permute over
-        shuffle -- whether or not to shuffle list to iterate over
-        repeat -- whether or not to repeat yielding samples from Loader
-        """
-        self.indexes = indexes if indexes is not None else range(
-                len(loader.samples))
-        self.loader = loader
-        self.shuffle = shuffle
-        self.repeat = repeat
-
-    def gen_sample(self):
-        """ Fetch samples from Loader by iterating over indexes list.
-        If we are training, shuffling should be enabled.
-        List of indexes can be shuffled.
-        """
-        while True:
-            if self.shuffle:
-                self.indexes = np.random.permutation(self.indexes)
-            for i in range(len(self.indexes)):
-                yield self.loader(self.indexes[i])
-            if not self.repeat:
-                break
-
-
 class IterationSchedule:
     def __init__(self, shuffle=False, repeat=False):
         self.shuffle = shuffle
