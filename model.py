@@ -25,8 +25,8 @@ class Model(object):
     # datasets
     train_x_files = ['data/train/europarl-v7.da-en.en']
     train_t_files = ['data/train/europarl-v7.da-en.da']
-    valid_x_files = ['data/test/devtest2006.en', 'data/test/test2006.en']
-    valid_t_files = ['data/test/devtest2006.da', 'data/test/test2006.da']
+    valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en']
+    valid_t_files = ['data/valid/devtest2006.da', 'data/valid/test2006.da']
 
     # settings that are local to the model
     alphabet_size = 337
