@@ -296,11 +296,8 @@ class TextBatchGenerator(frost.BatchGenerator):
     def _mask(self, sentence):
         """Create a list of 1's as long as sentence."""
         mask = [1]*len(sentence)
-
         # Maybe add another item to the list to represent EOS character
-        if self.add_eos_character:
-            mask.append(1)
-
+        if self.add_eos_character: mask.append(1)
         return mask
 
     def _add_sos(self, array):
