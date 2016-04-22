@@ -32,6 +32,86 @@ def _make_len_vec(sequences, offset=0, max_len=100000):
     """
     return np.array([min(len(seq)+offset, max_len) for seq in sequences])
 
+def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3, sort=False):
+    """Yields lists of indices that make up batches.
+
+    Make batches using the lists of indices that this function yields
+    by picking the samples from the loader that have the given indices.
+
+    Keyword arguments:
+    loader -- Loader instance with samples
+    batch_size -- size of a batch
+    shuffle -- shuffle array of indices
+    repeat -- repeat for multiple full epochs
+    fuzzyness -- Sequence lengths within a batch will typically vary this much. 
+        More fuzzyness means batches will be more varied from one epoch to the next.
+    sort -- sort the array of indices by sequence length
+    """
+    sample_indices = np.array(
+        # second element in the tuple represents some order for the samples
+        # we weight the length of the input sentence greater than the
+        # target sentence (x = s[0] and t = s[1])
+        [(i, int((len(s[0])//fuzzyness)<<14) + len(s[1])//fuzzyness)
+         for i, s in enumerate(loader.samples)] )
+
+    if sort:
+        sample_indices = sample_indices[
+            sample_indices[:, 1].argsort(kind='mergesort') ]
+
+    num_samples = len(sample_indices)
+    batch_numbers = frost.get_number_of_batches(batch_size, num_samples)
+
+    while True:
+        if shuffle:
+            # shuffling and then sorting the indices makes the batches differ between
+            # epochs (unless there are so few samples that the sort operation makes
+            # the samples end up in the same order no matter how they were ordered
+            # before)
+            np.random.shuffle(sample_indices)
+            # use stable sorting algorithm so result depends on the shuffled indices.
+            sample_indices = sample_indices[
+                sample_indices[:, 1].argsort(kind='mergesort')
+            ]
+            batch_numbers = np.random.permutation(batch_numbers)
+        for batch in batch_numbers:
+            start, end = frost.get_start_end_indices(batch, batch_size, num_samples)
+            yield sample_indices[start:end, 0]
+
+        if not repeat:
+            break
+
+def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=None,
+        regular_schedule=None, **kwargs):
+    """ Yields lists of indices that make up batches. 
+
+    We do not wish to shuffle nor repeat the schedule, and the samples are to be sorted.
+    When warmup is done, we continue with regular schedule.
+
+    Keyword arguments:
+    loader -- Loader instance with samples
+    batch_size -- size of a batch
+    warmup_iterations -- number of iterations to run this schedule
+    warmup_function -- (default: bucket_schedule) function to use for warmup
+    regular_schedule -- (default: bucket_schedule) schedule function to be called after 
+        warmup has finished
+    **kwargs -- arguments to be used after warmup schedule has finished
+    """
+    warmup_kwargs = {'shuffle': False, 'repeat': False, 'fuzzyness': 1, 'sort': True}
+    warmup_function = warmup_function or bucket_schedule
+    regular_schedule = regular_schedule or bucket_schedule
+
+    # do warmup schedule
+    generator = warmup_function(loader, batch_size, **warmup_kwargs)
+    for i, indices in enumerate(generator):
+        if i == warmup_iterations:
+            break
+        yield indices
+
+    # do regular schedule
+    generator = regular_schedule(loader, batch_size, **kwargs)
+    for i, indices in enumerate(generator):
+        yield indices
+
 
 class TextLoader(frost.Loader):
     """Load and prepare text data."""
@@ -87,96 +167,14 @@ class TextLoader(frost.Loader):
         print("{:d} of {:d} ({:.2f}%) samples remaining".format(*subs_tuple))
 
 
-class BucketIterationSchedule(frost.IterationSchedule):
-    def __init__(self, shuffle=False, repeat=False, fuzzyness=3, sort=False):
-        super(BucketIterationSchedule, self).__init__(shuffle, repeat)
-        self.fuzzyness = fuzzyness
-        self.sort = sort
-
-    def gen_indices(self, loader, batch_size):
-        """Yields lists of indices that make up batches.
-
-        Make batches using the lists of indices that this function yields
-        by picking the samples from the loader that have the given indices.
-
-        Keyword arguments:
-        loader -- Loader whose samples should be iterated over.
-        batch_size -- Desired batch size.
-        fuzzyness -- Sequence lengths within a batch will typically
-            vary this much. More fuzzyness means batches will be more
-            varied from one epoch to the next.
-        """
-        sample_indices = np.array(
-            # second element in the tuple represents some order for the samples
-            # we weight the length of the input sentence greater than the
-            # target sentence (x = s[0] and t = s[1])
-            [(i, (len(s[0])//self.fuzzyness)<<14 + len(s[1])//self.fuzzyness)
-             for i, s in enumerate(loader.samples)]
-        )
-        if self.sort:
-            sample_indices = sample_indices[
-                sample_indices[:, 1].argsort(kind='mergesort')
-            ]
-        num_samples = len(sample_indices)
-        num_batches = math.ceil(num_samples/batch_size)
-
-        batch_numbers = range(num_batches)
-        while True:
-            if self.shuffle:
-                # shuffling and then sorting the indices makes the batches differ between
-                # epochs (unless there are so few samples that the sort operation makes
-                # the samples end up in the same order no matter how they were ordered
-                # before)
-                np.random.shuffle(sample_indices)
-                # use stable sorting algorithm so result depends on the shuffled indices.
-                sample_indices = sample_indices[
-                    sample_indices[:, 1].argsort(kind='mergesort')
-                ]
-                batch_numbers = np.random.permutation(num_batches)
-            for batch in batch_numbers:
-                start_index = batch*batch_size
-                end_index = min((batch+1)*batch_size, num_samples-1)
-                yield sample_indices[start_index:end_index, 0]
-
-            if not self.repeat:
-                break
-
-
-class WarmupIterationSchedule(BucketIterationSchedule):
-    def __init__(self, shuffle=False, repeat=False, fuzzyness=3, sort=False,
-                 warmup_iterations=10):
-        super(WarmupIterationSchedule, self).__init__(shuffle, repeat, fuzzyness, sort)
-        self.warmup_iterations = warmup_iterations
-
-    def gen_indices(self, loader, batch_size):
-        # Back up attributes before changing them
-        shuffle, repeat, fuzzyness = self.shuffle, self.repeat, self.fuzzyness
-        self.shuffle, self.repeat, self.fuzzyness, self.sort = False, False, 1, True
-        # Do warmup
-        generator = super(WarmupIterationSchedule, self).gen_indices(loader, batch_size)
-        for i, indices in enumerate(generator):
-            if i == self.warmup_iterations:
-                break
-            yield indices
-
-        # Restore backed up attributes
-        self.shuffle, self.repeat, self.fuzzyness = shuffle, repeat, fuzzyness
-        self.sort = False
-        # Start the real schedule
-        generator = super(WarmupIterationSchedule, self).gen_indices(loader, batch_size)
-        for indices in generator:
-            yield indices
-
-
 class TextBatchGenerator(frost.BatchGenerator):
     """Generates processed batches of text.
 
     Extends BatchGenerator
     """
 
-    def __init__(self, loader, batch_size, seq_len, iteration_schedule=None,
-            add_feature_dim=False, use_dynamic_array_sizes=False,
-            alphabet=None):
+    def __init__(self, loader, batch_size, seq_len, add_feature_dim=False, 
+            use_dynamic_array_sizes=False, alphabet=None, **schedule_kwargs):
         """Initialize instance of TextBatchGenerator.
 
         NOTE: The size of a produced batch can be smaller than batch_size if 
@@ -186,8 +184,6 @@ class TextBatchGenerator(frost.BatchGenerator):
         loader -- instance of TextLoader.
         batch_size -- the max number of samples to include in each batch.
         seq_len -- the length of the sequences from the loader.
-        iteration_schedule -- instance of IterationSchedule to be used.
-            (default: BucketIterationSchedule)
         add_feature_dim -- (default: False) whether or not to add
             artificial 2nd axis to numpy arrays produced by this
             BatchGenerator.
@@ -195,9 +191,11 @@ class TextBatchGenerator(frost.BatchGenerator):
             arrays of varying size along the 1st axis, to fit the
             longest sample in the batch.
         alphabet -- (optional) A custom Alphabet instance to use for encoding.
+        schedule_kwargs -- additional arguments for schedule function in
+            BatchGenerator's gen_batch()
         """
-        iteration_schedule = iteration_schedule or BucketIterationSchedule()
-        super(TextBatchGenerator, self).__init__(loader, batch_size, iteration_schedule)
+        super(TextBatchGenerator, self).__init__(loader, batch_size,
+                **schedule_kwargs)
 
         self.alphabet = alphabet or Alphabet(eos='*', sos='')
         self.seq_len = seq_len
@@ -302,15 +300,21 @@ if __name__ == '__main__':
     text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
         ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
-    itersched = WarmupIterationSchedule(shuffle=True)
-    text_batch_gen = TextBatchGenerator(text_loader, batch_size=32, seq_len=seq_len,
-                                        iteration_schedule=itersched)
 
-    for i, batch in enumerate(text_batch_gen.gen_batch()):
-        #print(batch['x_len'])
-        #print(batch['t_len'])
-        print(batch['x_len'][0])
-        if i == 20:
+    kwargs = {'warmup_iterations':20,'regular_schedule':bucket_schedule,
+            'shuffle':True}
+    text_batch_gen = TextBatchGenerator(text_loader, batch_size=32,
+            seq_len=seq_len, **kwargs)
+
+    print("running warmup for 20 iterations, and 180 iterations with bucket")
+    line = ""
+    for i, batch in enumerate(text_batch_gen.gen_batch(warmup_schedule)):
+        line += str(batch['x_len'][0])
+        line += "\n" if i % 5 == 4 else "\t"
+        if i % 20 == 19:
+            print(line)
+            line = ""
+        if i == 200:
             break
 
     print(type(batch))
