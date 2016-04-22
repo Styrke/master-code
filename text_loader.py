@@ -280,6 +280,11 @@ class TextBatchGenerator(frost.BatchGenerator):
         """Locate the spaces and the end of the sentence.
 
         Return their indices in a numpy array.
+
+        NOTE: We append the last index of the `spaces` array. The purpose is
+        that if we add eos, then the last index will represent the eos
+        symbol's index. Otherwise, it will give the index of the end of the 
+        last word. 
         """
         if self.add_eos_character:
             # the EOS character will be counted as a space
