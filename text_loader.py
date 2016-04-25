@@ -81,7 +81,7 @@ def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3
             break
 
 def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=None,
-        regular_schedule=None, **kwargs):
+        regular_function=None, **kwargs):
     """ Yields lists of indices that make up batches. 
 
     We do not wish to shuffle nor repeat the schedule, and the samples are to be sorted.
@@ -92,13 +92,13 @@ def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=No
     batch_size -- size of a batch
     warmup_iterations -- number of iterations to run this schedule
     warmup_function -- (default: bucket_schedule) function to use for warmup
-    regular_schedule -- (default: bucket_schedule) schedule function to be called after 
+    regular_function -- (default: bucket_schedule) schedule function to be called after 
         warmup has finished
     **kwargs -- arguments to be used after warmup schedule has finished
     """
     warmup_kwargs = {'shuffle': False, 'repeat': False, 'fuzzyness': 1, 'sort': True}
     warmup_function = warmup_function or bucket_schedule
-    regular_schedule = regular_schedule or bucket_schedule
+    regular_function = regular_function or bucket_schedule
 
     # do warmup schedule
     generator = warmup_function(loader, batch_size, **warmup_kwargs)
@@ -108,7 +108,7 @@ def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=No
         yield indices
 
     # do regular schedule
-    generator = regular_schedule(loader, batch_size, **kwargs)
+    generator = regular_function(loader, batch_size, **kwargs)
     for i, indices in enumerate(generator):
         yield indices
 
@@ -301,7 +301,7 @@ if __name__ == '__main__':
         ['data/train/europarl-v7.fr-en.en'],
         ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
 
-    kwargs = {'warmup_iterations':20,'regular_schedule':bucket_schedule,
+    kwargs = {'warmup_iterations':20,'regular_function':bucket_schedule,
             'shuffle':True}
     text_batch_gen = TextBatchGenerator(text_loader, batch_size=32,
             seq_len=seq_len, **kwargs)
