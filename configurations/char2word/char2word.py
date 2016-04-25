@@ -1,9 +1,10 @@
 import sys
 import tensorflow as tf
-from tensorflow.python.ops import seq2seq
-from tensorflow.python.ops import rnn_cell
-from tensorflow.python.ops import rnn
 sys.path.insert(0, '../..')
+from tensorflow.python.ops import seq2seq
+import rnn_cell
+from tensorflow.python.ops import rnn
+
 import model
 from utils.tfextensions import _grid_gather
 
