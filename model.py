@@ -250,7 +250,6 @@ class Model(object):
         batch_generator['train'] = tl.TextBatchGenerator(
             loader=train_loader,
             batch_size=self.batch_size,
-            seq_len=self.seq_len,
             **self.schedule_kwargs
         )
 
@@ -264,7 +263,6 @@ class Model(object):
         batch_generator['valid'] = tl.TextBatchGenerator(
             loader=valid_loader,
             batch_size=self.batch_size,
-            seq_len=self.seq_len
         )
 
         return batch_generator

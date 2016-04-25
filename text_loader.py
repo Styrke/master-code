@@ -173,7 +173,7 @@ class TextBatchGenerator(frost.BatchGenerator):
     Extends BatchGenerator
     """
 
-    def __init__(self, loader, batch_size, seq_len, add_feature_dim=False, 
+    def __init__(self, loader, batch_size, add_feature_dim=False, 
             use_dynamic_array_sizes=False, alphabet=None, **schedule_kwargs):
         """Initialize instance of TextBatchGenerator.
 
@@ -183,7 +183,6 @@ class TextBatchGenerator(frost.BatchGenerator):
         Keyword arguments:
         loader -- instance of TextLoader.
         batch_size -- the max number of samples to include in each batch.
-        seq_len -- the length of the sequences from the loader.
         add_feature_dim -- (default: False) whether or not to add
             artificial 2nd axis to numpy arrays produced by this
             BatchGenerator.
@@ -198,7 +197,7 @@ class TextBatchGenerator(frost.BatchGenerator):
                 **schedule_kwargs)
 
         self.alphabet = alphabet or Alphabet(eos='*', sos='')
-        self.seq_len = seq_len
+        self.seq_len = loader.seq_len
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
         self.add_eos_character = True
@@ -296,21 +295,23 @@ class TextBatchGenerator(frost.BatchGenerator):
 
 
 if __name__ == '__main__':
-    seq_len = 300
+    SEQ_LEN = 300
+    BATCH_SIZE = 32
+    KWARGS = { 'warmup_iterations': 20,
+               'regular_function': bucket_schedule,
+               'shuffle':True }
+
     text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
-        ['data/train/europarl-v7.fr-en.fr'], seq_len=seq_len)
+        ['data/train/europarl-v7.fr-en.fr'], SEQ_LEN)
 
-    kwargs = {'warmup_iterations':20,'regular_function':bucket_schedule,
-            'shuffle':True}
-    text_batch_gen = TextBatchGenerator(text_loader, batch_size=32,
-            seq_len=seq_len, **kwargs)
+    text_batch_gen = TextBatchGenerator(text_loader, BATCH_SIZE, **KWARGS)
 
     print("running warmup for 20 iterations, and 180 iterations with bucket")
     line = ""
     for i, batch in enumerate(text_batch_gen.gen_batch(warmup_schedule)):
         line += str(batch['x_len'][0])
-        line += "\n" if i % 5 == 4 else "\t"
+        line += "\n" if i % 10 == 9 else "\t"
         if i % 20 == 19:
             print(line)
             line = ""
