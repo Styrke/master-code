@@ -2,7 +2,7 @@ import sys
 import tensorflow as tf
 sys.path.insert(0, '../..')
 from tensorflow.python.ops import seq2seq
-import rnn_cell
+from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 
 import model
