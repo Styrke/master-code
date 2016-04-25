@@ -49,6 +49,17 @@ class Model(object):
 #            60000: 0.39,
             }
 
+    # kwargs for scheduling function
+    schedule_kwargs = {
+            'warmup_iterations': 100,  # if warmup_schedule is used
+            'warmup_function':  None,  # if warmup_schedule is used
+            'regular_function': None,  # if warmup_schedule is used
+            'shuffle': True,
+            'repeat':  True,
+            'sort':    False,
+            'fuzzyness': 3
+            }
+
     def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, X_spaces,
                  X_spaces_len):
         self.max_x_seq_len = self.seq_len
@@ -58,6 +69,10 @@ class Model(object):
         self.ts, self.ts_go, self.t_mask = ts, ts_go, t_mask
         self.X_spaces = X_spaces
         self.X_spaces_len = X_spaces_len
+
+        # schedule functions
+        self.train_schedule_function = tl.warmup_schedule
+        self.valid_schedule_function = None # falls back to frostings.default_schedule
 
         self.build()
         self.build_loss()
@@ -232,12 +247,11 @@ class Model(object):
             paths_t=self.train_t_files,
             seq_len=self.seq_len
         )
-        train_iteration_schedule = tl.BucketIterationSchedule(shuffle=True, repeat=True)
         batch_generator['train'] = tl.TextBatchGenerator(
             loader=train_loader,
             batch_size=self.batch_size,
             seq_len=self.seq_len,
-            iteration_schedule=train_iteration_schedule
+            **self.schedule_kwargs
         )
 
         # load validation set

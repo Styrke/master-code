@@ -140,8 +140,8 @@ class Trainer:
             combined_time = 0.0  # total time for each print
             swap_amount = None
             augmentor = Augmentor()
-            for i, t_batch in enumerate(self.batch_generator['train'].gen_batch()):
-
+            for i, t_batch in enumerate(self.batch_generator['train'].gen_batch(
+                                        self.config.train_schedule_function)):
                 if i in self.model.swap_schedule:
                     swap_amount = self.model.swap_schedule[i]
                     print(" setting swap amount to %0.4f" % swap_amount)
@@ -237,7 +237,8 @@ class Trainer:
         accuracies = []
         valid_ys = []
         valid_ts = []
-        for v_batch in self.batch_generator['valid'].gen_batch():
+        for v_batch in self.batch_generator['valid'].gen_batch(
+                self.config.valid_schedule_function):
             fetches = {'accuracy': self.model.accuracy,
                        'ys': self.model.ys}
 
