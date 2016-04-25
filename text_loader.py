@@ -1,8 +1,10 @@
 import math
 import numpy as np
+import os, subprocess
 
 import frostings.loader as frost
 from data.alphabet import Alphabet
+from utils.change_directory import cd
 
 def _filter_samples(samples, max_length):
     """Filter out samples of extreme length."""
@@ -112,6 +114,14 @@ def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=No
     for i, indices in enumerate(generator):
         yield indices
 
+def validate_data_existence_or_fetch(paths, data_folder="data/"):
+    """ Check that all files exist, otherwise download everything """
+    for path in paths:
+        if not os.path.exists(path):
+            print("Missing data. Will fetch everything..")
+            with cd(data_folder): subprocess.call(['sh','./get_europarl.sh'])
+            break
+
 
 class TextLoader(frost.Loader):
     """Load and prepare text data."""
@@ -127,6 +137,8 @@ class TextLoader(frost.Loader):
         self.paths_X = paths_X
         self.paths_t = paths_t
         self.seq_len = seq_len
+
+        validate_data_existence_or_fetch(paths_X + paths_t)
 
         self._load_data()
         self._preprocess_data()
