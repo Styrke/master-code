@@ -13,27 +13,27 @@ curl -# --create-dirs -L \
 
 echo "Downloading validation datasets"
 curl -# --create-dirs -L \
-  https://www.dropbox.com/s/lcaxi0yvv4p6559/devtest2006.en?dl=1 \
+  https://www.dropbox.com/s/ohq7mxe1bo7opnr/devtest2006.en?dl=1 \
   -o valid/devtest2006.en \
-  https://www.dropbox.com/s/viqzsob7wxhjvl4/devtest2006.fr?dl=1 \
+  https://www.dropbox.com/s/otepeu5njn8xjkq/devtest2006.fr?dl=1 \
   -o valid/devtest2006.fr \
-  https://www.dropbox.com/s/tbfcgig3z1a93ra/devtest2006.da?dl=1 \
+  https://www.dropbox.com/s/6akjlul7lnuqrfp/devtest2006.da?dl=1 \
   -o valid/devtest2006.da \
-  https://www.dropbox.com/s/tkvelrqrmclf7d7/test2006.en?dl=1 \
+  https://www.dropbox.com/s/tigjshr6qjc0a3p/test2006.en?dl=1 \
   -o valid/test2006.en \
-  https://www.dropbox.com/s/82czeqoxk8aladk/test2006.fr?dl=1 \
+  https://www.dropbox.com/s/qovckusy274b16l/test2006.fr?dl=1 \
   -o valid/test2006.fr \
-  https://www.dropbox.com/s/atfj1gkw9cpzs8d/test2006.da?dl=1 \
+  https://www.dropbox.com/s/xy8bmuvcwxkz48p/test2006.da?dl=1 \
   -o valid/test2006.da \
-  https://www.dropbox.com/s/8z3binjwtgqu0d1/test2007.en?dl=1 \
+  https://www.dropbox.com/s/as5zwltt0x0vqya/test2007.en?dl=1 \
   -o valid/test2007.en \
-  https://www.dropbox.com/s/0ynrt4dljxdr2a5/test2007.fr?dl=1 \
+  https://www.dropbox.com/s/0j026v4xxr9rwnl/test2007.fr?dl=1 \
   -o valid/test2007.fr \
-  https://www.dropbox.com/s/z3911cmw01o3tgc/test2007.da?dl=1 \
+  https://www.dropbox.com/s/cae54770cpsz1vv/test2007.da?dl=1 \
   -o valid/test2007.da \
-  https://www.dropbox.com/s/9yaujye5wfxlwqy/test2008.fr?dl=1 \
-  -o valid/test2008.fr \
-  https://www.dropbox.com/s/uqtoxeetlon2mvo/test2008.en?dl=1 \
+  https://www.dropbox.com/s/tvajwilbkxexnbp/test2008.en?dl=1 \
   -o valid/test2008.en \
-  https://www.dropbox.com/s/lya9hhhfcujht4n/test2008.da?dl=1 \
+  https://www.dropbox.com/s/u1if8fi16w49w8s/test2008.fr?dl=1 \
+  -o valid/test2008.fr \
+  https://www.dropbox.com/s/orwkf7bfow6cwen/test2008.da?dl=1 \
   -o valid/test2008.da
