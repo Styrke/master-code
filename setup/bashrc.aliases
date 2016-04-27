@@ -1,2 +1,2 @@
-alias gpu-docker='docker run -v $HOME:$HOME -w="$HOME" -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH -e HOME=$HOME -e LC_ALL=C.UTF-8 -e LANG=C.UTF-8 -it $LD_LIBRARY $CUDA_SO $DEVICES obeyed/py3-tf-gpu:$GPU_DOCKER_IMAGE_VERSION'
-alias gpu-docker-port='docker run -p 6007:6006 -v $HOME:$HOME -w="$HOME" -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH -e HOME=$HOME -e LC_ALL=C.UTF-8 -e LANG=C.UTF-8 -it $LD_LIBRARY $CUDA_SO $DEVICES obeyed/py3-tf-gpu:$GPU_DOCKER_IMAGE_VERSION'
+alias gpu-docker='docker run -u `id -u $USER` -v $HOME:$HOME -w="$HOME" -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH -e HOME=$HOME -e LC_ALL=C.UTF-8 -e LANG=C.UTF-8 -it $LD_LIBRARY $CUDA_SO $DEVICES obeyed/py3-tf-gpu:$GPU_DOCKER_IMAGE_VERSION'
+alias gpu-docker-port='docker run -u `id -u $USER` -p 6007:6006 -v $HOME:$HOME -w="$HOME" -e LD_LIBRARY_PATH=$LD_LIBRARY_PATH -e HOME=$HOME -e LC_ALL=C.UTF-8 -e LANG=C.UTF-8 -it $LD_LIBRARY $CUDA_SO $DEVICES obeyed/py3-tf-gpu:$GPU_DOCKER_IMAGE_VERSION'
