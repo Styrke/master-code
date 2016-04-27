@@ -40,7 +40,7 @@ class Trainer:
         local_path        = os.path.join(SAVER_PATH['base'], self.name)
         self.summary_path = os.path.join(local_path, SAVER_PATH['log'])
 
-        print("Will read and write from '%s' (checkpoints and logs)" % (local_path))
+        print("Will read and write from '{:s}' (checkpoints and logs)".format(local_path))
 
         # Prepare for saving checkpoints
         if self.save_freq:
@@ -96,7 +96,6 @@ class Trainer:
         self.save_freq = config.Model.save_freq
         self.valid_freq = config.Model.valid_freq
         self.iterations = config.Model.iterations
-        self.warm_up = config.Model.warmup
         self.train_feedback = config.Model.train_feedback
         self.tb_log_freq = config.Model.tb_log_freq
 
@@ -116,15 +115,16 @@ class Trainer:
         self.config = self.model
 
     def visualize_ys(self, ys, batch):
+        sep = ":::"
+        pred_len = len(max(ys, key=len)) # length of longest predicted string
         for j in range(batch['x_encoded'].shape[0]):
-            click.echo('%s ::: %s ::: %s' % (
-                self.alphabet.decode(batch['x_encoded'][j]),
-                self.alphabet.decode(ys[j]),
-                self.alphabet.decode(batch['t_encoded'][j])
-                ))
+            inp  = self.alphabet.decode(batch['x_encoded'][j]).ljust(self.seq_len)
+            pred = self.alphabet.decode(ys[j]).ljust(pred_len)
+            targ = self.alphabet.decode(batch['t_encoded'][j])
+            print('{1} {0} {2} {0} {3}'.format(sep, inp, pred, targ))
 
     def train(self):
-        print("## INITIATE TRAIN")
+        print("Training..")
         gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_opts)) as sess:
             if self.latest_checkpoint:
@@ -136,7 +136,6 @@ class Trainer:
             summaries = tf.merge_all_summaries()
             self.val_summaries = self.setup_validation_summaries()
 
-            print("## TRAINING...")
             combined_time = 0.0  # total time for each print
             swap_amount = None
             augmentor = Augmentor()
@@ -144,7 +143,7 @@ class Trainer:
                                         self.config.train_schedule_function)):
                 if i in self.model.swap_schedule:
                     swap_amount = self.model.swap_schedule[i]
-                    print(" setting swap amount to %0.4f" % swap_amount)
+                    print("  setting swap amount to {:.4f}".format(swap_amount))
                 if swap_amount > 0.0:
                     t_batch['t_encoded_go'] = augmentor.run(
                         t_batch['t_encoded_go'], t_batch['t_len'], swap_amount,
@@ -233,7 +232,7 @@ class Trainer:
         return (res, elapsed)
 
     def validate(self, sess):
-        print("## VALIDATING")
+        print("Validating..")
         accuracies = []
         valid_ys = []
         valid_ts = []
@@ -268,15 +267,13 @@ class Trainer:
 
         # accuracy
         valid_acc = np.mean(accuracies)
-        print('\t%s%.2f%%' % ('accuracy:'.ljust(25), (valid_acc * 100)))
-
+        print('\t{:s}{:.2f}%'.format('accuracy:'.ljust(25), (valid_acc * 100)))
         # BLEU score
         corpus_bleu = pm.corpus_bleu(str_ys, str_ts)
-        print('\t%s%.5f' % ('BLEU:'.ljust(25), corpus_bleu))
-
+        print('\t{:s}{:.5f}'.format('BLEU:'.ljust(25), corpus_bleu))
         # edit distance
         edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
-        print('\t%s%f' % ('Mean edit dist per char:'.ljust(25), edit_dist))
+        print('\t{:s}{:.5f}'.format('Mean edit dist per char:'.ljust(25), edit_dist))
 
         if self.summarywriter:
             feed_dict = {
@@ -288,7 +285,7 @@ class Trainer:
             summaries, i = sess.run(fetches, feed_dict)
             self.summarywriter.add_summary(summaries, i)
 
-        print("\n## VALIDATION DONE")
+        print("Continue training..")
 
 if __name__ == '__main__':
     trainer = Trainer()

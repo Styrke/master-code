@@ -6,6 +6,8 @@ import frostings.loader as frost
 from data.alphabet import Alphabet
 from utils.change_directory import cd
 
+PRINT_SEP = "    " # spaces to prepend to print statements
+
 def _filter_samples(samples, max_length):
     """Filter out samples of extreme length."""
     # remove input sentences that are too short or too long
@@ -45,7 +47,7 @@ def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3
     batch_size -- size of a batch
     shuffle -- shuffle array of indices
     repeat -- repeat for multiple full epochs
-    fuzzyness -- Sequence lengths within a batch will typically vary this much. 
+    fuzzyness -- Sequence lengths within a batch will typically vary this much.
         More fuzzyness means batches will be more varied from one epoch to the next.
     sort -- sort the array of indices by sequence length
     """
@@ -84,7 +86,7 @@ def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3
 
 def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=None,
         regular_function=None, **kwargs):
-    """ Yields lists of indices that make up batches. 
+    """ Yields lists of indices that make up batches.
 
     We do not wish to shuffle nor repeat the schedule, and the samples are to be sorted.
     When warmup is done, we continue with regular schedule.
@@ -94,7 +96,7 @@ def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=No
     batch_size -- size of a batch
     warmup_iterations -- number of iterations to run this schedule
     warmup_function -- (default: bucket_schedule) function to use for warmup
-    regular_function -- (default: bucket_schedule) schedule function to be called after 
+    regular_function -- (default: bucket_schedule) schedule function to be called after
         warmup has finished
     **kwargs -- arguments to be used after warmup schedule has finished
     """
@@ -118,7 +120,7 @@ def validate_data_existence_or_fetch(paths, data_folder="data/"):
     """ Check that all files exist, otherwise download everything """
     for path in paths:
         if not os.path.exists(path):
-            print("Missing data. Will fetch everything..")
+            print("{0}Missing data. Will fetch everything..".format(PRINT_SEP))
             with cd(data_folder): subprocess.call(['sh','./get_europarl.sh'])
             break
 
@@ -148,10 +150,10 @@ class TextLoader(frost.Loader):
 
         data_X, data_t = [], []
         for path_X, path_t in zip(self.paths_X, self.paths_t):
-            print("loading X data ({0})...".format(path_X))
+            print("{0}loading X data ({1})...".format(PRINT_SEP, path_X))
             with open(path_X, "r", encoding="utf-8") as f:
                 data_X += f.read().split("\n")
-            print("loading t data ({0})...".format(path_t))
+            print("{0}loading t data ({1})...".format(PRINT_SEP, path_t))
             with open(path_t, "r", encoding="utf-8") as f:
                 data_t += f.read().split("\n")
 
@@ -167,7 +169,7 @@ class TextLoader(frost.Loader):
         # Strip surrounding whitespace characters from each sentence
         self.samples = [(x.strip(), t.strip()) for x, t in self.samples]
 
-        print("removing very long and very short samples ...")
+        print("{0}removing very long and very short samples ...".format(PRINT_SEP))
         samples_before = len(self.samples)  # Count before filtering
         self.samples = _filter_samples(self.samples, float('inf'))
         self.samples = _truncate_samples(self.samples, self.seq_len-1)
@@ -176,7 +178,7 @@ class TextLoader(frost.Loader):
         # Print status (number and percentage of samples left)
         samples_percentage = samples_after/samples_before*100
         subs_tuple = (samples_after, samples_before, samples_percentage)
-        print("{:d} of {:d} ({:.2f}%) samples remaining".format(*subs_tuple))
+        print("{:s}{:d} of {:d} ({:.2f}%) samples remaining".format(PRINT_SEP, *subs_tuple))
 
 
 class TextBatchGenerator(frost.BatchGenerator):
@@ -185,11 +187,11 @@ class TextBatchGenerator(frost.BatchGenerator):
     Extends BatchGenerator
     """
 
-    def __init__(self, loader, batch_size, add_feature_dim=False, 
+    def __init__(self, loader, batch_size, add_feature_dim=False,
             use_dynamic_array_sizes=False, alphabet=None, **schedule_kwargs):
         """Initialize instance of TextBatchGenerator.
 
-        NOTE: The size of a produced batch can be smaller than batch_size if 
+        NOTE: The size of a produced batch can be smaller than batch_size if
         there aren't enough samples left to make a full batch.
 
         Keyword arguments:
@@ -283,8 +285,8 @@ class TextBatchGenerator(frost.BatchGenerator):
 
         NOTE: We append the last index of the `spaces` array. The purpose is
         that if we add eos, then the last index will represent the eos
-        symbol's index. Otherwise, it will give the index of the end of the 
-        last word. 
+        symbol's index. Otherwise, it will give the index of the end of the
+        last word.
         """
         if self.add_eos_character:
             # the EOS character will be counted as a space
