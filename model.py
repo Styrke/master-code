@@ -61,14 +61,11 @@ class Model(object):
             'fuzzyness': 3
             }
 
-    def __init__(self, Xs, X_len, ts, ts_go, t_mask, feedback, X_spaces,
-                 X_spaces_len):
+    def __init__(self):
         self.max_x_seq_len = self.max_t_seq_len = self.seq_len
 
-        self.Xs, self.X_len, self.feedback = Xs, X_len, feedback
-        self.ts, self.ts_go, self.t_mask   = ts, ts_go, t_mask
-
-        self.X_spaces, self.X_spaces_len = X_spaces, X_spaces_len
+        # TF placeholders
+        self.setup_placeholders()
 
         # schedule functions
         self.train_schedule_function = tl.warmup_schedule
@@ -79,6 +76,23 @@ class Model(object):
         self.build_loss()
         self.build_prediction()
         self.build_training()
+
+        # setup batch generators
+        self.setup_batch_generators()
+
+
+    def setup_placeholders(self):
+        shape = [None, self.max_x_seq_len]
+        self.Xs       = tf.placeholder(tf.int32, shape=shape, name='X_input')
+        self.ts       = tf.placeholder(tf.int32, shape=shape, name='t_input')
+        self.ts_go    = tf.placeholder(tf.int32, shape=shape, name='t_input_go')
+        self.X_len    = tf.placeholder(tf.int32, shape=[None], name='X_len')
+        self.feedback = tf.placeholder(tf.bool, name='feedback_indicator')
+        self.t_mask   = tf.placeholder(tf.float32, shape=shape, name='t_mask')
+
+        shape = [None, self.max_x_seq_len//4]
+        self.X_spaces     = tf.placeholder(tf.int32, shape=shape,  name='X_spaces')
+        self.X_spaces_len = tf.placeholder(tf.int32, shape=[None], name='X_spaces_len')
 
     def build(self):
         print('  Building model')
@@ -219,14 +233,14 @@ class Model(object):
 
     def setup_batch_generators(self):
         """Load the datasets"""
-        batch_generator = dict()
+        self.batch_generator = dict()
 
         # load training set
         print('  Load training set')
         train_loader = tl.TextLoader(paths_X=self.train_x_files,
                                      paths_t=self.train_t_files,
                                      seq_len=self.seq_len)
-        batch_generator['train'] = tl.TextBatchGenerator(
+        self.batch_generator['train'] = tl.TextBatchGenerator(
             loader=train_loader,
             batch_size=self.batch_size,
             **self.schedule_kwargs)
@@ -236,8 +250,44 @@ class Model(object):
         valid_loader = tl.TextLoader(paths_X=self.valid_x_files,
                                      paths_t=self.valid_t_files,
                                      seq_len=self.seq_len)
-        batch_generator['valid'] = tl.TextBatchGenerator(
+        self.batch_generator['valid'] = tl.TextBatchGenerator(
             loader=valid_loader,
             batch_size=self.batch_size)
 
-        return batch_generator
+    def valid_dict(self, batch, feedback=None):
+        """ Return feed_dict for validation """
+        return { self.Xs:     batch['x_encoded'],
+                 self.ts:     batch['t_encoded'],
+                 self.ts_go:  batch['t_encoded_go'],
+                 self.X_len:  batch['x_len'],
+                 self.t_mask: batch['t_mask'],
+                 self.feedback: feedback or True,
+                 self.X_spaces: batch['x_spaces'],
+                 self.X_spaces_len: batch['x_spaces_len'] }
+
+    def train_dict(self, batch):
+        """ Return feed_dict for training.
+        Reuse validation feed_dict because the only difference is feedback.
+        """
+        return self.valid_dict(batch, feedback=False)
+
+    def build_feed_dict(self, batch, validate=False):
+        return self.valid_dict(batch) if validate else self.train_dict(batch)
+
+    def get_generator(self, validate=False):
+        k = 'valid' if validate else 'train'
+        return self.batch_generator[k].gen_batch
+
+    def next_train_feed(self):
+        generator = self.get_generator()
+        for t_batch in generator(self.train_schedule_function):
+            extra = { 't_len': t_batch['t_len'] }
+            yield (self.build_feed_dict(t_batch), extra)
+
+    def next_valid_feed(self):
+        generator = self.get_generator(validate=True)
+        for v_batch in generator(self.valid_schedule_function):
+            yield self.build_feed_dict(v_batch, validate=True)
+
+    def get_alphabet(self):
+        return self.batch_generator['train'].alphabet

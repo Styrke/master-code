@@ -25,8 +25,7 @@ class Trainer:
         self.load_config(config)
         self.setup_reload_path()
 
-        self.batch_generator = self.config.setup_batch_generators()
-        self.alphabet = self.batch_generator['train'].alphabet
+        self.alphabet = self.model.get_alphabet()
 
         self.train()
 
@@ -59,16 +58,6 @@ class Trainer:
                 os.makedirs(self.summary_path)
             self.summarywriter = tf.train.SummaryWriter(self.summary_path)
 
-    def setup_placeholders(self, seq_len):
-        self.Xs       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='X_input')
-        self.ts       = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input')
-        self.ts_go    = tf.placeholder(tf.int32,   shape=[None, seq_len], name='t_input_go')
-        self.X_len    = tf.placeholder(tf.int32,   shape=[None],          name='X_len')
-        self.X_spaces = tf.placeholder(tf.int32,   shape=[None, seq_len//4], name='X_spaces')
-        self.X_spaces_len = tf.placeholder(tf.int32, shape=[None],        name='X_spaces_len')
-        self.t_mask   = tf.placeholder(tf.float32, shape=[None, seq_len], name='t_mask')
-        self.feedback = tf.placeholder(tf.bool,                           name='feedback_indicator')
-
     def setup_validation_summaries(self):
         """A hack for recording performance metrics with TensorBoard."""
         self.bleu = tf.placeholder(tf.float32)
@@ -99,28 +88,16 @@ class Trainer:
         self.train_feedback = config.Model.train_feedback
         self.tb_log_freq = config.Model.tb_log_freq
 
-        # Create placeholders and construct model
-        self.setup_placeholders(config.Model.seq_len)
-        self.model = config.Model(
-                Xs=self.Xs,
-                X_len=self.X_len,
-                ts=self.ts,
-                ts_go=self.ts_go,
-                t_mask=self.t_mask,
-                feedback=self.feedback,
-                X_spaces=self.X_spaces,
-                X_spaces_len=self.X_spaces_len)
-
         # self.config is just an alias for the model for now. This may change later
-        self.config = self.model
+        self.config = self.model = config.Model()
 
-    def visualize_ys(self, ys, batch):
+    def visualize_ys(self, ys, feed_dict):
         sep = ":::"
         pred_len = len(max(ys, key=len)) # length of longest predicted string
-        for j in range(batch['x_encoded'].shape[0]):
-            inp  = self.alphabet.decode(batch['x_encoded'][j]).ljust(self.seq_len)
+        for j in range(feed_dict[self.model.Xs].shape[0]):
+            inp  = self.alphabet.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len)
             pred = self.alphabet.decode(ys[j]).ljust(pred_len)
-            targ = self.alphabet.decode(batch['t_encoded'][j])
+            targ = self.alphabet.decode(feed_dict[self.model.ts][j])
             print('{1} {0} {2} {0} {3}'.format(sep, inp, pred, targ))
 
     def train(self):
@@ -139,91 +116,64 @@ class Trainer:
             combined_time = 0.0  # total time for each print
             swap_amount = None
             augmentor = Augmentor()
-            for i, t_batch in enumerate(self.batch_generator['train'].gen_batch(
-                                        self.config.train_schedule_function)):
+            for t_feed_dict, extra in self.model.next_train_feed():
+                # NOTE is this slower than enumerate()?
+                i = self.model.global_step.eval()
+
                 if i in self.model.swap_schedule:
                     swap_amount = self.model.swap_schedule[i]
                     print("  setting swap amount to {:.4f}".format(swap_amount))
                 if swap_amount > 0.0:
-                    t_batch['t_encoded_go'] = augmentor.run(
-                        t_batch['t_encoded_go'], t_batch['t_len'], swap_amount,
-                        1)
+                    t_feed_dict[self.model.ts] = augmentor.run(
+                            t_feed_dict[self.model.ts], extra['t_len'],
+                            swap_amount, skip_left=1)
 
                 if self.valid_freq and i % self.valid_freq == 0:
                     self.validate(sess)
 
-                fetches = {
-                    'loss':      self.model.loss,
-                    'ys':        self.model.ys,
-                    'train_op':  self.model.train_op,
-                    'accuracy':  self.model.accuracy,
-                    'summaries': summaries
-                }
+                fetches = { 'loss':      self.model.loss,
+                            'ys':        self.model.ys,
+                            'train_op':  self.model.train_op,
+                            'accuracy':  self.model.accuracy,
+                            'summaries': summaries }
 
-                res, elapsed_it = self.perform_iteration(
-                    sess,
-                    fetches,
-                    batch=t_batch,
-                    feedback=self.train_feedback)
+                res, elapsed_it = self.perform_iteration(sess, fetches,
+                        t_feed_dict)
 
                 combined_time += elapsed_it
 
                 if self.visualize and i % self.visualize == 0:
-                    self.visualize_ys(res['ys'], t_batch)
+                    self.visualize_ys(res['ys'], t_feed_dict)
 
                 if self.summarywriter and i % self.tb_log_freq == 0:
                     self.summarywriter.add_summary(res['summaries'], i)
 
                 if self.checkpoint_saver and i and i % self.save_freq == 0:
-                    self.checkpoint_saver.save(
-                        sess,
-                        self.checkpoint_file_path,
-                        self.model.global_step
-                    )
+                    self.checkpoint_saver.save(sess, self.checkpoint_file_path,
+                            self.model.global_step)
 
                 if self.log_freq and i % self.log_freq == 0:
-                    batch_acc = res['accuracy']
-                    click.echo('Iteration %i\t Loss: %f\t Acc: %f\t Elapsed: %f (%f)' % (
-                        i, np.mean(res['loss']), batch_acc, combined_time, (combined_time/self.log_freq) ))
+                    out = "Iteration {:d}\tLoss {:f}\tAcc: {:f}\tElapsed: {:f} ({:f})"
+                    print(out.format(i, np.mean(res['loss']), res['accuracy'],
+                        combined_time, (combined_time/self.log_freq)))
                     combined_time = 0.0
 
                 if i >= self.iterations:
-                    click.echo('reached max iteration: %d' % i)
+                    print('Reached max iteration: {:d}'.format(i))
                     break
 
-    def perform_iteration(self, sess, fetches, feed_dict=None, batch=None,
-                          feedback=False):
+    def perform_iteration(self, sess, fetches, feed_dict):
         """ Performs one iteration/run.
 
             Returns tuple containing result and elapsed iteration time.
 
             Keyword arguments:
-            sess:       Tensorflow Session
-            fetches:    A single graph element, or a list of graph
-                        elements.
-            feed_dict:  A dictionary that maps graph elements to values
-                        (default: None)
-            batch:      A batch with data used to fill feed_dict
-                        (default: None)
-            feedback:   If true the decoder will get its own prediction
-                        the previous time step. If false it will get
-                        target for previous time step (default: False)
+            sess      -- Tensorflow Session
+            fetches   -- A iterable of graph elements
+            feed_dict -- A dictionary that maps graph elements to values
         """
         if not fetches:
             raise ValueError("fetches argument must be a non-empty list")
-        if type(feedback) is not bool:
-            raise ValueError("feedback argument must be a boolean")
-
-        if feed_dict is None and batch is not None:
-            feed_dict = {
-                    self.Xs:     batch['x_encoded'],
-                    self.ts:     batch['t_encoded'],
-                    self.ts_go:  batch['t_encoded_go'],
-                    self.X_len:  batch['x_len'],
-                    self.t_mask: batch['t_mask'],
-                    self.feedback: feedback,
-                    self.X_spaces: batch['x_spaces'],
-                    self.X_spaces_len: batch['x_spaces_len']}
 
         start_time = time.time()
         res = run(sess, fetches, feed_dict=feed_dict)
@@ -233,38 +183,42 @@ class Trainer:
 
     def validate(self, sess):
         print("Validating..")
-        accuracies = []
-        valid_ys = []
-        valid_ts = []
-        for v_batch in self.batch_generator['valid'].gen_batch(
-                self.config.valid_schedule_function):
+        accuracies, valid_ys, valid_ts = [], [], []
+        for v_feed_dict in self.model.next_valid_feed():
             fetches = {'accuracy': self.model.accuracy,
                        'ys': self.model.ys}
 
-            res, time = self.perform_iteration(
-                sess,
-                fetches,
-                feed_dict=None,
-                batch=v_batch,
-                feedback=True)
+            res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
-            # TODO: accuracies should be weighted by batch sizes
-            # before averaging
+            # TODO: accuracies should be weighted by batch sizes before averaging
             valid_ys.append(res['ys'])
-            valid_ts.append(v_batch['t_encoded'])
+            valid_ts.append(v_feed_dict[self.model.ts])
             accuracies.append(res['accuracy'])
 
         valid_ys = np.concatenate(valid_ys, axis=0)
         valid_ts = np.concatenate(valid_ts, axis=0)
 
+        self.visualize_validation_results(res, v_feed_dict, valid_ys, valid_ts,
+                accuracies)
+
+        if self.summarywriter:
+            feed_dict = {
+                self.model.accuracy: valid_acc,
+                self.bleu: corpus_bleu,
+                self.edit_dist: edit_dist }
+            fetches = [self.val_summaries, self.model.global_step]
+            summaries, i = sess.run(fetches, feed_dict)
+            self.summarywriter.add_summary(summaries, i)
+
+        print("Continue training..")
+
+    def visualize_validation_results(self, res, v_feed_dict, valid_ys,
+            valid_ts, accuracies):
         # print visualization
-        self.visualize_ys(res['ys'], v_batch)
+        self.visualize_ys(res['ys'], v_feed_dict)
 
         # convert all predictions to strings
-        str_ts, str_ys = utils.numpy_to_words(valid_ts,
-                                              valid_ys,
-                                              self.alphabet)
-
+        str_ts, str_ys = utils.numpy_to_words(valid_ts, valid_ys, self.alphabet)
         # accuracy
         valid_acc = np.mean(accuracies)
         print('\t{:s}{:.2f}%'.format('accuracy:'.ljust(25), (valid_acc * 100)))
@@ -275,17 +229,6 @@ class Trainer:
         edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
         print('\t{:s}{:.5f}'.format('Mean edit dist per char:'.ljust(25), edit_dist))
 
-        if self.summarywriter:
-            feed_dict = {
-                self.model.accuracy: valid_acc,
-                self.bleu: corpus_bleu,
-                self.edit_dist: edit_dist
-            }
-            fetches = [self.val_summaries, self.model.global_step]
-            summaries, i = sess.run(fetches, feed_dict)
-            self.summarywriter.add_summary(summaries, i)
-
-        print("Continue training..")
 
 if __name__ == '__main__':
     trainer = Trainer()
