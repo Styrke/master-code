@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
+from tensorflow.python.ops import tensor_array_ops
 sys.path.insert(0, '..')
 import model
 
@@ -52,15 +53,53 @@ class Model(model.Model):
             W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        cell = rnn_cell.GRUCell(self.rnn_units)
+        with tf.variable_scope('encoder'):
+            weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
+            W_h = tf.get_variable('W_h',
+                                  shape=[self.rnn_units, self.rnn_units],
+                                  initializer=weight_initializer)
+            W_x = tf.get_variable('W_x',
+                                  shape=[self.embedd_dims, self.rnn_units],
+                                  initializer=weight_initializer)
+            b = tf.get_variable('b',
+                                shape=[self.rnn_units],
+                                initializer=tf.constant_initializer())
 
-        # encoder
-        enc_outputs, enc_state = rnn.rnn(
-            cell=cell,
-            inputs=X_list,
-            dtype=tf.float32,
-            sequence_length=self.X_len,
-            scope='rnn_encoder')
+            # TODO: use this instead of self.max_x_seq_len
+            max_sequence_length = tf.reduce_max(self.X_len)
+
+            time = tf.constant(0)
+
+            state_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
+                                        tf.expand_dims(tf.constant(self.rnn_units), 0)])
+            # state_shape = tf.Print(state_shape, [state_shape])
+            state = tf.zeros(state_shape, dtype=tf.float32)
+
+            inputs = tf.transpose(X_embedded, perm=[1, 0, 2])
+            input_ta = tensor_array_ops.TensorArray(tf.float32, self.max_x_seq_len)
+            input_ta = input_ta.unpack(inputs)
+
+            output_ta = tensor_array_ops.TensorArray(tf.float32, self.max_x_seq_len)
+
+            def encoder_cond(time, state, output_ta_t):
+                return tf.less(time, self.max_x_seq_len)
+
+            def encoder_body(time, state, output_ta_t):
+                x_t = input_ta.read(time)
+
+                state = tf.tanh(tf.matmul(state, W_h) + tf.matmul(x_t, W_x) + b)
+
+                output_ta_t = output_ta_t.write(time, state)
+
+                # TODO: only update state if seq_len < time
+
+                return (time + 1, state, output_ta_t)
+
+            loop_vars = [time, state, output_ta]
+
+            time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars)
+
+            enc_state = state
 
         tf.histogram_summary('final_encoder_state', enc_state)
 
@@ -78,6 +117,7 @@ class Model(model.Model):
             return tf.cond(self.feedback, feedback_on, feedback_off)
 
         # decoder
+        cell = rnn_cell.GRUCell(self.rnn_units)
         dec_out, dec_state = seq2seq.rnn_decoder(
             decoder_inputs=t_list,
             initial_state=enc_state,
