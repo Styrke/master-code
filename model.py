@@ -126,11 +126,17 @@ class Model(object):
         cell = rnn_cell.GRUCell(self.rnn_units)
 
         # encoder
-        enc_outputs, enc_state = rnn.rnn(cell=cell,
-                                         inputs=X_list,
-                                         dtype=tf.float32,
-                                         sequence_length=self.X_len,
-                                         scope='rnn_encoder')
+        enc_outputs, enc_state = rnn.dynamic_rnn(cell=cell,
+                                                 inputs=X_embedded,
+                                                 sequence_length=self.X_len,
+                                                 dtype=tf.float32,
+                                                 scope='rnn_encoder')
+
+#        enc_outputs, enc_state = rnn.rnn(cell=cell,
+#                                         inputs=X_list,
+#                                         dtype=tf.float32,
+#                                         sequence_length=self.X_len,
+#                                         scope='rnn_encoder')
 
         tf.histogram_summary('final_encoder_state', enc_state)
 
