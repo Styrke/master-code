@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION=1.2.0
+VERSION=1.3.0
 IMAGE=obeyed/py3-tf-gpu
 ID=$(docker build  -t ${IMAGE} . | tail -1 | sed 's/.*Successfully built \(.*\)$/\1/')
 
