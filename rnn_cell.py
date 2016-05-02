@@ -100,24 +100,25 @@ class RNNCell(object):
 
 
 class Gate(object):
+  """Gate to handle to handle initialization"""  
 
-    def __init__(self, W_in=init_ops.random_normal_initializer(stddev=0.1),
-                 W_hid=init_ops.random_normal_initializer(stddev=0.1),
-                 W_cell=init_ops.random_normal_initializer(stddev=0.1),
-                 b=init_ops.constant_initializer(0.),
-                 activation=None):
-        self.W_in = W_in
-        self.W_hid = W_hid
-        # Don't store a cell weight vector when cell is None
-        if W_cell is not None:
-            self.W_cell = W_cell
-        if b is not None:
-          self.b = b
-        # For the activation, if None is supplied, use identity
-        if activation is None:
-            self.activation = control_flow_ops.identity
-        else:
-            self.activation = activation
+  def __init__(self, W_in=init_ops.random_normal_initializer(stddev=0.1),
+               W_hid=init_ops.random_normal_initializer(stddev=0.1),
+               W_cell=init_ops.random_normal_initializer(stddev=0.1),
+               b=init_ops.constant_initializer(0.),
+               activation=None):
+    self.W_in = W_in
+    self.W_hid = W_hid
+    # Don't store a cell weight vector when cell is None
+    if W_cell is not None:
+        self.W_cell = W_cell
+    if b is not None:
+      self.b = b
+    # For the activation, if None is supplied, use identity
+    if activation is None:
+        self.activation = control_flow_ops.identity
+    else:
+        self.activation = activation
 
 class GRUCell(rnn_cell.RNNCell):
   """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078)."""
@@ -149,34 +150,22 @@ class GRUCell(rnn_cell.RNNCell):
     with vs.variable_scope(scope or type(self).__name__):  # "GRUCell"
       with vs.variable_scope("Gates"):  # Reset gate and update gate.
         # We start with bias of 1.0 to not reset and not update.
-        r, u = array_ops.split(1, 2, GRU_linear([inputs, state],
+        r, u = array_ops.split(1, 2, Modified_linear([inputs, state],
           [(self._num_units, "Reset", self._resetgate),
            (self._num_units, "Update", self._updategate)]))
         r, u = self._resetgate.activation(r), self._updategate.activation(u)
       with vs.variable_scope("Candidate"):
-        c = GRU_linear([inputs, r * state],
+        c = Modified_linear([inputs, r * state],
           (self._num_units, "Candidate", self._candidategate))
         c = self._candidategate.activation(c)
       new_h = u * state + (1 - u) * c
     return new_h, new_h
 
 
-def GRU_linear(args, output, scope=None):
-  """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
-
-  Args:
-    args: a 2D Tensor or a list of 2D, batch x n, Tensors.
-    output_size: int, second dimension of W[i].
-    bias: boolean, whether to add a bias term or not.
-    bias_start: starting value to initialize the bias; 0 by default.
-    scope: VariableScope for the created subgraph; defaults to "Linear".
-
-  Returns:
-    A 2D Tensor with shape [batch x output_size] equal to
-    sum_i(args[i] * W[i]), where W[i]s are newly created matrices.
-
-  Raises:
-    ValueError: if some of the arguments has unspecified or wrong shape.
+def Modified_linear(args, output, scope=None):
+  """Modified linear takes args and output.
+     Args is same as in linear, but output is a tuple consisting of:
+     output_size, name of gate, gate object (with all initializations)
   """
   if args is None or (isinstance(args, (list, tuple)) and not args):
     raise ValueError("`args` must be specified")
@@ -194,7 +183,7 @@ def GRU_linear(args, output, scope=None):
   matrices = []
   biases = []
   with vs.variable_scope(scope or "Linear"):
-    for output_size, name, gate in output:
+    for output_size, name, gate in output: # loops over every gate
       with vs.variable_scope(name):
         W_in = vs.get_variable("W_in", [args[0].get_shape()[1], output_size],
           initializer=gate.W_in)
@@ -208,14 +197,14 @@ def GRU_linear(args, output, scope=None):
           pass
           # do some LSTM stuff ...
         else:
-          matrix = array_ops.concat(0, [W_in, W_hid])
+          matrix = array_ops.concat(0, [W_in, W_hid]) # concats all matrices
         matrices.append(matrix)
 
-  total_matrix = array_ops.concat(1, matrices)
-  res = math_ops.matmul(array_ops.concat(1, args), total_matrix)
+  total_matrix = array_ops.concat(1, matrices) # concats across gates
+  res = math_ops.matmul(array_ops.concat(1, args), total_matrix) # computes the results
 
   if biases is not []:
-    total_bias = array_ops.concat(0, biases)
+    total_bias = array_ops.concat(0, biases) # concats across gates biases
     if total_matrix.get_shape()[1] != total_bias.get_shape()[0]:
       raise ValueError('Must have same output dimensions for W and b')
     res += total_bias
