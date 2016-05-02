@@ -97,11 +97,11 @@ def numpy_to_str(references, hypothesis, alphabet):
               .split(alphabet.eos_char)[0])
         str_ys.append(alphabet.decode(hypothesis[i]) \
               .split(alphabet.eos_char)[0])
-    
+
     return str_ts, str_ys
 
 def numpy_to_words(*args):
     str_ts, str_ys = numpy_to_str(*args)
-    words_ts = [nltk.word_tokenize(str_t) for str_t in str_ts]
-    words_ys = [nltk.word_tokenize(str_y) for str_y in str_ys]
+    words_ts = [nltk.word_tokenize(str_t.lower()) for str_t in str_ts]
+    words_ys = [nltk.word_tokenize(str_y.lower()) for str_y in str_ys]
     return words_ts, words_ys
