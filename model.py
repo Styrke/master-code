@@ -1,7 +1,9 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import seq2seq
-from tensorflow.python.ops import rnn
+
+import rnn_custom as rnn
+#from tensorflow.python.ops import rnn
 
 # NOTE swap these two lines to use custom or TF's `rnn_cell`
 import custom_gru_cell as rnn_cell
