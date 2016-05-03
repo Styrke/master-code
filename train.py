@@ -218,12 +218,13 @@ class Trainer:
         self.visualize_ys(res['ys'], v_feed_dict)
 
         # convert all predictions to strings
-        str_ts, str_ys = utils.numpy_to_words(valid_ts, valid_ys, self.alphabet)
+        str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet)
+        t_words, y_words = utils.strs_to_words(str_ts, str_ys)
         # accuracy
         valid_acc = np.mean(accuracies)
         print('\t{:s}{:.2f}%'.format('accuracy:'.ljust(25), (valid_acc * 100)))
         # BLEU score
-        corpus_bleu = pm.corpus_bleu(str_ys, str_ts)
+        corpus_bleu = pm.corpus_bleu(t_words, y_words)
         print('\t{:s}{:.5f}'.format('BLEU:'.ljust(25), corpus_bleu))
         # edit distance
         edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)

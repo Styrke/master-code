@@ -17,7 +17,7 @@ class Model(model.Model):
     batch_size = 32
     seq_len = 25
     rnn_units = 100
-    valid_freq = 100  # Using a smaller valid set for debug so can do it more frequently.
+    valid_freq = 50  # Using a smaller valid set for debug so can do it more frequently.
 
     # only use a single of the validation files for this debugging config
     valid_x_files = ['data/valid/devtest2006.en']
