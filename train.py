@@ -64,6 +64,7 @@ class Trainer:
         self.edit_dist = tf.placeholder(tf.float32)
 
         valid_summaries = [
+            tf.scalar_summary('validation/loss', self.model.loss),
             tf.scalar_summary('validation/accuracy', self.model.accuracy),
             tf.scalar_summary('validation/bleu', self.bleu),
             tf.scalar_summary('validation/edit dist per char', self.edit_dist)
@@ -184,10 +185,11 @@ class Trainer:
     def validate(self, sess):
         print("Validating..")
         total_num_samples = 0
-        accuracies, valid_ys, valid_ts = [], [], []
+        losses, accuracies, valid_ys, valid_ts = [], [], [], []
         for v_feed_dict in self.model.next_valid_feed():
             fetches = {'accuracy': self.model.accuracy,
-                       'ys': self.model.ys}
+                       'ys': self.model.ys,
+                       'loss': self.model.loss}
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
@@ -196,6 +198,7 @@ class Trainer:
             total_num_samples += samples_in_batch
             valid_ys.append(res['ys'])
             valid_ts.append(v_feed_dict[self.model.ts])
+            losses.append(res['loss']*samples_in_batch)
             accuracies.append(res['accuracy']*samples_in_batch)
 
         # convert all predictions to strings and lists of words
@@ -205,12 +208,14 @@ class Trainer:
         t_words, y_words = utils.strs_to_words(str_ts, str_ys)
 
         # compute performance metrics
+        valid_loss = np.sum(losses)/total_num_samples
         valid_acc = np.sum(accuracies)/total_num_samples
         corpus_bleu = pm.corpus_bleu(t_words, y_words)
         edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
 
         # print results
         self.visualize_ys(res['ys'], v_feed_dict)
+        print('\t{:s}{:.5f}'.format('loss:'.ljust(25), valid_loss))
         print('\t{:s}{:.2f}%'.format('accuracy:'.ljust(25), (valid_acc * 100)))
         print('\t{:s}{:.5f}'.format('BLEU:'.ljust(25), corpus_bleu))
         print('\t{:s}{:.5f}'.format('Mean edit dist per char:'.ljust(25), edit_dist))
@@ -218,6 +223,7 @@ class Trainer:
         # Write TensorBoard summaries
         if self.summarywriter:
             feed_dict = {
+                self.model.loss: valid_loss,
                 self.model.accuracy: valid_acc,
                 self.bleu: corpus_bleu,
                 self.edit_dist: edit_dist }
