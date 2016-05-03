@@ -183,6 +183,7 @@ class Trainer:
 
     def validate(self, sess):
         print("Validating..")
+        total_num_samples = 0
         accuracies, valid_ys, valid_ts = [], [], []
         for v_feed_dict in self.model.next_valid_feed():
             fetches = {'accuracy': self.model.accuracy,
@@ -191,16 +192,30 @@ class Trainer:
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
             # TODO: accuracies should be weighted by batch sizes before averaging
+            samples_in_batch = res['ys'].shape[0]
+            total_num_samples += samples_in_batch
             valid_ys.append(res['ys'])
             valid_ts.append(v_feed_dict[self.model.ts])
-            accuracies.append(res['accuracy'])
+            accuracies.append(res['accuracy']*samples_in_batch)
 
+        # convert all predictions to strings and lists of words
         valid_ys = np.concatenate(valid_ys, axis=0)
         valid_ts = np.concatenate(valid_ts, axis=0)
+        str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet)
+        t_words, y_words = utils.strs_to_words(str_ts, str_ys)
 
-        self.visualize_validation_results(res, v_feed_dict, valid_ys, valid_ts,
-                accuracies)
+        # compute performance metrics
+        valid_acc = np.sum(accuracies)/total_num_samples
+        corpus_bleu = pm.corpus_bleu(t_words, y_words)
+        edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
 
+        # print results
+        self.visualize_ys(res['ys'], v_feed_dict)
+        print('\t{:s}{:.2f}%'.format('accuracy:'.ljust(25), (valid_acc * 100)))
+        print('\t{:s}{:.5f}'.format('BLEU:'.ljust(25), corpus_bleu))
+        print('\t{:s}{:.5f}'.format('Mean edit dist per char:'.ljust(25), edit_dist))
+
+        # Write TensorBoard summaries
         if self.summarywriter:
             feed_dict = {
                 self.model.accuracy: valid_acc,
@@ -211,24 +226,6 @@ class Trainer:
             self.summarywriter.add_summary(summaries, i)
 
         print("Continue training..")
-
-    def visualize_validation_results(self, res, v_feed_dict, valid_ys,
-            valid_ts, accuracies):
-        # print visualization
-        self.visualize_ys(res['ys'], v_feed_dict)
-
-        # convert all predictions to strings
-        str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet)
-        t_words, y_words = utils.strs_to_words(str_ts, str_ys)
-        # accuracy
-        valid_acc = np.mean(accuracies)
-        print('\t{:s}{:.2f}%'.format('accuracy:'.ljust(25), (valid_acc * 100)))
-        # BLEU score
-        corpus_bleu = pm.corpus_bleu(t_words, y_words)
-        print('\t{:s}{:.5f}'.format('BLEU:'.ljust(25), corpus_bleu))
-        # edit distance
-        edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
-        print('\t{:s}{:.5f}'.format('Mean edit dist per char:'.ljust(25), edit_dist))
 
 
 if __name__ == '__main__':
