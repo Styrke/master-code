@@ -238,7 +238,7 @@ class Model(object):
         self.batch_generator = dict()
 
         # load training set
-        print('  Load training set')
+        print('Load training set')
         train_loader = tl.TextLoader(paths_X=self.train_x_files,
                                      paths_t=self.train_t_files,
                                      seq_len=self.seq_len)
@@ -248,7 +248,7 @@ class Model(object):
             **self.schedule_kwargs)
 
         # load validation set
-        print('  Load validation set')
+        print('Load validation set')
         valid_loader = tl.TextLoader(paths_X=self.valid_x_files,
                                      paths_t=self.valid_t_files,
                                      seq_len=self.seq_len)

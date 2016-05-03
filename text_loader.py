@@ -6,7 +6,7 @@ import frostings.loader as frost
 from data.alphabet import Alphabet
 from utils.change_directory import cd
 
-PRINT_SEP = "    " # spaces to prepend to print statements
+PRINT_SEP = "  " # spaces to prepend to print statements
 
 def _filter_samples(samples, max_length):
     """Filter out samples of extreme length."""
