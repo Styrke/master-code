@@ -173,7 +173,7 @@ class Model(object):
             correct = tf.to_float(tf.equal(argmax, self.ts)) * self.t_mask
             self.accuracy = tf.reduce_sum(correct) / tf.reduce_sum(self.t_mask)
 
-            tf.scalar_summary('accuracy', self.accuracy)
+            tf.scalar_summary('train/accuracy', self.accuracy)
 
         with tf.variable_scope('loss'):
             with tf.variable_scope('split_t_and_mask'):
@@ -193,7 +193,7 @@ class Model(object):
 
             loss += reg_term
             # Create TensorBoard scalar summary for loss
-            tf.scalar_summary('loss', loss)
+            tf.scalar_summary('train/loss', loss)
 
         self.loss = loss
 
@@ -221,7 +221,7 @@ class Model(object):
         clipped_grads_and_vars = zip(clipped_gradients, variables)
 
         # Create TensorBoard scalar summary for global gradient norm
-        tf.scalar_summary('global gradient norm', global_norm)
+        tf.scalar_summary('train/global gradient norm', global_norm)
 
         # Create TensorBoard summaries for gradients
         for grad, var in grads_and_vars:
