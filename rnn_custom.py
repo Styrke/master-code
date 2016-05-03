@@ -373,7 +373,7 @@ def bidirectional_rnn(cell_fw, cell_bw, inputs,
 
 def dynamic_rnn(cell, inputs, sequence_length=None, initial_state=None,
                 dtype=None, parallel_iterations=None, swap_memory=False,
-                time_major=False, scope=None):
+                time_major=False, scope=None, loop_function=None):
   """Creates a recurrent neural network specified by RNNCell "cell".
 
   This function is functionally identical to the function `rnn` above, but
@@ -478,7 +478,8 @@ def dynamic_rnn(cell, inputs, sequence_length=None, initial_state=None,
 
     (outputs, final_state) = _dynamic_rnn_loop(
         cell, inputs, state, parallel_iterations=parallel_iterations,
-        swap_memory=swap_memory, sequence_length=sequence_length)
+        swap_memory=swap_memory, sequence_length=sequence_length,
+        loop_function=loop_function)
 
     # Outputs of _dynamic_rnn_loop are always shaped [time, batch, depth].
     # If we are performing batch-major calculations, transpose output back
@@ -491,7 +492,7 @@ def dynamic_rnn(cell, inputs, sequence_length=None, initial_state=None,
 
 def _dynamic_rnn_loop(
     cell, inputs, initial_state, parallel_iterations, swap_memory,
-    sequence_length=None):
+    sequence_length=None, loop_function=None):
   """Internal implementation of Dynamic RNN.
 
   Args:
@@ -561,8 +562,11 @@ def _dynamic_rnn_loop(
     Returns:
       The tuple (time + 1, new_state, output_ta_t with updated flow).
     """
-
+    
     input_t = input_ta.read(time)
+    if loop_function is not None and time != 0:
+        with vs.variable_scope("loop_function", reuse=True):
+            input_t = loop_function(state, input_t)
     # Restore some shape information
     input_t.set_shape([const_batch_size, const_depth])
 
