@@ -226,9 +226,7 @@ class TextBatchGenerator(frost.BatchGenerator):
         x, t = zip(*self.samples)  # unzip samples
         batch = dict()
 
-        self.use_dynamic_array_sizes = True
         batch['x_encoded'] = self._make_array(x, encode, self.seq_len)
-        self.use_dynamic_array_sizes = False
         batch['t_encoded'] = self._make_array(t, encode, self.seq_len)
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
 

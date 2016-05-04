@@ -73,7 +73,7 @@ class Model(model.Model):
             output_ta = tensor_array_ops.TensorArray(tf.float32, self.max_x_seq_len)
 
             def encoder_cond(time, state, output_ta_t):
-                return tf.less(time, max_sequence_length)
+                return tf.less(time, self.max_x_seq_len)
 
             def encoder_body(time, old_state, output_ta_t):
                 x_t = input_ta.read(time)
@@ -88,6 +88,7 @@ class Model(model.Model):
                 def updatesome():
                     return tf.select(tf.less(time, self.X_len), new_state, old_state)
 
+                # TODO: only update state if seq_len < time
                 state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
 
                 return (time + 1, state, output_ta_t)
