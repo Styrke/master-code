@@ -29,16 +29,6 @@ class Model(model.Model):
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
-        with tf.variable_scope('split_X_inputs'):
-            X_list = tf.split(
-                split_dim=1,
-                num_split=self.max_x_seq_len,
-                value=X_embedded)
-
-            X_list = [tf.squeeze(X) for X in X_list]
-
-            [X.set_shape([None, self.embedd_dims]) for X in X_list]
-
         with tf.variable_scope('split_t_inputs'):
             t_list = tf.split(
                 split_dim=1,
