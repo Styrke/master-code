@@ -29,16 +29,6 @@ class Model(model.Model):
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
-        with tf.variable_scope('split_t_inputs'):
-            t_list = tf.split(
-                split_dim=1,
-                num_split=self.max_t_seq_len,
-                value=t_embedded)
-
-            t_list = [tf.squeeze(t) for t in t_list]
-
-            [t.set_shape([None, self.embedd_dims]) for t in t_list]
-
         with tf.variable_scope('dense_out'):
             W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
@@ -55,7 +45,6 @@ class Model(model.Model):
                                 shape=[self.rnn_units],
                                 initializer=tf.constant_initializer())
 
-            # TODO: use this instead of self.max_x_seq_len
             max_sequence_length = tf.reduce_max(self.X_len)
             min_sequence_length = tf.reduce_min(self.X_len)
 
@@ -70,7 +59,7 @@ class Model(model.Model):
             input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
             input_ta = input_ta.unpack(inputs)
 
-            output_ta = tensor_array_ops.TensorArray(tf.float32, self.max_x_seq_len)
+            output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
 
             def encoder_cond(time, state, output_ta_t):
                 return tf.less(time, self.max_x_seq_len)
@@ -101,35 +90,57 @@ class Model(model.Model):
 
         tf.histogram_summary('final_encoder_state', enc_state)
 
-        # The loop function provides inputs to the decoder:
-        def decoder_loop_function(prev, i):
-            def feedback_on():
-                prev_1 = tf.matmul(prev, W_out) + b_out
-                # feedback is on, so feed the decoder with the previous output
-                return tf.gather(self.embeddings, tf.argmax(prev_1, 1))
+        with tf.variable_scope('decoder'):
+            weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
+            W_h = tf.get_variable('W_h',
+                                  shape=[self.rnn_units, self.rnn_units],
+                                  initializer=weight_initializer)
+            W_x = tf.get_variable('W_x',
+                                  shape=[self.embedd_dims, self.rnn_units],
+                                  initializer=weight_initializer)
+            b = tf.get_variable('b',
+                                shape=[self.rnn_units],
+                                initializer=tf.constant_initializer())
 
-            def feedback_off():
-                # feedback is off, so just feed the decoder with t's
-                return t_list[i]
+            max_sequence_length = tf.reduce_max(self.X_len)
 
-            return tf.cond(self.feedback, feedback_on, feedback_off)
+            time = tf.constant(0)
 
-        # decoder
-        cell = rnn_cell.GRUCell(self.rnn_units)
-        dec_out, dec_state = seq2seq.rnn_decoder(
-            decoder_inputs=t_list,
-            initial_state=enc_state,
-            cell=cell,
-            loop_function=decoder_loop_function)
+            state_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
+                                        tf.expand_dims(tf.constant(self.rnn_units), 0)])
+            # state_shape = tf.Print(state_shape, [state_shape])
+            state = tf.zeros(state_shape, dtype=tf.float32)
 
-        self.out = []
-        for d in dec_out:
-            self.out.append(tf.matmul(d, W_out) + b_out)
+            inputs = tf.transpose(t_embedded, perm=[1, 0, 2])
+            input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+            input_ta = input_ta.unpack(inputs)
 
-        # for debugging network (should write this outside of build)
-        out_packed = tf.pack(self.out)
-        out_packed = tf.transpose(out_packed, perm=[1, 0, 2])
-        self.out_tensor = out_packed
+            output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+
+            def decoder_cond(time, state, output_ta_t):
+                return tf.less(time, self.max_t_seq_len)
+
+            def decoder_body(time, old_state, output_ta_t):
+                x_t = input_ta.read(time)
+
+                new_state = tf.tanh(tf.matmul(old_state, W_h) + tf.matmul(x_t, W_x) + b)
+
+                output_ta_t = output_ta_t.write(time, new_state)
+
+                return (time + 1, new_state, output_ta_t)
+
+            loop_vars = [time, state, output_ta]
+
+            time, state, output_ta = tf.while_loop(decoder_cond, decoder_body, loop_vars)
+
+            dec_state = state
+            dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
+
+        out_tensor = tf.reshape(dec_out, [-1, self.rnn_units])
+        out_tensor = tf.matmul(out_tensor, W_out) + b_out
+        self.out_tensor = tf.reshape(out_tensor, [-1, self.max_t_seq_len, self.alphabet_size])
+
+        self.out = tf.unpack(tf.transpose(self.out_tensor, perm=[1, 0, 2]))
 
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
