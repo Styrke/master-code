@@ -57,6 +57,7 @@ class Model(model.Model):
 
             # TODO: use this instead of self.max_x_seq_len
             max_sequence_length = tf.reduce_max(self.X_len)
+            min_sequence_length = tf.reduce_min(self.X_len)
 
             time = tf.constant(0)
 
@@ -66,7 +67,7 @@ class Model(model.Model):
             state = tf.zeros(state_shape, dtype=tf.float32)
 
             inputs = tf.transpose(X_embedded, perm=[1, 0, 2])
-            input_ta = tensor_array_ops.TensorArray(tf.float32, self.max_x_seq_len)
+            input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
             input_ta = input_ta.unpack(inputs)
 
             output_ta = tensor_array_ops.TensorArray(tf.float32, self.max_x_seq_len)
@@ -74,14 +75,21 @@ class Model(model.Model):
             def encoder_cond(time, state, output_ta_t):
                 return tf.less(time, self.max_x_seq_len)
 
-            def encoder_body(time, state, output_ta_t):
+            def encoder_body(time, old_state, output_ta_t):
                 x_t = input_ta.read(time)
 
-                state = tf.tanh(tf.matmul(state, W_h) + tf.matmul(x_t, W_x) + b)
+                new_state = tf.tanh(tf.matmul(old_state, W_h) + tf.matmul(x_t, W_x) + b)
 
-                output_ta_t = output_ta_t.write(time, state)
+                output_ta_t = output_ta_t.write(time, new_state)
+
+                def updateall():
+                    return new_state
+
+                def updatesome():
+                    return tf.select(tf.less(time, self.X_len), new_state, old_state)
 
                 # TODO: only update state if seq_len < time
+                state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
 
                 return (time + 1, state, output_ta_t)
 
