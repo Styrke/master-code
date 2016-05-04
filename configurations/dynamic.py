@@ -4,8 +4,10 @@ from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 from tensorflow.python.ops import tensor_array_ops
+from utils.tfextensions import sequence_loss_tensor
 sys.path.insert(0, '..')
 import model
+import text_loader as tl
 
 
 class Model(model.Model):
@@ -19,6 +21,20 @@ class Model(model.Model):
     # only use a single of the validation files for this debugging config
     valid_x_files = ['data/valid/devtest2006.en']
     valid_t_files = ['data/valid/devtest2006.da']
+
+    def setup_placeholders(self):
+        shape = [None, None]
+        self.Xs       = tf.placeholder(tf.int32, shape=shape, name='X_input')
+        self.ts       = tf.placeholder(tf.int32, shape=shape, name='t_input')
+        self.ts_go    = tf.placeholder(tf.int32, shape=shape, name='t_input_go')
+        self.X_len    = tf.placeholder(tf.int32, shape=[None], name='X_len')
+        self.t_len    = tf.placeholder(tf.int32, shape=[None], name='t_len')
+        self.feedback = tf.placeholder(tf.bool, name='feedback_indicator')
+        self.t_mask   = tf.placeholder(tf.float32, shape=shape, name='t_mask')
+
+        shape = [None, None]
+        self.X_spaces     = tf.placeholder(tf.int32, shape=shape,  name='X_spaces')
+        self.X_spaces_len = tf.placeholder(tf.int32, shape=[None], name='X_spaces_len')
 
     def build(self):
         print('Building model')
@@ -62,7 +78,7 @@ class Model(model.Model):
             output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
 
             def encoder_cond(time, state, output_ta_t):
-                return tf.less(time, self.max_x_seq_len)
+                return tf.less(time, max_sequence_length)
 
             def encoder_body(time, old_state, output_ta_t):
                 x_t = input_ta.read(time)
@@ -102,7 +118,7 @@ class Model(model.Model):
                                 shape=[self.rnn_units],
                                 initializer=tf.constant_initializer())
 
-            max_sequence_length = tf.reduce_max(self.X_len)
+            max_sequence_length = tf.reduce_max(self.t_len)
 
             time = tf.constant(0)
 
@@ -118,7 +134,7 @@ class Model(model.Model):
             output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
 
             def decoder_cond(time, state, output_ta_t):
-                return tf.less(time, self.max_t_seq_len)
+                return tf.less(time, max_sequence_length)
 
             def decoder_body(time, old_state, output_ta_t):
                 x_t = input_ta.read(time)
@@ -138,9 +154,65 @@ class Model(model.Model):
 
         out_tensor = tf.reshape(dec_out, [-1, self.rnn_units])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
-        self.out_tensor = tf.reshape(out_tensor, [-1, self.max_t_seq_len, self.alphabet_size])
+        out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
+                                  tf.expand_dims(max_sequence_length, 0),
+                                  tf.expand_dims(tf.constant(self.alphabet_size), 0)])
+        self.out_tensor = tf.reshape(out_tensor, out_shape)
+        self.out_tensor.set_shape([None, None, self.alphabet_size])
 
-        self.out = tf.unpack(tf.transpose(self.out_tensor, perm=[1, 0, 2]))
+        # trans = tf.transpose(self.out_tensor, perm=[1, 0, 2])
+        # self.out = tf.unpack(trans)
 
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
+
+    def build_loss(self):
+        """Build a loss function and accuracy for the model."""
+        print('  Building loss and accuracy')
+
+        with tf.variable_scope('accuracy'):
+            argmax = tf.to_int32(tf.argmax(self.out_tensor, 2))
+            correct = tf.to_float(tf.equal(argmax, self.ts)) * self.t_mask
+            self.accuracy = tf.reduce_sum(correct) / tf.reduce_sum(self.t_mask)
+
+            tf.scalar_summary('train/accuracy', self.accuracy)
+
+        with tf.variable_scope('loss'):
+            loss = sequence_loss_tensor(self.out_tensor, self.ts, self.t_mask,
+                    self.alphabet_size)
+
+            with tf.variable_scope('regularization'):
+                regularize = tf.contrib.layers.l2_regularizer(self.reg_scale)
+                params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                reg_term = sum([regularize(param) for param in params])
+
+            loss += reg_term
+            # Create TensorBoard scalar summary for loss
+            tf.scalar_summary('train/loss', loss)
+
+        self.loss = loss
+
+    def setup_batch_generators(self):
+        """Load the datasets"""
+        self.batch_generator = dict()
+
+        # load training set
+        print('Load training set')
+        train_loader = tl.TextLoader(paths_X=self.train_x_files,
+                                     paths_t=self.train_t_files,
+                                     seq_len=self.seq_len)
+        self.batch_generator['train'] = tl.TextBatchGenerator(
+            loader=train_loader,
+            batch_size=self.batch_size,
+            use_dynamic_array_sizes=True,
+            **self.schedule_kwargs)
+
+        # load validation set
+        print('Load validation set')
+        valid_loader = tl.TextLoader(paths_X=self.valid_x_files,
+                                     paths_t=self.valid_t_files,
+                                     seq_len=self.seq_len)
+        self.batch_generator['valid'] = tl.TextBatchGenerator(
+            loader=valid_loader,
+            batch_size=self.batch_size,
+            use_dynamic_array_sizes=True)

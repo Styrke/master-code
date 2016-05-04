@@ -89,6 +89,7 @@ class Model(object):
         self.ts       = tf.placeholder(tf.int32, shape=shape, name='t_input')
         self.ts_go    = tf.placeholder(tf.int32, shape=shape, name='t_input_go')
         self.X_len    = tf.placeholder(tf.int32, shape=[None], name='X_len')
+        self.t_len    = tf.placeholder(tf.int32, shape=[None], name='t_len')
         self.feedback = tf.placeholder(tf.bool, name='feedback_indicator')
         self.t_mask   = tf.placeholder(tf.float32, shape=shape, name='t_mask')
 
@@ -261,6 +262,7 @@ class Model(object):
                  self.ts:     batch['t_encoded'],
                  self.ts_go:  batch['t_encoded_go'],
                  self.X_len:  batch['x_len'],
+                 self.t_len:  batch['t_len'],
                  self.t_mask: batch['t_mask'],
                  self.feedback: feedback or True,
                  self.X_spaces: batch['x_spaces'],
