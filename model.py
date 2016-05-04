@@ -85,7 +85,7 @@ class Model(object):
 
     def setup_placeholders(self):
         shape = [None, self.max_x_seq_len]
-        self.Xs       = tf.placeholder(tf.int32, shape=shape, name='X_input')
+        self.Xs       = tf.placeholder(tf.int32, shape=[None, None], name='X_input')
         self.ts       = tf.placeholder(tf.int32, shape=shape, name='t_input')
         self.ts_go    = tf.placeholder(tf.int32, shape=shape, name='t_input_go')
         self.X_len    = tf.placeholder(tf.int32, shape=[None], name='X_len')
