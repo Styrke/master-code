@@ -312,7 +312,7 @@ class TextBatchGenerator(frost.BatchGenerator):
 
 
 if __name__ == '__main__':
-    SEQ_LEN = 300
+    SEQ_LEN = 25
     BATCH_SIZE = 32
     KWARGS = { 'warmup_iterations': 20,
                'regular_function': bucket_schedule,
@@ -324,6 +324,8 @@ if __name__ == '__main__':
 
     text_batch_gen = TextBatchGenerator(text_loader, BATCH_SIZE, **KWARGS)
 
+    alphabet = text_batch_gen.alphabet
+
     print("running warmup for 20 iterations, and 180 iterations with bucket")
     line = ""
     for i, batch in enumerate(text_batch_gen.gen_batch(warmup_schedule)):
@@ -334,6 +336,12 @@ if __name__ == '__main__':
             line = ""
         if i == 200:
             break
+
+    sep = ":::"
+    for j in range(32):
+        inp  = alphabet.decode(batch['x_encoded'][j]).ljust(SEQ_LEN)
+        targ = alphabet.decode(batch['t_encoded'][j])
+        print('{1} {0} {2}'.format(sep, inp, targ))
 
     print(type(batch))
     print(len(batch.items()))
