@@ -161,6 +161,14 @@ class Model(model.Model):
 
             def decoder_body(time, old_state, output_ta_t):
                 x_t = input_ta.read(time)
+                def feedback_on():
+                    prev_1 = tf.matmul(old_state, W_out) + b_out
+                    return tf.gather(self.embeddings, tf.argmax(prev_1, 1))
+                def feedback_off():
+                    return x_t
+                with tf.control_dependencies([x_t]):
+                    do_feedback = tf.logical_and(self.feedback, tf.not_equal(time, 0))
+                x_t = tf.cond(do_feedback, feedback_on, feedback_off)
 
                 con = tf.concat(1, [x_t, old_state])
                 z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
