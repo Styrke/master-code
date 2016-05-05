@@ -202,8 +202,7 @@ class Model(object):
         with tf.variable_scope('prediction'):
             # logits is a list of tensors of shape [batch_size, alphabet_size].
             # We need shape of [batch_size, target_seq_len, alphabet_size].
-            packed_logits = tf.transpose(tf.pack(self.out), perm=[1, 0, 2])
-            self.ys = tf.argmax(packed_logits, dimension=2)
+            self.ys = tf.argmax(self.out_tensor, dimension=2)
 
     def build_training(self):
         print('  Building training')
