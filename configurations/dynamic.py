@@ -51,15 +51,24 @@ class Model(model.Model):
 
         with tf.variable_scope('encoder'):
             weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
+            W_z = tf.get_variable('W_z',
+                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
+                                  initializer=weight_initializer)
+            W_r = tf.get_variable('W_r',
+                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
+                                  initializer=weight_initializer)
             W_h = tf.get_variable('W_h',
-                                  shape=[self.rnn_units, self.rnn_units],
+                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
                                   initializer=weight_initializer)
-            W_x = tf.get_variable('W_x',
-                                  shape=[self.embedd_dims, self.rnn_units],
-                                  initializer=weight_initializer)
-            b = tf.get_variable('b',
-                                shape=[self.rnn_units],
-                                initializer=tf.constant_initializer())
+            b_z = tf.get_variable('b_z',
+                                  shape=[self.rnn_units],
+                                  initializer=tf.constant_initializer())
+            b_r = tf.get_variable('b_r',
+                                  shape=[self.rnn_units],
+                                  initializer=tf.constant_initializer())
+            b_h = tf.get_variable('b_h',
+                                  shape=[self.rnn_units],
+                                  initializer=tf.constant_initializer())
 
             max_sequence_length = tf.reduce_max(self.X_len)
             min_sequence_length = tf.reduce_min(self.X_len)
@@ -83,7 +92,12 @@ class Model(model.Model):
             def encoder_body(time, old_state, output_ta_t):
                 x_t = input_ta.read(time)
 
-                new_state = tf.tanh(tf.matmul(old_state, W_h) + tf.matmul(x_t, W_x) + b)
+                con = tf.concat(1, [x_t, old_state])
+                z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
+                r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+                con = tf.concat(1, [x_t, r*old_state])
+                h = tf.tanh(tf.matmul(con, W_h) + b_h)
+                new_state = (1-z)*h + z*old_state
 
                 output_ta_t = output_ta_t.write(time, new_state)
 
@@ -108,15 +122,24 @@ class Model(model.Model):
 
         with tf.variable_scope('decoder'):
             weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
+            W_z = tf.get_variable('W_z',
+                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
+                                  initializer=weight_initializer)
+            W_r = tf.get_variable('W_r',
+                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
+                                  initializer=weight_initializer)
             W_h = tf.get_variable('W_h',
-                                  shape=[self.rnn_units, self.rnn_units],
+                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
                                   initializer=weight_initializer)
-            W_x = tf.get_variable('W_x',
-                                  shape=[self.embedd_dims, self.rnn_units],
-                                  initializer=weight_initializer)
-            b = tf.get_variable('b',
-                                shape=[self.rnn_units],
-                                initializer=tf.constant_initializer())
+            b_z = tf.get_variable('b_z',
+                                  shape=[self.rnn_units],
+                                  initializer=tf.constant_initializer())
+            b_r = tf.get_variable('b_r',
+                                  shape=[self.rnn_units],
+                                  initializer=tf.constant_initializer())
+            b_h = tf.get_variable('b_h',
+                                  shape=[self.rnn_units],
+                                  initializer=tf.constant_initializer())
 
             max_sequence_length = tf.reduce_max(self.t_len)
 
@@ -139,7 +162,12 @@ class Model(model.Model):
             def decoder_body(time, old_state, output_ta_t):
                 x_t = input_ta.read(time)
 
-                new_state = tf.tanh(tf.matmul(old_state, W_h) + tf.matmul(x_t, W_x) + b)
+                con = tf.concat(1, [x_t, old_state])
+                z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
+                r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+                con = tf.concat(1, [x_t, r*old_state])
+                h = tf.tanh(tf.matmul(con, W_h) + b_h)
+                new_state = (1-z)*h + z*old_state
 
                 output_ta_t = output_ta_t.write(time, new_state)
 
