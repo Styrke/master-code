@@ -1,4 +1,7 @@
 import tensorflow as tf
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import nn_ops
+from tensorflow.python.ops import math_ops
 
 # TODO: put in custom_ops file
 # TODO: documentation ..!
@@ -25,3 +28,32 @@ def _grid_gather(params, indices):
 
     # gather and return
     return tf.gather(flat_params, indices)
+
+
+def sequence_loss_tensor(logits, targets, weights, num_classes,
+                         average_across_timesteps=True,
+                         softmax_loss_function=None, name=None):
+    """Weighted cross-entropy loss for a sequence of logits (per example).
+    
+    """
+#    if (logits.get_shape()[0:2]) != targets.get_shape() \
+#        or (logits.get_shape()[0:2]) != weights.get_shape():
+#        print(logits.get_shape()[0:2])
+#        print(targets.get_shape())
+#        print(weights.get_shape())
+#        raise ValueError("Shapes of logits, weights, and targets must be the "
+#            "same")
+    with ops.op_scope([logits, targets, weights], name, "sequence_loss_by_example"):
+        probs_flat = tf.reshape(logits, [-1, num_classes])
+        targets = tf.reshape(targets, [-1])
+        if softmax_loss_function is None:
+            crossent = nn_ops.sparse_softmax_cross_entropy_with_logits(
+                    probs_flat, targets)
+        else:
+            crossent = softmax_loss_function(probs_flat, targets)
+        crossent = crossent * tf.reshape(weights, [-1])
+        crossent = tf.reduce_sum(crossent)
+        total_size = math_ops.reduce_sum(weights)
+        total_size += 1e-12 # to avoid division by zero
+        crossent /= total_size
+        return crossent
