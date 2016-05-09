@@ -256,7 +256,7 @@ class Model(object):
             loader=valid_loader,
             batch_size=self.batch_size)
 
-    def valid_dict(self, batch, feedback=None):
+    def valid_dict(self, batch, feedback=True):
         """ Return feed_dict for validation """
         return { self.Xs:     batch['x_encoded'],
                  self.ts:     batch['t_encoded'],
@@ -264,7 +264,7 @@ class Model(object):
                  self.X_len:  batch['x_len'],
                  self.t_len:  batch['t_len'],
                  self.t_mask: batch['t_mask'],
-                 self.feedback: feedback or True,
+                 self.feedback: feedback,
                  self.X_spaces: batch['x_spaces'],
                  self.X_spaces_len: batch['x_spaces_len'] }
 
