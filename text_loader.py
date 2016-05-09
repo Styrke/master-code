@@ -1,4 +1,5 @@
 import math
+import nltk
 import numpy as np
 import os, subprocess
 
@@ -22,7 +23,81 @@ def _truncate_samples(samples, limit):
     """Truncate long sentences."""
     return [(x[:limit], t[:limit]) for x, t in samples]
 
-def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3, sort=False):
+def _make_len_vec(sequences, offset=0, max_len=100000):
+    """Get length of each sequence in list of sequences.
+
+    Return as numpy vector.
+
+    Keyword arguments:
+    sequences -- list of sequences.
+    offset -- (optional) value to be added to each length.
+        Useful for including EOS characters.
+    max_len -- (optional) (default:100,000) returned sequence length will
+        not exceed this value.
+    """
+    return np.array([min(len(seq)+offset, max_len) for seq in sequences])
+
+def get_npy_path(loader):
+    """ From input data create file path for npy file consisting of all file
+    names concatenated with _.
+
+    NOTE: Assumes that data files are stored two folders down.
+    """
+    data_paths = [p.split("/") for p in loader.paths_X]
+    base = data_paths[0][0] + "/" + data_paths[0][1]
+    data_files = [f[2] for f in data_paths]
+    data_files = "_".join(data_files)
+    return base + "/" + data_files + '.npy'
+
+def tokenize_data(samples, num_samples):
+    """ Return numpy array with tokenized data """
+    worded = list()
+    for i, s in enumerate(samples):
+        num_words = len(nltk.word_tokenize(s[0]))
+        worded.append((i, num_words))
+        if i % 10000 == 9999:
+            print("\r  {:.3f}% samples tokenized".format(i/num_samples*100), end="")
+
+    return np.array(worded)
+
+def num_word_sample_indices(loader):
+    """ Return array of tuples, where the first element is the index
+    and second element represents number of words in sentence.
+    We have that x = s[0] and t = s[1].
+
+    NOTE: we use nltk.word_tokenize() which splits punctuation into its own
+    word. Thus we have length of individual words and punctuation.
+
+    NOTE: if file with data exists it will be loaded, otherwise newly created
+    data will be saved to disk
+    """
+    npy_path = get_npy_path(loader)
+    if os.path.exists(npy_path):
+        worded = np.load(npy_path)
+    else:
+        num_samples = len(loader.samples)
+        print("{:s} not found -- will tokenize {:d} samples".format(
+            npy_path, num_samples))
+        worded = tokenize_data(loader.samples, num_samples)
+
+        print("\n  Done -- writing tokenized array to disk.")
+        np.save(npy_path, worded)
+        print("  wrote data to {:s}".format(npy_path))
+
+    return worded
+
+def weighted_sample_indices(samples, fuzzyness):
+    """ Return array of tuples, where the first element is the index
+    and second element represents a weighted value used for sorting.
+    We weight the length of the input sentence greater than the
+    target sentence (x = s[0] and t = s[1])
+    """
+    return np.array(
+        [(i, int((len(s[0])//fuzzyness)<<14) + len(s[1])//fuzzyness)
+         for i, s in enumerate(samples)] )
+
+def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3,
+    sort=False, use_word_indexer=False):
     """Yields lists of indices that make up batches.
 
     Make batches using the lists of indices that this function yields
@@ -36,13 +111,11 @@ def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3
     fuzzyness -- Sequence lengths within a batch will typically vary this much.
         More fuzzyness means batches will be more varied from one epoch to the next.
     sort -- sort the array of indices by sequence length
+    use_word_indexer -- Whether or not to have `sample_indices` defining number
+        of words in samples.
     """
-    sample_indices = np.array(
-        # second element in the tuple represents some order for the samples
-        # we weight the length of the input sentence greater than the
-        # target sentence (x = s[0] and t = s[1])
-        [(i, int((len(s[0])//fuzzyness)<<14) + len(s[1])//fuzzyness)
-         for i, s in enumerate(loader.samples)] )
+    sample_indices = ( weighted_sample_indices(loader.samples, fuzzyness)
+        if not use_word_indexer else num_word_sample_indices(loader) )
 
     if sort:
         sample_indices = sample_indices[
@@ -318,7 +391,8 @@ if __name__ == '__main__':
     BATCH_SIZE = 32
     KWARGS = { 'warmup_iterations': 20,
                'regular_function': bucket_schedule,
-               'shuffle':True }
+               'shuffle':True,
+               'use_word_indexer': True }
 
     text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
