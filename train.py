@@ -52,12 +52,6 @@ class Trainer:
         else:
             print("WARNING: 'save_freq' is 0 so checkpoints won't be saved!")
 
-        # Prepare for writing TensorBoard summaries
-        if self.tb_log_freq:
-            if not os.path.exists(self.summary_path) and self.tb_log_freq:
-                os.makedirs(self.summary_path)
-            self.summarywriter = tf.train.SummaryWriter(self.summary_path)
-
     def setup_validation_summaries(self):
         """A hack for recording performance metrics with TensorBoard."""
         self.bleu = tf.placeholder(tf.float32)
@@ -105,6 +99,12 @@ class Trainer:
         print("Training..")
         gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_opts)) as sess:
+            # Prepare for writing TensorBoard summaries
+            if self.tb_log_freq:
+                if not os.path.exists(self.summary_path) and self.tb_log_freq:
+                    os.makedirs(self.summary_path)
+                self.summarywriter = tf.train.SummaryWriter(self.summary_path, sess.graph)
+
             if self.latest_checkpoint:
                 self.checkpoint_saver.restore(sess, self.latest_checkpoint)
             else:

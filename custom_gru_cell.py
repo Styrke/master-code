@@ -99,20 +99,41 @@ class RNNCell(object):
     return zeros
 
 
+class Gate(object):
+  """Gate to handle to handle initialization"""  
+
+  def __init__(self, W_in=init_ops.random_normal_initializer(stddev=0.1),
+               W_hid=init_ops.random_normal_initializer(stddev=0.1),
+               W_cell=init_ops.random_normal_initializer(stddev=0.1),
+               b=init_ops.constant_initializer(0.),
+               activation=None):
+    self.W_in = W_in
+    self.W_hid = W_hid
+    # Don't store a cell weight vector when cell is None
+    if W_cell is not None:
+        self.W_cell = W_cell
+    if b is not None:
+      self.b = b
+    # For the activation, if None is supplied, use identity
+    if activation is None:
+        self.activation = control_flow_ops.identity
+    else:
+        self.activation = activation
+
 class GRUCell(rnn_cell.RNNCell):
   """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078)."""
 
   def __init__(self, num_units, input_size=None,
-               reset_W_in = init_ops.random_normal_initializer(),
-               reset_W_hid = init_ops.random_normal_initializer(),
+               reset_W_in = init_ops.random_normal_initializer(stddev=0.1),
+               reset_W_hid = init_ops.random_normal_initializer(stddev=0.1),
                reset_b = init_ops.constant_initializer(0.),
                reset_activation = sigmoid, 
-               update_W_in = init_ops.random_normal_initializer(),
-               update_W_hid = init_ops.random_normal_initializer(),
+               update_W_in = init_ops.random_normal_initializer(stddev=0.1),
+               update_W_hid = init_ops.random_normal_initializer(stddev=0.1),
                update_b = init_ops.constant_initializer(0.),
                update_activation = sigmoid,
-               candidate_W_in = init_ops.random_normal_initializer(),
-               candidate_W_hid = init_ops.random_normal_initializer(),
+               candidate_W_in = init_ops.random_normal_initializer(stddev=0.1),
+               candidate_W_hid = init_ops.random_normal_initializer(stddev=0.1),
                candidate_b = init_ops.constant_initializer(0.),
                candidate_activation = tanh):
     self._num_units = num_units
@@ -174,7 +195,6 @@ class GRUCell(rnn_cell.RNNCell):
         total_bias = array_ops.concat(0, biases)
         res_gates = math_ops.matmul(array_ops.concat(1, args), total_matrix)
         res_gates += total_bias
-        # We start with bias of 1.0 to not reset and not update.
         r, u = array_ops.split(1, 2, res_gates)
         r, u = self._reset_activation(r), self._update_activation(u)
       with vs.variable_scope("Candidate"):
