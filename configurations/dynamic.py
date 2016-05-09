@@ -88,6 +88,7 @@ class Model(model.Model):
                 def updatesome():
                     return tf.select(tf.less(time, self.X_len), new_state, old_state)
 
+                # TODO: only update state if seq_len < time
                 state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
 
                 return (time + 1, state, output_ta_t)
