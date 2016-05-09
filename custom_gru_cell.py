@@ -103,32 +103,32 @@ class GRUCell(rnn_cell.RNNCell):
   """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078)."""
 
   def __init__(self, num_units, input_size=None,
-               reset_W_in = init_ops.random_normal_initializer,
-               reset_W_hid = init_ops.random_normal_initializer,
+               reset_W_in = init_ops.random_normal_initializer(),
+               reset_W_hid = init_ops.random_normal_initializer(),
                reset_b = init_ops.constant_initializer(0.),
                reset_activation = sigmoid, 
-               update_W_in = init_ops.random_normal_initializer,
-               update_W_hid = init_ops.random_normal_initializer,
+               update_W_in = init_ops.random_normal_initializer(),
+               update_W_hid = init_ops.random_normal_initializer(),
                update_b = init_ops.constant_initializer(0.),
-               update_activation = sigmoid
-               candidate_W_in = init_ops.random_normal_initializer,
-               candidate_W_hid = init_ops.random_normal_initializer,
+               update_activation = sigmoid,
+               candidate_W_in = init_ops.random_normal_initializer(),
+               candidate_W_hid = init_ops.random_normal_initializer(),
                candidate_b = init_ops.constant_initializer(0.),
                candidate_activation = tanh):
-  self._num_units = num_units
-  self._input_size = num_units if input_size is None else input_size
-  self._reset_W_in = reset_W_in
-  self._reset_W_hid = reset_W_hid
-  self._reset_b = reset_b
-  self._reset_activation = reset_activation
-  self._update_W_in = update_W_in
-  self._update_W_hid = update_W_hid
-  self._update_b = update_b
-  self._update_activation = update_activation
-  self._candidate_W_in = candidate_W_in
-  self._candidate_W_hid = candidate_W_hid
-  self._candidate_b = candidate_b
-  self._candidate_activation = candidate_activation
+    self._num_units = num_units
+    self._input_size = num_units if input_size is None else input_size
+    self._reset_W_in = reset_W_in
+    self._reset_W_hid = reset_W_hid
+    self._reset_b = reset_b
+    self._reset_activation = reset_activation
+    self._update_W_in = update_W_in
+    self._update_W_hid = update_W_hid
+    self._update_b = update_b
+    self._update_activation = update_activation
+    self._candidate_W_in = candidate_W_in
+    self._candidate_W_hid = candidate_W_hid
+    self._candidate_b = candidate_b
+    self._candidate_activation = candidate_activation
 
   @property
   def input_size(self):
@@ -143,8 +143,8 @@ class GRUCell(rnn_cell.RNNCell):
     return self._num_units
 
   def _compute(self, args, gate):
-    W_in_init, W_hid_init, b_init = gate
-    with vs.variable_scope("Reset"):
+    name, W_in_init, W_hid_init, b_init = gate
+    with vs.variable_scope(name):
       W_in = vs.get_variable("W_in",
         [args[0].get_shape()[1], self._num_units],
         initializer=W_in_init)
@@ -164,10 +164,10 @@ class GRUCell(rnn_cell.RNNCell):
         matrices = []
         biases = []
         gates = [
-          ("Reset", self._reset_W_in, self._reset_W_hid, self._reset_b)
+          ("Reset", self._reset_W_in, self._reset_W_hid, self._reset_b),
           ("Update", self._update_W_in, self._update_W_hid, self._update_b)]
         for gate in gates:
-          matrix, b = self._compute(args, gate)
+          matrix, bias = self._compute(args, gate)
           matrices.append(matrix)
           biases.append(bias)
         total_matrix = array_ops.concat(1, matrices)
@@ -180,8 +180,8 @@ class GRUCell(rnn_cell.RNNCell):
       with vs.variable_scope("Candidate"):
         candidate = ("Candidate", self._candidate_W_in, self._candidate_W_hid,
             self._candidate_b)
-        matrix, b = compute([inputs, r * state], candidate)
-        c = math_ops.matmul(array_ops.concat(1, args), matrix) + b
+        matrix, bias = self._compute([inputs, r * state], candidate)
+        c = math_ops.matmul(array_ops.concat(1, args), matrix) + bias
         c = self._candidate_activation(c)
       new_h = u * state + (1 - u) * c
     return new_h, new_h
