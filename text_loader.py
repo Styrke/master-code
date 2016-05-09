@@ -267,6 +267,7 @@ class TextBatchGenerator(frost.BatchGenerator):
         if self.use_dynamic_array_sizes or not max_len:
             # make the array long enough for the longest sequence in sequences
             max_len = max([len(seq) for seq in sequences])
+            max_len += self.add_eos_character
 
         array = np.zeros([self.latest_batch_size, max_len])
 
