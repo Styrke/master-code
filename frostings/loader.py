@@ -14,7 +14,7 @@ def get_number_of_batches(batch_size, num_samples):
     batch size and number of available samples."""
     return range(math.ceil(num_samples/batch_size))
 
-def default_schedule(loader, batch_size, shuffle=False, repeat=False):
+def default_schedule(loader, batch_size, shuffle=False, repeat=False, **kwargs):
     """Yields lists of indices that make up batches.
 
     Make batches using the lists of indices that this function yields
@@ -31,7 +31,7 @@ def default_schedule(loader, batch_size, shuffle=False, repeat=False):
         for batch in batch_numbers:
             start, end = get_start_end_indices(batch, batch_size, num_samples)
             yield range(start, end)
-        
+
         if not repeat:
             break
 
