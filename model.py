@@ -75,9 +75,15 @@ class Model(object):
 
         print("Model instantiation");
         self.build()
-        self.build_loss()
-        self.build_prediction()
+        self.loss, self.accuracy = self.build_loss(self.out, self.out_tensor)
+        self.valid_loss, self.valid_accuracy = self.build_valid_loss()
+        self.ys = self.build_prediction(self.out_tensor)
+        self.valid_ys = self.build_valid_prediction()
         self.build_training()
+
+        # Create TensorBoard scalar summaries
+        tf.scalar_summary('train/loss', self.loss)
+        tf.scalar_summary('train/accuracy', self.accuracy)
 
         # setup batch generators
         self.setup_batch_generators()
@@ -165,16 +171,14 @@ class Model(object):
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
 
-    def build_loss(self):
+    def build_loss(self, out, out_tensor):
         """Build a loss function and accuracy for the model."""
         print('  Building loss and accuracy')
 
         with tf.variable_scope('accuracy'):
-            argmax = tf.to_int32(tf.argmax(self.out_tensor, 2))
+            argmax = tf.to_int32(tf.argmax(out_tensor, 2))
             correct = tf.to_float(tf.equal(argmax, self.ts)) * self.t_mask
-            self.accuracy = tf.reduce_sum(correct) / tf.reduce_sum(self.t_mask)
-
-            tf.scalar_summary('train/accuracy', self.accuracy)
+            accuracy = tf.reduce_sum(correct) / tf.reduce_sum(self.t_mask)
 
         with tf.variable_scope('loss'):
             with tf.variable_scope('split_t_and_mask'):
@@ -184,7 +188,7 @@ class Model(object):
                 t_mask = tf.split(value=self.t_mask, **split_kwargs)
                 t_mask = [tf.squeeze(weight) for weight in t_mask]
 
-            loss = seq2seq.sequence_loss(self.out, ts, t_mask,
+            loss = seq2seq.sequence_loss(out, ts, t_mask,
                                          self.max_t_seq_len)
 
             with tf.variable_scope('regularization'):
@@ -193,17 +197,21 @@ class Model(object):
                 reg_term = sum([regularize(param) for param in params])
 
             loss += reg_term
-            # Create TensorBoard scalar summary for loss
-            tf.scalar_summary('train/loss', loss)
 
-        self.loss = loss
+        return loss, accuracy
 
-    def build_prediction(self):
+    def build_valid_loss(self):
+        return self.loss, self.accuracy
+
+    def build_prediction(self, out_tensor):
         print('  Building prediction')
         with tf.variable_scope('prediction'):
             # logits is a list of tensors of shape [batch_size, alphabet_size].
             # We need shape of [batch_size, target_seq_len, alphabet_size].
-            self.ys = tf.argmax(self.out_tensor, dimension=2)
+            return tf.argmax(out_tensor, dimension=2)
+
+    def build_valid_prediction(self):
+        return build_prediction(self.out_tensor)
 
     def build_training(self):
         print('  Building training')

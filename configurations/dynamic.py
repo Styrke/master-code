@@ -159,34 +159,38 @@ class Model(model.Model):
             def decoder_cond(time, state, output_ta_t):
                 return tf.less(time, max_sequence_length)
 
-            def decoder_body(time, old_state, output_ta_t):
-                x_t = input_ta.read(time)
-                def feedback_on():
-                    prev_1 = tf.matmul(old_state, W_out) + b_out
-                    return tf.gather(self.embeddings, tf.argmax(prev_1, 1))
-                def feedback_off():
-                    return x_t
-                with tf.control_dependencies([x_t]):
-                    do_feedback = tf.logical_and(self.feedback, tf.not_equal(time, 0))
-                x_t = tf.cond(do_feedback, feedback_on, feedback_off)
+            def decoder_body_builder(feedback=False):
+                def decoder_body(time, old_state, output_ta_t):
+                    if feedback:
+                        prev_1 = tf.matmul(state, W_out) + b_out
+                        x_t = tf.gather(self.embeddings, tf.argmax(prev_1, 1))
+                    else:
+                        x_t = input_ta.read(time)
 
-                con = tf.concat(1, [x_t, old_state])
-                z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
-                r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
-                con = tf.concat(1, [x_t, r*old_state])
-                h = tf.tanh(tf.matmul(con, W_h) + b_h)
-                new_state = (1-z)*h + z*old_state
+                    con = tf.concat(1, [x_t, old_state])
+                    z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
+                    r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+                    con = tf.concat(1, [x_t, r*old_state])
+                    h = tf.tanh(tf.matmul(con, W_h) + b_h)
+                    new_state = (1-z)*h + z*old_state
 
-                output_ta_t = output_ta_t.write(time, new_state)
+                    output_ta_t = output_ta_t.write(time, new_state)
 
-                return (time + 1, new_state, output_ta_t)
+                    return (time + 1, new_state, output_ta_t)
+                return decoder_body
 
             loop_vars = [time, state, output_ta]
 
-            time, state, output_ta = tf.while_loop(decoder_cond, decoder_body, loop_vars)
+            _, state, output_ta = tf.while_loop(decoder_cond,
+                                                decoder_body_builder(),
+                                                loop_vars)
+            _, valid_state, valid_output_ta = tf.while_loop(decoder_cond,
+                                                            decoder_body_builder(feedback=True),
+                                                            loop_vars)
 
             dec_state = state
             dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
+            valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
 
         out_tensor = tf.reshape(dec_out, [-1, self.rnn_units])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
@@ -196,25 +200,32 @@ class Model(model.Model):
         self.out_tensor = tf.reshape(out_tensor, out_shape)
         self.out_tensor.set_shape([None, None, self.alphabet_size])
 
+        valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.rnn_units])
+        valid_out_tensor = tf.matmul(valid_out_tensor, W_out) + b_out
+        # valid_out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
+        #                                 tf.expand_dims(max_sequence_length, 0),
+        #                                 tf.expand_dims(tf.constant(self.alphabet_size), 0)])
+        self.valid_out_tensor = tf.reshape(valid_out_tensor, out_shape)
+
+        self.out = None
+
         # trans = tf.transpose(self.out_tensor, perm=[1, 0, 2])
         # self.out = tf.unpack(trans)
 
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
 
-    def build_loss(self):
+    def build_loss(self, out, out_tensor):
         """Build a loss function and accuracy for the model."""
         print('  Building loss and accuracy')
 
         with tf.variable_scope('accuracy'):
-            argmax = tf.to_int32(tf.argmax(self.out_tensor, 2))
+            argmax = tf.to_int32(tf.argmax(out_tensor, 2))
             correct = tf.to_float(tf.equal(argmax, self.ts)) * self.t_mask
-            self.accuracy = tf.reduce_sum(correct) / tf.reduce_sum(self.t_mask)
-
-            tf.scalar_summary('train/accuracy', self.accuracy)
+            accuracy = tf.reduce_sum(correct) / tf.reduce_sum(self.t_mask)
 
         with tf.variable_scope('loss'):
-            loss = sequence_loss_tensor(self.out_tensor, self.ts, self.t_mask,
+            loss = sequence_loss_tensor(out_tensor, self.ts, self.t_mask,
                     self.alphabet_size)
 
             with tf.variable_scope('regularization'):
@@ -223,10 +234,14 @@ class Model(model.Model):
                 reg_term = sum([regularize(param) for param in params])
 
             loss += reg_term
-            # Create TensorBoard scalar summary for loss
-            tf.scalar_summary('train/loss', loss)
 
-        self.loss = loss
+        return loss, accuracy
+
+    def build_valid_loss(self):
+        return self.build_loss(self.out, self.valid_out_tensor)
+
+    def build_valid_prediction(self):
+        return self.build_prediction(self.valid_out_tensor)
 
     def setup_batch_generators(self):
         """Load the datasets"""

@@ -58,8 +58,8 @@ class Trainer:
         self.edit_dist = tf.placeholder(tf.float32)
 
         valid_summaries = [
-            tf.scalar_summary('validation/loss', self.model.loss),
-            tf.scalar_summary('validation/accuracy', self.model.accuracy),
+            tf.scalar_summary('validation/loss', self.model.valid_loss),
+            tf.scalar_summary('validation/accuracy', self.model.valid_accuracy),
             tf.scalar_summary('validation/bleu', self.bleu),
             tf.scalar_summary('validation/edit dist per char', self.edit_dist)
         ]
@@ -187,9 +187,9 @@ class Trainer:
         total_num_samples = 0
         losses, accuracies, valid_ys, valid_ts = [], [], [], []
         for v_feed_dict in self.model.next_valid_feed():
-            fetches = {'accuracy': self.model.accuracy,
-                       'ys': self.model.ys,
-                       'loss': self.model.loss}
+            fetches = {'accuracy': self.model.valid_accuracy,
+                       'ys': self.model.valid_ys,
+                       'loss': self.model.valid_loss}
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
@@ -223,8 +223,8 @@ class Trainer:
         # Write TensorBoard summaries
         if self.summarywriter:
             feed_dict = {
-                self.model.loss: valid_loss,
-                self.model.accuracy: valid_acc,
+                self.model.valid_loss: valid_loss,
+                self.model.valid_accuracy: valid_acc,
                 self.bleu: corpus_bleu,
                 self.edit_dist: edit_dist }
             fetches = [self.val_summaries, self.model.global_step]
