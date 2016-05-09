@@ -89,6 +89,7 @@ class Model(object):
         self.ts       = tf.placeholder(tf.int32, shape=shape, name='t_input')
         self.ts_go    = tf.placeholder(tf.int32, shape=shape, name='t_input_go')
         self.X_len    = tf.placeholder(tf.int32, shape=[None], name='X_len')
+        self.t_len    = tf.placeholder(tf.int32, shape=[None], name='t_len')
         self.feedback = tf.placeholder(tf.bool, name='feedback_indicator')
         self.t_mask   = tf.placeholder(tf.float32, shape=shape, name='t_mask')
 
@@ -202,8 +203,7 @@ class Model(object):
         with tf.variable_scope('prediction'):
             # logits is a list of tensors of shape [batch_size, alphabet_size].
             # We need shape of [batch_size, target_seq_len, alphabet_size].
-            packed_logits = tf.transpose(tf.pack(self.out), perm=[1, 0, 2])
-            self.ys = tf.argmax(packed_logits, dimension=2)
+            self.ys = tf.argmax(self.out_tensor, dimension=2)
 
     def build_training(self):
         print('  Building training')
@@ -256,14 +256,15 @@ class Model(object):
             loader=valid_loader,
             batch_size=self.batch_size)
 
-    def valid_dict(self, batch, feedback=None):
+    def valid_dict(self, batch, feedback=True):
         """ Return feed_dict for validation """
         return { self.Xs:     batch['x_encoded'],
                  self.ts:     batch['t_encoded'],
                  self.ts_go:  batch['t_encoded_go'],
                  self.X_len:  batch['x_len'],
+                 self.t_len:  batch['t_len'],
                  self.t_mask: batch['t_mask'],
-                 self.feedback: feedback or True,
+                 self.feedback: feedback,
                  self.X_spaces: batch['x_spaces'],
                  self.X_spaces_len: batch['x_spaces_len'] }
 
