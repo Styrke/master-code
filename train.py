@@ -100,7 +100,7 @@ class Trainer:
         gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_opts)) as sess:
             # Prepare for writing TensorBoard summaries
-            if self.tb_log_freq:
+            if self.tb_log_freq and self.name:
                 if not os.path.exists(self.summary_path) and self.tb_log_freq:
                     os.makedirs(self.summary_path)
                 self.summarywriter = tf.train.SummaryWriter(self.summary_path, sess.graph)
