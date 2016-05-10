@@ -30,6 +30,7 @@ class Model(model.Model):
         self.X_len    = tf.placeholder(tf.int32, shape=[None], name='X_len')
         self.t_len    = tf.placeholder(tf.int32, shape=[None], name='t_len')
         self.feedback = tf.placeholder(tf.bool, name='feedback_indicator')
+        self.x_mask   = tf.placeholder(tf.float32, shape=shape, name='x_mask')
         self.t_mask   = tf.placeholder(tf.float32, shape=shape, name='t_mask')
 
         shape = [None, None]
@@ -117,19 +118,20 @@ class Model(model.Model):
             time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars)
 
             enc_state = state
+            enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
 
         tf.histogram_summary('final_encoder_state', enc_state)
 
         with tf.variable_scope('decoder'):
             weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
             W_z = tf.get_variable('W_z',
-                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
+                                  shape=[self.embedd_dims+self.rnn_units*2, self.rnn_units],
                                   initializer=weight_initializer)
             W_r = tf.get_variable('W_r',
-                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
+                                  shape=[self.embedd_dims+self.rnn_units*2, self.rnn_units],
                                   initializer=weight_initializer)
             W_h = tf.get_variable('W_h',
-                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
+                                  shape=[self.embedd_dims+self.rnn_units*2, self.rnn_units],
                                   initializer=weight_initializer)
             b_z = tf.get_variable('b_z',
                                   shape=[self.rnn_units],
@@ -140,6 +142,27 @@ class Model(model.Model):
             b_h = tf.get_variable('b_h',
                                   shape=[self.rnn_units],
                                   initializer=tf.constant_initializer())
+
+            # for attention
+            attention_units = 100
+            W_a = tf.get_variable('W_a',
+                                  shape=[self.rnn_units, attention_units],
+                                  initializer=weight_initializer)
+            U_a = tf.get_variable('U_a',
+                                  shape=[self.rnn_units, attention_units],
+                                  initializer=weight_initializer)
+            b_a = tf.get_variable('b_a',
+                                  shape=[attention_units],
+                                  initializer=tf.constant_initializer())
+            v_a = tf.get_variable('v_a',
+                                  shape=[attention_units, 1],
+                                  initializer=weight_initializer)
+
+            # we can compute part of the logits for the attention
+            flat_enc_out = tf.reshape(enc_out, [-1, self.rnn_units])
+            part1 = tf.matmul(flat_enc_out, U_a) + b_a
+            sequence_length = tf.shape(X_embedded)[1]
+            tile_multiples = tf.pack([sequence_length, 1])
 
             max_sequence_length = tf.reduce_max(self.t_len)
 
@@ -162,15 +185,23 @@ class Model(model.Model):
             def decoder_body_builder(feedback=False):
                 def decoder_body(time, old_state, output_ta_t):
                     if feedback:
-                        prev_1 = tf.matmul(state, W_out) + b_out
+                        prev_1 = tf.matmul(old_state, W_out) + b_out
                         x_t = tf.gather(self.embeddings, tf.argmax(prev_1, 1))
                     else:
                         x_t = input_ta.read(time)
 
-                    con = tf.concat(1, [x_t, old_state])
+                    # attention
+                    part2 = tf.tile(tf.matmul(old_state, W_a), tile_multiples)
+                    e = tf.matmul(tf.tanh(part2 + part1), v_a)
+                    e = self.x_mask*tf.reshape(e, shape=tf.pack([-1, sequence_length]))
+                    alpha = tf.expand_dims(tf.nn.softmax(e), 2)
+                    c = tf.reduce_sum(alpha*enc_out, 1)
+
+                    # GRU
+                    con = tf.concat(1, [x_t, old_state, c])
                     z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
                     r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
-                    con = tf.concat(1, [x_t, r*old_state])
+                    con = tf.concat(1, [x_t, r*old_state, c])
                     h = tf.tanh(tf.matmul(con, W_h) + b_h)
                     new_state = (1-z)*h + z*old_state
 
@@ -267,3 +298,16 @@ class Model(model.Model):
             loader=valid_loader,
             batch_size=self.batch_size,
             use_dynamic_array_sizes=True)
+
+    def valid_dict(self, batch, feedback=True):
+        """ Return feed_dict for validation """
+        return { self.Xs:     batch['x_encoded'],
+                 self.ts:     batch['t_encoded'],
+                 self.ts_go:  batch['t_encoded_go'],
+                 self.X_len:  batch['x_len'],
+                 self.t_len:  batch['t_len'],
+                 self.x_mask: batch['x_mask'],
+                 self.t_mask: batch['t_mask'],
+                 self.feedback: feedback,
+                 self.X_spaces: batch['x_spaces'],
+                 self.X_spaces_len: batch['x_spaces_len'] }

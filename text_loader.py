@@ -217,6 +217,7 @@ class TextBatchGenerator(frost.BatchGenerator):
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
 
         batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len//4)
+        batch['x_mask'] = self._make_array(x, self._mask, self.seq_len)
         batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
 
         batch['x_len'] = self._make_len_vec(x, self.add_eos_character)
