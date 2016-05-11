@@ -54,11 +54,9 @@ def tokenize_data(samples, num_samples):
     worded = list()
     for i, s in enumerate(samples):
         num_words = len(nltk.word_tokenize(s[0]))
-        print(s[0],num_words)
         worded.append((i, num_words))
         if i % 10000 == 9999:
-            pass
-            #print("\r  {:.3f}% samples tokenized".format(i/num_samples*100), end="")
+            print("\r  {:.3f}% samples tokenized".format(i/num_samples*100), end="")
 
     return np.array(worded)
 
@@ -398,14 +396,45 @@ class WordedTextBatchGenerator(TextBatchGenerator):
 
     def __init__(self, loader, batch_size, add_feature_dim=False,
             use_dynamic_array_sizes=False, alphabet=None, **schedule_kwargs):
+        # this generator only works with indexing on words
+        schedule_kwargs['use_word_indexer'] = True
         super(WordedTextBatchGenerator, self).__init__(loader, batch_size,
                 add_feature_dim=add_feature_dim,
                 use_dynamic_array_sizes=use_dynamic_array_sizes,
                 alphabet=alphabet, **schedule_kwargs )
 
-    def _make_worded_array(self, x, encoder):
-        """ """
-        pass
+    def _make_worded_array(self, listed_sentence, encoder, max_words, max_word_len):
+        """ Create arrays of arrays of words.
+        Size of each sample's array will be equal to no. words for biggest
+        sample. If size of sample is smaller, then we pad with zeros.
+        Size of array containing word will be equal to longest word.
+        """
+        # [complete batch length, max word length]
+        complete_batch_len = self.latest_batch_size * max_words
+        array = np.zeros([complete_batch_len, max_word_len])
+
+        # copy data into the array:
+        for sample_idx, words in enumerate(listed_sentence):
+            stride = sample_idx * max_words
+            for word_idx, word in enumerate(words):
+                processed_word = encoder(word)
+                length = min(max_word_len, len(processed_word))
+                array[stride+word_idx, :length] = processed_word[:length]
+
+        return array
+
+    def _make_worded_len(self, listed_sentence, max_word_len):
+        """ Returns numpy array defining length of each word in each sample.
+        If sample has fewer words than longest sample, then the index will be
+        zero.
+        """
+        result = np.array([])
+        for words in listed_sentence:
+            word_lens = np.zeros([max_word_len])
+            for i, word in enumerate(words):
+                word_lens[i] = len(word)
+            result = np.concatenate((result, word_lens))
+        return result
 
     def _make_batch(self):
         """Process the list of samples into a nicely formatted batch.
@@ -417,14 +446,19 @@ class WordedTextBatchGenerator(TextBatchGenerator):
         x, t = zip(*self.samples)  # unzip samples
         batch = dict()
 
-        batch['x_encoded'] = self._make_worded_array(x, encode)
+        words_per_x = [nltk.word_tokenize(s) for s in x]
+        max_num_words = len(max(words_per_x, key=len))
+        max_word_len = len(max([max(word, key=len) for word in words_per_x],
+            key=len))
+        # following two elements are different
+        batch['x_encoded'] = self._make_worded_array(words_per_x, encode,
+                max_num_words, max_word_len)
+        batch['x_len'] = self._make_worded_len(words_per_x, max_num_words)
+
         batch['t_encoded'] = self._make_array(t, encode, self.seq_len)
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
-
         batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len//4)
         batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
-
-        batch['x_len'] = _make_len_vec(x, self.add_eos_character)
         batch['t_len'] = _make_len_vec(t, self.add_eos_character)
 
         # NOTE: The way we make batch['x_spaces_len'] here is not elegant,
@@ -446,17 +480,21 @@ if __name__ == '__main__':
     KWARGS = { 'warmup_iterations': 20,
                'regular_function': bucket_schedule,
                'shuffle': True,
+               'sort': True,
                'use_word_indexer': True }
 
     text_loader = TextLoader(
         ['data/train/europarl-v7.fr-en.en'],
         ['data/train/europarl-v7.fr-en.fr'], SEQ_LEN)
 
-    text_batch_gen = TextBatchGenerator(text_loader, BATCH_SIZE, **KWARGS)
+    #text_batch_gen = TextBatchGenerator(text_loader, BATCH_SIZE, **KWARGS)
+    worded_batch_gen = WordedTextBatchGenerator(text_loader, BATCH_SIZE, **KWARGS)
+
+    alphabet = worded_batch_gen.alphabet
 
     print("running warmup for 20 iterations, and 180 iterations with bucket")
     line = ""
-    for i, batch in enumerate(text_batch_gen.gen_batch(warmup_schedule)):
+    for i, batch in enumerate(worded_batch_gen.gen_batch(warmup_schedule)):
         line += str(batch['x_len'][0])
         line += "\n" if i % 10 == 9 else "\t"
         if i % 20 == 19:
@@ -464,6 +502,11 @@ if __name__ == '__main__':
             line = ""
         if i == 200:
             break
+
+    for j in range(batch['x_len'].shape[0]):
+        word = alphabet.decode(batch['x_encoded'][j])
+        word_len  = batch['x_len'][j]
+        print('{0}\t({1})'.format(word, word_len))
 
     print(type(batch))
     print(len(batch.items()))
