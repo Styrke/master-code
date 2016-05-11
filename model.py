@@ -211,7 +211,7 @@ class Model(object):
             return tf.argmax(out_tensor, dimension=2)
 
     def build_valid_prediction(self):
-        return build_prediction(self.out_tensor)
+        return self.ys
 
     def build_training(self):
         print('  Building training')
