@@ -54,13 +54,14 @@ class Model(object):
 
     # kwargs for scheduling function
     schedule_kwargs = {
-            'warmup_iterations': 100,  # if warmup_schedule is used
+            'warmup_iterations': 10,  # if warmup_schedule is used
             'warmup_function':  None,  # if warmup_schedule is used
             'regular_function': None,  # if warmup_schedule is used
             'shuffle': True,
             'repeat':  True,
             'sort':    False,
-            'fuzzyness': 3
+            'fuzzyness': 3,
+            'use_word_indexer': True  # if bucket_schedule is used with word tokenization
             }
 
     def __init__(self):
