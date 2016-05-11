@@ -54,9 +54,11 @@ def tokenize_data(samples, num_samples):
     worded = list()
     for i, s in enumerate(samples):
         num_words = len(nltk.word_tokenize(s[0]))
+        print(s[0],num_words)
         worded.append((i, num_words))
         if i % 10000 == 9999:
-            print("\r  {:.3f}% samples tokenized".format(i/num_samples*100), end="")
+            pass
+            #print("\r  {:.3f}% samples tokenized".format(i/num_samples*100), end="")
 
     return np.array(worded)
 
@@ -386,12 +388,64 @@ class TextBatchGenerator(frost.BatchGenerator):
         return np.concatenate([sos_col, array[:, :-1]], 1)
 
 
+class WordedTextBatchGenerator(TextBatchGenerator):
+    """ Genereates processed text batches, where each element is a single word.
+    Should probably only be used with dynamic RNN, because each batch element
+    is not guaranteed to have same length.
+
+    Extends TextBatchGenerator
+    """
+
+    def __init__(self, loader, batch_size, add_feature_dim=False,
+            use_dynamic_array_sizes=False, alphabet=None, **schedule_kwargs):
+        super(WordedTextBatchGenerator, self).__init__(loader, batch_size,
+                add_feature_dim=add_feature_dim,
+                use_dynamic_array_sizes=use_dynamic_array_sizes,
+                alphabet=alphabet, **schedule_kwargs )
+
+    def _make_worded_array(self, x, encoder):
+        """ """
+        pass
+
+    def _make_batch(self):
+        """Process the list of samples into a nicely formatted batch.
+
+        Process the list of samples stored in self.samples. Return the
+        result as a dict with nicely formatted numpy arrays.
+        """
+        encode = self.alphabet.encode
+        x, t = zip(*self.samples)  # unzip samples
+        batch = dict()
+
+        batch['x_encoded'] = self._make_worded_array(x, encode)
+        batch['t_encoded'] = self._make_array(t, encode, self.seq_len)
+        batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
+
+        batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len//4)
+        batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
+
+        batch['x_len'] = _make_len_vec(x, self.add_eos_character)
+        batch['t_len'] = _make_len_vec(t, self.add_eos_character)
+
+        # NOTE: The way we make batch['x_spaces_len'] here is not elegant,
+        # because we compute self._spaces for the second time on the same batch
+        # of samples. Think of a way to fix this!
+        spaces_x = map(self._spaces, x)
+        batch['x_spaces_len'] = _make_len_vec(spaces_x, 0, (self.seq_len//4))
+
+        # Maybe add feature dimension as last part of each array shape:
+        if self.add_feature_dim:
+            for key, array in batch.iteritems():
+                batch[key] = np.expand_dims(array, axis=-1)
+        return batch
+
+
 if __name__ == '__main__':
     SEQ_LEN = 300
     BATCH_SIZE = 32
     KWARGS = { 'warmup_iterations': 20,
                'regular_function': bucket_schedule,
-               'shuffle':True,
+               'shuffle': True,
                'use_word_indexer': True }
 
     text_loader = TextLoader(
