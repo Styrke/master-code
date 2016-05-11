@@ -403,19 +403,19 @@ class WordedTextBatchGenerator(TextBatchGenerator):
                 use_dynamic_array_sizes=use_dynamic_array_sizes,
                 alphabet=alphabet, **schedule_kwargs )
 
-    def _make_worded_array(self, listed_sentence, encoder, max_words, max_word_len):
+    def _make_worded_array(self, listed_sentence, encoder, max_word_len):
         """ Create arrays of arrays of words.
         Size of each sample's array will be equal to no. words for biggest
         sample. If size of sample is smaller, then we pad with zeros.
         Size of array containing word will be equal to longest word.
         """
         # [complete batch length, max word length]
-        complete_batch_len = self.latest_batch_size * max_words
-        array = np.zeros([complete_batch_len, max_word_len])
+        complete_batch_len = self.latest_batch_size * self.current_max_sample_size
+        array = np.zeros([complete_batch_len, max_word_len], dtype='int32')
 
         # copy data into the array:
         for sample_idx, words in enumerate(listed_sentence):
-            stride = sample_idx * max_words
+            stride = sample_idx * self.current_max_sample_size
             for word_idx, word in enumerate(words):
                 processed_word = encoder(word)
                 length = min(max_word_len, len(processed_word))
@@ -423,14 +423,14 @@ class WordedTextBatchGenerator(TextBatchGenerator):
 
         return array
 
-    def _make_worded_len(self, listed_sentence, max_word_len):
+    def _make_worded_len(self, listed_sentence):
         """ Returns numpy array defining length of each word in each sample.
         If sample has fewer words than longest sample, then the index will be
         zero.
         """
-        result = np.array([])
+        result = np.array([], dtype='int32')
         for words in listed_sentence:
-            word_lens = np.zeros([max_word_len])
+            word_lens = np.zeros([self.current_max_sample_size], dtype='int32')
             for i, word in enumerate(words):
                 word_lens[i] = len(word)
             result = np.concatenate((result, word_lens))
@@ -441,19 +441,22 @@ class WordedTextBatchGenerator(TextBatchGenerator):
 
         Process the list of samples stored in self.samples. Return the
         result as a dict with nicely formatted numpy arrays.
+
+        NOTE `current_max_sample_size` defines size of longest sample in current
+        batch. Use it with `batch['x_len']` to figure out if sample has ended.
         """
         encode = self.alphabet.encode
         x, t = zip(*self.samples)  # unzip samples
         batch = dict()
 
         words_per_x = [nltk.word_tokenize(s) for s in x]
-        max_num_words = len(max(words_per_x, key=len))
+        # define the longest sample in current batch
+        self.current_max_sample_size = len(max(words_per_x, key=len))
         max_word_len = len(max([max(word, key=len) for word in words_per_x],
             key=len))
         # following two elements are different
-        batch['x_encoded'] = self._make_worded_array(words_per_x, encode,
-                max_num_words, max_word_len)
-        batch['x_len'] = self._make_worded_len(words_per_x, max_num_words)
+        batch['x_encoded'] = self._make_worded_array(words_per_x, encode, max_word_len)
+        batch['x_len'] = self._make_worded_len(words_per_x)
 
         batch['t_encoded'] = self._make_array(t, encode, self.seq_len)
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
@@ -506,7 +509,7 @@ if __name__ == '__main__':
     for j in range(batch['x_len'].shape[0]):
         word = alphabet.decode(batch['x_encoded'][j])
         word_len  = batch['x_len'][j]
-        print('{0}\t({1})'.format(word, word_len))
+        print('{0} ({1})'.format(word, word_len))
 
     print(type(batch))
     print(len(batch.items()))
