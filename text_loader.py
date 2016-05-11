@@ -54,11 +54,9 @@ def tokenize_data(samples, num_samples):
     worded = list()
     for i, s in enumerate(samples):
         num_words = len(nltk.word_tokenize(s[0]))
-        print(s[0],num_words)
         worded.append((i, num_words))
         if i % 10000 == 9999:
-            pass
-            #print("\r  {:.3f}% samples tokenized".format(i/num_samples*100), end="")
+            print("\r  {:.3f}% samples tokenized".format(i/num_samples*100), end="")
 
     return np.array(worded)
 
