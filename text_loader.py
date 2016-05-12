@@ -22,20 +22,6 @@ def _truncate_samples(samples, limit):
     """Truncate long sentences."""
     return [(x[:limit], t[:limit]) for x, t in samples]
 
-def _make_len_vec(sequences, offset=0, max_len=100000):
-    """Get length of each sequence in list of sequences.
-
-    Return as numpy vector.
-
-    Keyword arguments:
-    sequences -- list of sequences.
-    offset -- (optional) value to be added to each length.
-        Useful for including EOS characters.
-    max_len -- (optional) (default:100,000) returned sequence length will
-        not exceed this value.
-    """
-    return np.array([min(len(seq)+offset, max_len) for seq in sequences])
-
 def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3, sort=False):
     """Yields lists of indices that make up batches.
 
@@ -233,14 +219,14 @@ class TextBatchGenerator(frost.BatchGenerator):
         batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len//4)
         batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
 
-        batch['x_len'] = _make_len_vec(x, self.add_eos_character)
-        batch['t_len'] = _make_len_vec(t, self.add_eos_character)
+        batch['x_len'] = self._make_len_vec(x, self.add_eos_character)
+        batch['t_len'] = self._make_len_vec(t, self.add_eos_character)
 
         # NOTE: The way we make batch['x_spaces_len'] here is not elegant,
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
         spaces_x = map(self._spaces, x)
-        batch['x_spaces_len'] = _make_len_vec(spaces_x, 0, (self.seq_len//4))
+        batch['x_spaces_len'] = self._make_len_vec(spaces_x, 0, (self.seq_len//4))
 
         # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:
@@ -264,20 +250,37 @@ class TextBatchGenerator(frost.BatchGenerator):
         max_len   -- (optional) size of returned array along 1st axis
             if self.use_dynamic_array_sizes is false.
         """
+
+        sequences = list(map(function, sequences))
+
         if self.use_dynamic_array_sizes or not max_len:
             # make the array long enough for the longest sequence in sequences
             max_len = max([len(seq) for seq in sequences])
-            max_len += self.add_eos_character
 
         array = np.zeros([self.latest_batch_size, max_len])
 
         # copy data into the array:
         for sample_idx, seq in enumerate(sequences):
-            processed_seq = function(seq)
-            length = min(max_len, len(processed_seq))
-            array[sample_idx, :length] = processed_seq[:max_len]
+            length = min(max_len, len(seq))
+            array[sample_idx, :length] = seq[:max_len]
 
         return array
+
+    def _make_len_vec(self, sequences, offset=0, max_len=100000):
+        """Get length of each sequence in list of sequences.
+
+        Return as numpy vector.
+
+        Keyword arguments:
+        sequences -- list of sequences.
+        offset -- (optional) value to be added to each length.
+            Useful for including EOS characters.
+        max_len -- (optional) (default:100,000) returned sequence length will
+            not exceed this value.
+        """
+        if self.use_dynamic_array_sizes:
+            max_len = 100000
+        return np.array([min(len(seq)+offset, max_len) for seq in sequences])
 
     def _spaces(self, sentence):
         """Locate the spaces and the end of the sentence.
