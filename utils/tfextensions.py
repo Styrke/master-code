@@ -34,7 +34,7 @@ def sequence_loss_tensor(logits, targets, weights, num_classes,
                          average_across_timesteps=True,
                          softmax_loss_function=None, name=None):
     """Weighted cross-entropy loss for a sequence of logits (per example).
-    
+
     """
 #    if (logits.get_shape()[0:2]) != targets.get_shape() \
 #        or (logits.get_shape()[0:2]) != weights.get_shape():
@@ -57,3 +57,17 @@ def sequence_loss_tensor(logits, targets, weights, num_classes,
         total_size += 1e-12 # to avoid division by zero
         crossent /= total_size
         return crossent
+
+def mask(sequence_lengths):
+    # based on this SO answer: http://stackoverflow.com/a/34138336/118173
+    batch_size = tf.shape(sequence_lengths)[0]
+    max_len = tf.reduce_max(sequence_lengths)
+
+    lengths_transposed = tf.expand_dims(sequence_lengths, 1)
+    lengths_tiled = tf.tile(lengths_transposed, tf.pack([1, max_len]))
+
+    rng = tf.range(max_len)
+    rng_row = tf.expand_dims(rng, 0)
+    rng_tiled = tf.tile(rng_row, tf.pack([batch_size, 1]))
+
+    return tf.less(rng_tiled, max_len)
