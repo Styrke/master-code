@@ -5,6 +5,8 @@ from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
 from tensorflow.python.ops import tensor_array_ops
 from utils.tfextensions import sequence_loss_tensor
+from utils.tfextensions import _grid_gather
+from utils.tfextensions import mask
 sys.path.insert(0, '..')
 import model
 import text_loader as tl
@@ -50,77 +52,84 @@ class Model(model.Model):
             W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        with tf.variable_scope('encoder'):
-            weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
-            W_z = tf.get_variable('W_z',
-                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
-                                  initializer=weight_initializer)
-            W_r = tf.get_variable('W_r',
-                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
-                                  initializer=weight_initializer)
-            W_h = tf.get_variable('W_h',
-                                  shape=[self.embedd_dims+self.rnn_units, self.rnn_units],
-                                  initializer=weight_initializer)
-            b_z = tf.get_variable('b_z',
-                                  shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer())
-            b_r = tf.get_variable('b_r',
-                                  shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer())
-            b_h = tf.get_variable('b_h',
-                                  shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer())
+        def encoder(inputs, lengths, name):
+            with tf.variable_scope(name):
+                weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
+                input_units = inputs.get_shape()[2]
+                W_z = tf.get_variable('W_z',
+                                      shape=[input_units+self.rnn_units, self.rnn_units],
+                                      initializer=weight_initializer)
+                W_r = tf.get_variable('W_r',
+                                      shape=[input_units+self.rnn_units, self.rnn_units],
+                                      initializer=weight_initializer)
+                W_h = tf.get_variable('W_h',
+                                      shape=[input_units+self.rnn_units, self.rnn_units],
+                                      initializer=weight_initializer)
+                b_z = tf.get_variable('b_z',
+                                      shape=[self.rnn_units],
+                                      initializer=tf.constant_initializer())
+                b_r = tf.get_variable('b_r',
+                                      shape=[self.rnn_units],
+                                      initializer=tf.constant_initializer())
+                b_h = tf.get_variable('b_h',
+                                      shape=[self.rnn_units],
+                                      initializer=tf.constant_initializer())
 
-            max_sequence_length = tf.reduce_max(self.X_len)
-            min_sequence_length = tf.reduce_min(self.X_len)
+                max_sequence_length = tf.reduce_max(lengths)
+                min_sequence_length = tf.reduce_min(lengths)
 
-            time = tf.constant(0)
+                time = tf.constant(0)
 
-            state_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
-                                        tf.expand_dims(tf.constant(self.rnn_units), 0)])
-            # state_shape = tf.Print(state_shape, [state_shape])
-            state = tf.zeros(state_shape, dtype=tf.float32)
+                state_shape = tf.concat(0, [tf.expand_dims(tf.shape(lengths)[0], 0),
+                                            tf.expand_dims(tf.constant(self.rnn_units), 0)])
+                # state_shape = tf.Print(state_shape, [state_shape])
+                state = tf.zeros(state_shape, dtype=tf.float32)
 
-            inputs = tf.transpose(X_embedded, perm=[1, 0, 2])
-            input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-            input_ta = input_ta.unpack(inputs)
+                inputs = tf.transpose(inputs, perm=[1, 0, 2])
+                input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+                input_ta = input_ta.unpack(inputs)
 
-            output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+                output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
 
-            def encoder_cond(time, state, output_ta_t):
-                return tf.less(time, max_sequence_length)
+                def encoder_cond(time, state, output_ta_t):
+                    return tf.less(time, max_sequence_length)
 
-            def encoder_body(time, old_state, output_ta_t):
-                x_t = input_ta.read(time)
+                def encoder_body(time, old_state, output_ta_t):
+                    x_t = input_ta.read(time)
 
-                con = tf.concat(1, [x_t, old_state])
-                z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
-                r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
-                con = tf.concat(1, [x_t, r*old_state])
-                h = tf.tanh(tf.matmul(con, W_h) + b_h)
-                new_state = (1-z)*h + z*old_state
+                    con = tf.concat(1, [x_t, old_state])
+                    z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
+                    r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+                    con = tf.concat(1, [x_t, r*old_state])
+                    h = tf.tanh(tf.matmul(con, W_h) + b_h)
+                    new_state = (1-z)*h + z*old_state
 
-                output_ta_t = output_ta_t.write(time, new_state)
+                    output_ta_t = output_ta_t.write(time, new_state)
 
-                def updateall():
-                    return new_state
+                    def updateall():
+                        return new_state
 
-                def updatesome():
-                    return tf.select(tf.less(time, self.X_len), new_state, old_state)
+                    def updatesome():
+                        return tf.select(tf.less(time, lengths), new_state, old_state)
 
-                # TODO: only update state if seq_len < time
-                state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
+                    # TODO: only update state if seq_len < time
+                    state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
 
-                return (time + 1, state, output_ta_t)
+                    return (time + 1, state, output_ta_t)
 
-            loop_vars = [time, state, output_ta]
+                loop_vars = [time, state, output_ta]
 
-            time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars)
+                time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars)
 
-            enc_state = state
-            enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
+                enc_state = state
+                enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
 
-        tf.histogram_summary('final_encoder_state', enc_state)
+                return enc_state, enc_out
+
+        char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder')
+        char2word = _grid_gather(char_enc_out, self.X_spaces)
+        char2word.set_shape([None, None, self.rnn_units])
+        word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder')
 
         with tf.variable_scope('decoder'):
             weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
@@ -159,9 +168,9 @@ class Model(model.Model):
                                   initializer=weight_initializer)
 
             # we can compute part of the logits for the attention
-            flat_enc_out = tf.reshape(enc_out, [-1, self.rnn_units])
+            flat_enc_out = tf.reshape(word_enc_out, [-1, self.rnn_units])
             part1 = tf.matmul(flat_enc_out, U_a) + b_a
-            sequence_length = tf.shape(X_embedded)[1]
+            sequence_length = tf.shape(word_enc_out)[1]
             tile_multiples = tf.pack([sequence_length, 1])
 
             max_sequence_length = tf.reduce_max(self.t_len)
@@ -193,9 +202,9 @@ class Model(model.Model):
                     # attention
                     part2 = tf.tile(tf.matmul(old_state, W_a), tile_multiples)
                     e = tf.matmul(tf.tanh(part2 + part1), v_a)
-                    e = self.x_mask*tf.reshape(e, shape=tf.pack([-1, sequence_length]))
+                    e = tf.to_float(mask(self.X_spaces_len))*tf.reshape(e, shape=tf.pack([-1, sequence_length]))
                     alpha = tf.expand_dims(tf.nn.softmax(e), 2)
-                    c = tf.reduce_sum(alpha*enc_out, 1)
+                    c = tf.reduce_sum(alpha*word_enc_out, 1)
 
                     # GRU
                     con = tf.concat(1, [x_t, old_state, c])
