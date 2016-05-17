@@ -7,6 +7,13 @@ import os
 
 nltk.download('punkt')
 
+# for reversing strings
+def reverse(text):
+    if len(text) <= 1:
+        return text
+
+    return reverse(text[1:]) + text[0]
+
 # for usage in printing output
 def reverse_dict(d):
     return { v: k for (k, v) in d.iteritems() }
