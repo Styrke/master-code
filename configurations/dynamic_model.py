@@ -49,7 +49,7 @@ class Model(model.Model):
             W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        def encoder(inputs, lengths, name):
+        def encoder(inputs, lengths, name, reverse=False):
             with tf.variable_scope(name):
                 weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
                 input_units = inputs.get_shape()[2]
@@ -82,6 +82,8 @@ class Model(model.Model):
                 # state_shape = tf.Print(state_shape, [state_shape])
                 state = tf.zeros(state_shape, dtype=tf.float32)
 
+                if reverse:
+                    inputs = tf.reverse(inputs, dims=[False, True, False])
                 inputs = tf.transpose(inputs, perm=[1, 0, 2])
                 input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
                 input_ta = input_ta.unpack(inputs)
@@ -107,9 +109,19 @@ class Model(model.Model):
                         return new_state
 
                     def updatesome():
-                        return tf.select(tf.less(time, lengths), new_state, old_state)
+                        if reverse:
+                            return tf.select(tf.less(max_sequence_length-lengths, time), old_state, new_state)
+                        else:
+                            return tf.select(tf.less(time, lengths), new_state, old_state)
 
-                    state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
+                    if reverse:
+                        state = tf.cond(
+                            tf.greater(time, max_sequence_length-min_sequence_length),
+                            updateall,
+                            updatesome
+                        )
+                    else:
+                        state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
 
                     return (time + 1, state, output_ta_t)
 
@@ -119,6 +131,9 @@ class Model(model.Model):
 
                 enc_state = state
                 enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
+
+                if reverse:
+                    tf.reverse(enc_out, dims=[False, True, False])
 
                 return enc_state, enc_out
 
