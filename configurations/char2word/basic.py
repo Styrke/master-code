@@ -1,4 +1,4 @@
-from configurations.char2word import char2word
+from configurations import char2word
 
 
 class Model(char2word.Model):
