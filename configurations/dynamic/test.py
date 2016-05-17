@@ -1,7 +1,9 @@
-from configurations import dynamic
+import sys
+sys.path.insert(0, '../..')
+from configurations import dynamic_model
 
 
-class Model(dynamic.Model):
+class Model(dynamic_model.Model):
     # overwrite config
     batch_size = 32
     seq_len = 25

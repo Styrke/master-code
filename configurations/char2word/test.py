@@ -1,7 +1,9 @@
-from configurations import char2word
+import sys
+sys.path.insert(0, '../..')
+from configurations import char2word_model
 
 
-class Model(char2word.Model):
+class Model(char2word_model.Model):
     # overwrite config
     batch_size = 32
     seq_len = 25
