@@ -19,7 +19,6 @@ class Model(model.Model):
     seq_len = 25
     rnn_units = 100
     valid_freq = 100  # Using a smaller valid set for debug so can do it more frequently.
-
     # only use a single of the validation files for this debugging config
     valid_x_files = ['data/valid/devtest2006.en']
     valid_t_files = ['data/valid/devtest2006.da']
@@ -67,10 +66,10 @@ class Model(model.Model):
                                       initializer=weight_initializer)
                 b_z = tf.get_variable('b_z',
                                       shape=[self.rnn_units],
-                                      initializer=tf.constant_initializer())
+                                      initializer=tf.constant_initializer(1.0))
                 b_r = tf.get_variable('b_r',
                                       shape=[self.rnn_units],
-                                      initializer=tf.constant_initializer())
+                                      initializer=tf.constant_initializer(1.0))
                 b_h = tf.get_variable('b_h',
                                       shape=[self.rnn_units],
                                       initializer=tf.constant_initializer())
@@ -144,43 +143,45 @@ class Model(model.Model):
                                   initializer=weight_initializer)
             b_z = tf.get_variable('b_z',
                                   shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer())
+                                  initializer=tf.constant_initializer(1.0))
             b_r = tf.get_variable('b_r',
                                   shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer())
+                                  initializer=tf.constant_initializer(1.0))
             b_h = tf.get_variable('b_h',
                                   shape=[self.rnn_units],
                                   initializer=tf.constant_initializer())
 
             # for attention
-            attention_units = 100
+            attn_units = self.rnn_units
+            attn_len = tf.shape(word_enc_out)[1]#.value
+            attn_size = self.rnn_units#tf.shape(word_enc_out)[2]#.value
             W_a = tf.get_variable('W_a',
-                                  shape=[self.rnn_units, attention_units],
+                                  shape=[self.rnn_units, attn_units],
                                   initializer=weight_initializer)
             U_a = tf.get_variable('U_a',
-                                  shape=[self.rnn_units, attention_units],
+                                  shape=[1, 1, attn_size, attn_units],
                                   initializer=weight_initializer)
             b_a = tf.get_variable('b_a',
-                                  shape=[attention_units],
+                                  shape=[attn_units],
                                   initializer=tf.constant_initializer())
             v_a = tf.get_variable('v_a',
-                                  shape=[attention_units, 1],
+                                  shape=[attn_units],
                                   initializer=weight_initializer)
 
             # we can compute part of the logits for the attention
-            flat_enc_out = tf.reshape(word_enc_out, [-1, self.rnn_units])
-            part1 = tf.matmul(flat_enc_out, U_a) + b_a
-            sequence_length = tf.shape(word_enc_out)[1]
-            tile_multiples = tf.pack([sequence_length, 1])
+            #word_enc_out = tf.Print(word_enc_out, [tf.shape(word_enc_out)])
+            # with convolutions instead
 
+            # TODO: don't use convolutions!
+            # TODO: fix the bias (b_a)
+            hidden = tf.reshape(word_enc_out, tf.pack([-1, attn_len, 1, attn_size]))
+            part1 = tf.nn.conv2d(hidden, U_a, [1, 1, 1, 1], "SAME")
+            part1 = tf.squeeze(part1)
             max_sequence_length = tf.reduce_max(self.t_len)
 
             time = tf.constant(0)
 
-            state_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
-                                        tf.expand_dims(tf.constant(self.rnn_units), 0)])
-            # state_shape = tf.Print(state_shape, [state_shape])
-            state = tf.zeros(state_shape, dtype=tf.float32)
+            state = word_enc_state
 
             inputs = tf.transpose(t_embedded, perm=[1, 0, 2])
             input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
@@ -200,11 +201,13 @@ class Model(model.Model):
                         x_t = input_ta.read(time)
 
                     # attention
-                    part2 = tf.tile(tf.matmul(old_state, W_a), tile_multiples)
-                    e = tf.matmul(tf.tanh(part2 + part1), v_a)
-                    e = tf.to_float(mask(self.X_spaces_len))*tf.reshape(e, shape=tf.pack([-1, sequence_length]))
-                    alpha = tf.expand_dims(tf.nn.softmax(e), 2)
-                    c = tf.reduce_sum(alpha*word_enc_out, 1)
+                    part2 = tf.matmul(old_state, W_a) + b_a
+                    part2 = tf.expand_dims(part2, 1)
+                    john = part1 + part2
+                    e = tf.reduce_sum(v_a * tf.tanh(john), [2])
+                    alpha = tf.nn.softmax(e)
+                    c = tf.reduce_sum(tf.expand_dims(alpha, 2) * tf.squeeze(hidden), [1])
+                    # TODO: insert improved masking
 
                     # GRU
                     con = tf.concat(1, [x_t, old_state, c])
