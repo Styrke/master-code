@@ -20,8 +20,6 @@ class Model(model.Model):
     rnn_units = 100
     valid_freq = 100  # Using a smaller valid set for debug so can do it more frequently.
     # only use a single of the validation files for this debugging config
-    valid_x_files = ['data/valid/devtest2006.en']
-    valid_t_files = ['data/valid/devtest2006.da']
 
     def setup_placeholders(self):
         shape = [None, None]
@@ -176,7 +174,7 @@ class Model(model.Model):
             # TODO: fix the bias (b_a)
             hidden = tf.reshape(word_enc_out, tf.pack([-1, attn_len, 1, attn_size]))
             part1 = tf.nn.conv2d(hidden, U_a, [1, 1, 1, 1], "SAME")
-            part1 = tf.squeeze(part1)
+            part1 = tf.squeeze(part1, [2]) # squeeze over third dimension
             max_sequence_length = tf.reduce_max(self.t_len)
 
             time = tf.constant(0)

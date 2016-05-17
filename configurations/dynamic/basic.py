@@ -9,6 +9,7 @@ class Model(dynamic_model.Model):
     iterations = 32000*5
     seq_len = 50
     save_freq = 20000
+    valid_freq = 500
 
     rnn_units = 400
     attn_units = 400

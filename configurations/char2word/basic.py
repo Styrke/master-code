@@ -9,6 +9,7 @@ class Model(char2word_model.Model):
     iterations = 32000*5
     seq_len = 50
     save_freq = 20000
+    valid_freq = 500
 
     char_enc_units = 400
     word_enc_units = 400
