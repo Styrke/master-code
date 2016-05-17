@@ -109,7 +109,6 @@ class Model(model.Model):
                     def updatesome():
                         return tf.select(tf.less(time, lengths), new_state, old_state)
 
-                    # TODO: only update state if seq_len < time
                     state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
 
                     return (time + 1, state, output_ta_t)
@@ -151,8 +150,8 @@ class Model(model.Model):
 
             # for attention
             attn_units = self.rnn_units
-            attn_len = tf.shape(word_enc_out)[1]#.value
-            attn_size = self.rnn_units#tf.shape(word_enc_out)[2]#.value
+            attn_len = tf.shape(word_enc_out)[1]
+            attn_size = self.rnn_units
             W_a = tf.get_variable('W_a',
                                   shape=[self.rnn_units, attn_units],
                                   initializer=weight_initializer)
@@ -165,10 +164,6 @@ class Model(model.Model):
             v_a = tf.get_variable('v_a',
                                   shape=[attn_units],
                                   initializer=weight_initializer)
-
-            # we can compute part of the logits for the attention
-            #word_enc_out = tf.Print(word_enc_out, [tf.shape(word_enc_out)])
-            # with convolutions instead
 
             # TODO: don't use convolutions!
             # TODO: fix the bias (b_a)
@@ -243,15 +238,9 @@ class Model(model.Model):
 
         valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.rnn_units])
         valid_out_tensor = tf.matmul(valid_out_tensor, W_out) + b_out
-        # valid_out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
-        #                                 tf.expand_dims(max_sequence_length, 0),
-        #                                 tf.expand_dims(tf.constant(self.alphabet_size), 0)])
         self.valid_out_tensor = tf.reshape(valid_out_tensor, out_shape)
 
         self.out = None
-
-        # trans = tf.transpose(self.out_tensor, perm=[1, 0, 2])
-        # self.out = tf.unpack(trans)
 
         # add TensorBoard summaries for all variables
         tf.contrib.layers.summarize_variables()
