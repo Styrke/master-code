@@ -21,7 +21,7 @@ class Model(object):
     log_freq = 10  # How often to print updates during training.
     save_freq = 0  # How often to save checkpoints. (0 to disable.)
     valid_freq = 500  # How often to validate.
-    iterations = 10*32000  # How many iterations to train for before stopping.
+    iterations = 5*32000  # How many iterations to train for before stopping.
     train_feedback = False  # Enable feedback during training?
     tb_log_freq = 100  # How often to save logs for TensorBoard
 
