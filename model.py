@@ -100,6 +100,8 @@ class Model(object):
         self.feedback = tf.placeholder(tf.bool, name='feedback_indicator')
         self.t_mask   = tf.placeholder(tf.float32, shape=shape, name='t_mask')
 
+        self.num_samples = tf.placeholder(tf.int32, shape=[None], name='num_samples')
+
         shape = [None, self.max_x_seq_len//4]
         self.X_spaces     = tf.placeholder(tf.int32, shape=shape,  name='X_spaces')
         self.X_spaces_len = tf.placeholder(tf.int32, shape=[None], name='X_spaces_len')
@@ -274,6 +276,7 @@ class Model(object):
                  self.t_len:  batch['t_len'],
                  self.t_mask: batch['t_mask'],
                  self.feedback: feedback,
+                 self.num_sampels: batch['num_samples'],
                  self.X_spaces: batch['x_spaces'],
                  self.X_spaces_len: batch['x_spaces_len'] }
 
