@@ -125,7 +125,7 @@ class Trainer:
                     swap_amount = self.model.swap_schedule[i]
                     print("  setting swap amount to {:.4f}".format(swap_amount))
                 if swap_amount > 0.0:
-                    t_feed_dict[self.model.ts] = augmentor.run(
+                    t_feed_dict[self.model.ts_go] = augmentor.run(
                             t_feed_dict[self.model.ts_go], extra['t_len'],
                             swap_amount, skip_left=1)
 
