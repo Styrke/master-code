@@ -304,7 +304,7 @@ class Model(model.Model):
         train_loader = tl.TextLoader(paths_X=self.train_x_files,
                                      paths_t=self.train_t_files,
                                      seq_len=self.seq_len)
-        self.batch_generator['train'] = tl.TextBatchGenerator(
+        self.batch_generator['train'] = tl.WordedTextBatchGenerator(
             loader=train_loader,
             batch_size=self.batch_size,
             use_dynamic_array_sizes=True,
@@ -315,7 +315,7 @@ class Model(model.Model):
         valid_loader = tl.TextLoader(paths_X=self.valid_x_files,
                                      paths_t=self.valid_t_files,
                                      seq_len=self.seq_len)
-        self.batch_generator['valid'] = tl.TextBatchGenerator(
+        self.batch_generator['valid'] = tl.WordedTextBatchGenerator(
             loader=valid_loader,
             batch_size=self.batch_size,
             use_dynamic_array_sizes=True)
