@@ -89,7 +89,7 @@ class Trainer:
     def visualize_ys(self, ys, feed_dict):
         sep = ":::"
         pred_len = len(max(ys, key=len)) # length of longest predicted string
-        for j in range(feed_dict[self.model.Xs].shape[0]):
+        for j in range(feed_dict[self.model.ts].shape[0]):
             inp  = self.alphabet.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len)
             pred = self.alphabet.decode(ys[j]).ljust(pred_len)
             targ = self.alphabet.decode(feed_dict[self.model.ts][j])
