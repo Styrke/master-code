@@ -37,6 +37,7 @@ class Model(model.Model):
         self.X_spaces_len = tf.placeholder(tf.int32, shape=[None], name='X_spaces_len')
 
         self.num_samples = tf.placeholder(tf.int32, shape=1, name='num_samples')
+        self.original_x  = tf.placeholder(tf.int32, shape=shape, name='original_x')
 
     def build(self):
         print('Building model')
@@ -340,4 +341,5 @@ class Model(model.Model):
                  self.num_samples: batch['num_samples'],
                  self.feedback: feedback,
                  self.X_spaces: batch['x_spaces'],
+                 self.original_x: batch['x_encoded_original'],
                  self.X_spaces_len: batch['x_spaces_len'] }

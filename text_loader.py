@@ -454,7 +454,8 @@ class WordedTextBatchGenerator(TextBatchGenerator):
         self.current_max_sample_size = len(max(words_per_x, key=len))
         max_word_len = len(max([max(word, key=len) for word in words_per_x],
             key=len))
-        # following two elements are different
+        # following elements are different
+        batch['x_encoded_original'] = self._make_array(x, encode, self.seq_len)
         batch['x_encoded'] = self._make_worded_array(words_per_x, encode, max_word_len)
         batch['x_len'] = self._make_worded_len(words_per_x)
         batch['num_samples'] = np.array([len(x)])
