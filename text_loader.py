@@ -457,6 +457,7 @@ class WordedTextBatchGenerator(TextBatchGenerator):
         # following two elements are different
         batch['x_encoded'] = self._make_worded_array(words_per_x, encode, max_word_len)
         batch['x_len'] = self._make_worded_len(words_per_x)
+        batch['num_samples'] = len(x)
 
         batch['t_encoded'] = self._make_array(t, encode, self.seq_len)
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
