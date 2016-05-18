@@ -36,6 +36,8 @@ class Model(model.Model):
         self.X_spaces     = tf.placeholder(tf.int32, shape=shape,  name='X_spaces')
         self.X_spaces_len = tf.placeholder(tf.int32, shape=[None], name='X_spaces_len')
 
+        self.num_samples = tf.placeholder(tf.int32, shape=[None], name='num_samples')
+
     def build(self):
         print('Building model')
         self.embeddings = tf.Variable(
@@ -138,9 +140,14 @@ class Model(model.Model):
                 return enc_state, enc_out
 
         char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder')
-        char2word = _grid_gather(char_enc_out, self.X_spaces)
-        char2word.set_shape([None, None, self.rnn_units])
-        word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder')
+        # reshape worded output to reflect per sentence
+        shape = tf.pack([self.num_samples, -1, self.rnn_units])
+        char_enc_out = tf.reshape(char_enc_out, shape)
+
+        #char2word = _grid_gather(char_enc_out, self.X_spaces)
+        #char2word.set_shape([None, None, self.rnn_units])
+        #word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder')
+        word_enc_state, word_enc_out = encoder(char_enc_out, self.X_spaces_len, 'word_encoder')
 
         with tf.variable_scope('decoder'):
             weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
@@ -322,6 +329,7 @@ class Model(model.Model):
                  self.t_len:  batch['t_len'],
                  self.x_mask: batch['x_mask'],
                  self.t_mask: batch['t_mask'],
+                 self.num_sampels: batch['num_samples'],
                  self.feedback: feedback,
                  self.X_spaces: batch['x_spaces'],
                  self.X_spaces_len: batch['x_spaces_len'] }
