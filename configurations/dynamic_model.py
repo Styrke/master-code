@@ -36,7 +36,7 @@ class Model(model.Model):
         self.X_spaces     = tf.placeholder(tf.int32, shape=shape,  name='X_spaces')
         self.X_spaces_len = tf.placeholder(tf.int32, shape=[None], name='X_spaces_len')
 
-        self.num_samples = tf.placeholder(tf.int32, shape=[None], name='num_samples')
+        self.num_samples = tf.placeholder(tf.int32, shape=1, name='num_samples')
 
     def build(self):
         print('Building model')
@@ -141,13 +141,21 @@ class Model(model.Model):
 
         char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder')
         # reshape worded output to reflect per sentence
-        shape = tf.pack([self.num_samples, -1, self.rnn_units])
-        char_enc_out = tf.reshape(char_enc_out, shape)
+        shape = tf.pack([tf.squeeze(self.num_samples), -1, self.rnn_units])
+        char_enc_out = tf.reshape(char_enc_state, shape)
+        char_enc_out.set_shape([None, None, self.rnn_units])
+
+        # compute no. spaces in sentence from no. words/tokens in
+        shape = tf.pack([tf.squeeze(self.num_samples), -1])
+        num_spaces = tf.reshape(self.X_len, shape)
+        num_spaces = tf.greater(num_spaces, 0)
+        num_spaces = tf.to_int32(num_spaces)
+        num_spaces = tf.reduce_sum(num_spaces, reduction_indices=1)
 
         #char2word = _grid_gather(char_enc_out, self.X_spaces)
         #char2word.set_shape([None, None, self.rnn_units])
         #word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder')
-        word_enc_state, word_enc_out = encoder(char_enc_out, self.X_spaces_len, 'word_encoder')
+        word_enc_state, word_enc_out = encoder(char_enc_out, num_spaces, 'word_encoder')
 
         with tf.variable_scope('decoder'):
             weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
@@ -252,7 +260,7 @@ class Model(model.Model):
 
         out_tensor = tf.reshape(dec_out, [-1, self.rnn_units])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
-        out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
+        out_shape = tf.concat(0, [self.num_samples,
                                   tf.expand_dims(max_sequence_length, 0),
                                   tf.expand_dims(tf.constant(self.alphabet_size), 0)])
         self.out_tensor = tf.reshape(out_tensor, out_shape)
@@ -327,9 +335,9 @@ class Model(model.Model):
                  self.ts_go:  batch['t_encoded_go'],
                  self.X_len:  batch['x_len'],
                  self.t_len:  batch['t_len'],
-                 self.x_mask: batch['x_mask'],
+                 #self.x_mask: batch['x_mask'],
                  self.t_mask: batch['t_mask'],
-                 self.num_sampels: batch['num_samples'],
+                 self.num_samples: batch['num_samples'],
                  self.feedback: feedback,
                  self.X_spaces: batch['x_spaces'],
                  self.X_spaces_len: batch['x_spaces_len'] }
