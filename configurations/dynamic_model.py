@@ -135,7 +135,7 @@ class Model(model.Model):
                 enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
 
                 if reverse:
-                    tf.reverse(enc_out, dims=[False, True, False])
+                    enc_out = tf.reverse(enc_out, dims=[False, True, False])
 
                 return enc_state, enc_out
 
