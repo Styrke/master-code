@@ -1,5 +1,6 @@
 # Don't put data in git
-data/*/
+data/train/
+data/valid/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
