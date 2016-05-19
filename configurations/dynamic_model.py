@@ -110,16 +110,18 @@ class Model(model.Model):
 
                     def updatesome():
                         if reverse:
-                            return tf.select(tf.less(max_sequence_length-lengths, time), old_state, new_state)
+                            return tf.select(
+                                tf.greater_equal(time, max_sequence_length-lengths),
+                                new_state,
+                                old_state)
                         else:
                             return tf.select(tf.less(time, lengths), new_state, old_state)
 
                     if reverse:
                         state = tf.cond(
-                            tf.greater(time, max_sequence_length-min_sequence_length),
+                            tf.greater_equal(time, max_sequence_length-min_sequence_length),
                             updateall,
-                            updatesome
-                        )
+                            updatesome)
                     else:
                         state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
 
