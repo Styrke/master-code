@@ -232,10 +232,10 @@ class Model(object):
         tf.scalar_summary('train/global gradient norm', global_norm)
 
         # Create TensorBoard summaries for gradients
-        for grad, var in grads_and_vars:
-            # Sparse tensor updates can't be summarized, so avoid doing that:
-            if isinstance(grad, tf.Tensor):
-                tf.histogram_summary('grad_' + var.name, grad)
+        # for grad, var in grads_and_vars:
+        #     # Sparse tensor updates can't be summarized, so avoid doing that:
+        #     if isinstance(grad, tf.Tensor):
+        #         tf.histogram_summary('grad_' + var.name, grad)
 
         # make training op for applying the gradients
         self.train_op = optimizer.apply_gradients(clipped_grads_and_vars,
