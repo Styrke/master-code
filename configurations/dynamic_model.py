@@ -49,100 +49,10 @@ class Model(model.Model):
             W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        def encoder(inputs, lengths, name, reverse=False):
-            with tf.variable_scope(name):
-                weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
-                input_units = inputs.get_shape()[2]
-                W_z = tf.get_variable('W_z',
-                                      shape=[input_units+self.rnn_units, self.rnn_units],
-                                      initializer=weight_initializer)
-                W_r = tf.get_variable('W_r',
-                                      shape=[input_units+self.rnn_units, self.rnn_units],
-                                      initializer=weight_initializer)
-                W_h = tf.get_variable('W_h',
-                                      shape=[input_units+self.rnn_units, self.rnn_units],
-                                      initializer=weight_initializer)
-                b_z = tf.get_variable('b_z',
-                                      shape=[self.rnn_units],
-                                      initializer=tf.constant_initializer(1.0))
-                b_r = tf.get_variable('b_r',
-                                      shape=[self.rnn_units],
-                                      initializer=tf.constant_initializer(1.0))
-                b_h = tf.get_variable('b_h',
-                                      shape=[self.rnn_units],
-                                      initializer=tf.constant_initializer())
-
-                max_sequence_length = tf.reduce_max(lengths)
-                min_sequence_length = tf.reduce_min(lengths)
-
-                time = tf.constant(0)
-
-                state_shape = tf.concat(0, [tf.expand_dims(tf.shape(lengths)[0], 0),
-                                            tf.expand_dims(tf.constant(self.rnn_units), 0)])
-                # state_shape = tf.Print(state_shape, [state_shape])
-                state = tf.zeros(state_shape, dtype=tf.float32)
-
-                if reverse:
-                    inputs = tf.reverse(inputs, dims=[False, True, False])
-                inputs = tf.transpose(inputs, perm=[1, 0, 2])
-                input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-                input_ta = input_ta.unpack(inputs)
-
-                output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-
-                def encoder_cond(time, state, output_ta_t):
-                    return tf.less(time, max_sequence_length)
-
-                def encoder_body(time, old_state, output_ta_t):
-                    x_t = input_ta.read(time)
-
-                    con = tf.concat(1, [x_t, old_state])
-                    z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
-                    r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
-                    con = tf.concat(1, [x_t, r*old_state])
-                    h = tf.tanh(tf.matmul(con, W_h) + b_h)
-                    new_state = (1-z)*h + z*old_state
-
-                    output_ta_t = output_ta_t.write(time, new_state)
-
-                    def updateall():
-                        return new_state
-
-                    def updatesome():
-                        if reverse:
-                            return tf.select(
-                                tf.greater_equal(time, max_sequence_length-lengths),
-                                new_state,
-                                old_state)
-                        else:
-                            return tf.select(tf.less(time, lengths), new_state, old_state)
-
-                    if reverse:
-                        state = tf.cond(
-                            tf.greater_equal(time, max_sequence_length-min_sequence_length),
-                            updateall,
-                            updatesome)
-                    else:
-                        state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
-
-                    return (time + 1, state, output_ta_t)
-
-                loop_vars = [time, state, output_ta]
-
-                time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars)
-
-                enc_state = state
-                enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
-
-                if reverse:
-                    enc_out = tf.reverse(enc_out, dims=[False, True, False])
-
-                return enc_state, enc_out
-
-        char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder')
+        char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder', self.rnn_units)
         char2word = _grid_gather(char_enc_out, self.X_spaces)
         char2word.set_shape([None, None, self.rnn_units])
-        word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder')
+        word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder', self.rnn_units)
 
         with tf.variable_scope('decoder'):
             weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
@@ -327,3 +237,94 @@ class Model(model.Model):
                  self.feedback: feedback,
                  self.X_spaces: batch['x_spaces'],
                  self.X_spaces_len: batch['x_spaces_len'] }
+
+
+def encoder(inputs, lengths, name, num_units, reverse=False):
+    with tf.variable_scope(name):
+        weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
+        input_units = inputs.get_shape()[2]
+        W_z = tf.get_variable('W_z',
+                              shape=[input_units+num_units, num_units],
+                              initializer=weight_initializer)
+        W_r = tf.get_variable('W_r',
+                              shape=[input_units+num_units, num_units],
+                              initializer=weight_initializer)
+        W_h = tf.get_variable('W_h',
+                              shape=[input_units+num_units, num_units],
+                              initializer=weight_initializer)
+        b_z = tf.get_variable('b_z',
+                              shape=[num_units],
+                              initializer=tf.constant_initializer(1.0))
+        b_r = tf.get_variable('b_r',
+                              shape=[num_units],
+                              initializer=tf.constant_initializer(1.0))
+        b_h = tf.get_variable('b_h',
+                              shape=[num_units],
+                              initializer=tf.constant_initializer())
+
+        max_sequence_length = tf.reduce_max(lengths)
+        min_sequence_length = tf.reduce_min(lengths)
+
+        time = tf.constant(0)
+
+        state_shape = tf.concat(0, [tf.expand_dims(tf.shape(lengths)[0], 0),
+                                    tf.expand_dims(tf.constant(num_units), 0)])
+        # state_shape = tf.Print(state_shape, [state_shape])
+        state = tf.zeros(state_shape, dtype=tf.float32)
+
+        if reverse:
+            inputs = tf.reverse(inputs, dims=[False, True, False])
+        inputs = tf.transpose(inputs, perm=[1, 0, 2])
+        input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+        input_ta = input_ta.unpack(inputs)
+
+        output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+
+        def encoder_cond(time, state, output_ta_t):
+            return tf.less(time, max_sequence_length)
+
+        def encoder_body(time, old_state, output_ta_t):
+            x_t = input_ta.read(time)
+
+            con = tf.concat(1, [x_t, old_state])
+            z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
+            r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+            con = tf.concat(1, [x_t, r*old_state])
+            h = tf.tanh(tf.matmul(con, W_h) + b_h)
+            new_state = (1-z)*h + z*old_state
+
+            output_ta_t = output_ta_t.write(time, new_state)
+
+            def updateall():
+                return new_state
+
+            def updatesome():
+                if reverse:
+                    return tf.select(
+                        tf.greater_equal(time, max_sequence_length-lengths),
+                        new_state,
+                        old_state)
+                else:
+                    return tf.select(tf.less(time, lengths), new_state, old_state)
+
+            if reverse:
+                state = tf.cond(
+                    tf.greater_equal(time, max_sequence_length-min_sequence_length),
+                    updateall,
+                    updatesome)
+            else:
+                state = tf.cond(tf.less(time, min_sequence_length), updateall, updatesome)
+
+            return (time + 1, state, output_ta_t)
+
+        loop_vars = [time, state, output_ta]
+
+        time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars)
+
+        enc_state = state
+        enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
+
+        if reverse:
+            enc_out = tf.reverse(enc_out, dims=[False, True, False])
+
+        return enc_state, enc_out
