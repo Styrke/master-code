@@ -126,8 +126,9 @@ class Model(model.Model):
                     john = part1 + part2
                     e = tf.reduce_sum(v_a * tf.tanh(john), [2])
                     alpha = tf.nn.softmax(e)
+                    alpha = tf.to_float(mask(self.X_spaces_len)) * alpha
+                    alpha = alpha / tf.reduce_sum(alpha, [1], keep_dims=True)
                     c = tf.reduce_sum(tf.expand_dims(alpha, 2) * tf.squeeze(hidden), [1])
-                    # TODO: insert improved masking
 
                     # GRU
                     con = tf.concat(1, [x_t, old_state, c])
