@@ -115,8 +115,10 @@ class Model(model.Model):
             def decoder_body_builder(feedback=False):
                 def decoder_body(time, old_state, output_ta_t):
                     if feedback:
-                        prev_1 = tf.matmul(old_state, W_out) + b_out
-                        x_t = tf.gather(self.embeddings, tf.argmax(prev_1, 1))
+                        def from_previous():
+                            prev_1 = tf.matmul(old_state, W_out) + b_out
+                            return tf.gather(self.embeddings, tf.argmax(prev_1, 1))
+                        x_t = tf.cond(tf.greater(time, 0), from_previous, lambda: input_ta.read(0))
                     else:
                         x_t = input_ta.read(time)
 
