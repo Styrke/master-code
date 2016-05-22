@@ -23,7 +23,7 @@ class Model(object):
     valid_freq = 500  # How often to validate.
     iterations = 5*32000  # How many iterations to train for before stopping.
     train_feedback = False  # Enable feedback during training?
-    tb_log_freq = 100  # How often to save logs for TensorBoard
+    tb_log_freq = 500  # How often to save logs for TensorBoard
 
     # datasets
     train_x_files = ['data/train/europarl-v7.da-en.en']
