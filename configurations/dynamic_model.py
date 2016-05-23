@@ -54,114 +54,14 @@ class Model(model.Model):
         char2word.set_shape([None, None, self.rnn_units])
         word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder', self.rnn_units)
 
-        with tf.variable_scope('decoder'):
-            weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
-            W_z = tf.get_variable('W_z',
-                                  shape=[self.embedd_dims+self.rnn_units*2, self.rnn_units],
-                                  initializer=weight_initializer)
-            W_r = tf.get_variable('W_r',
-                                  shape=[self.embedd_dims+self.rnn_units*2, self.rnn_units],
-                                  initializer=weight_initializer)
-            W_h = tf.get_variable('W_h',
-                                  shape=[self.embedd_dims+self.rnn_units*2, self.rnn_units],
-                                  initializer=weight_initializer)
-            b_z = tf.get_variable('b_z',
-                                  shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer(1.0))
-            b_r = tf.get_variable('b_r',
-                                  shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer(1.0))
-            b_h = tf.get_variable('b_h',
-                                  shape=[self.rnn_units],
-                                  initializer=tf.constant_initializer())
-
-            # for attention
-            attn_units = self.rnn_units
-            attn_len = tf.shape(word_enc_out)[1]
-            attn_size = self.rnn_units
-            W_a = tf.get_variable('W_a',
-                                  shape=[self.rnn_units, attn_units],
-                                  initializer=weight_initializer)
-            U_a = tf.get_variable('U_a',
-                                  shape=[1, 1, attn_size, attn_units],
-                                  initializer=weight_initializer)
-            b_a = tf.get_variable('b_a',
-                                  shape=[attn_units],
-                                  initializer=tf.constant_initializer())
-            v_a = tf.get_variable('v_a',
-                                  shape=[attn_units],
-                                  initializer=weight_initializer)
-
-            # TODO: don't use convolutions!
-            # TODO: fix the bias (b_a)
-            hidden = tf.reshape(word_enc_out, tf.pack([-1, attn_len, 1, attn_size]))
-            part1 = tf.nn.conv2d(hidden, U_a, [1, 1, 1, 1], "SAME")
-            part1 = tf.squeeze(part1, [2]) # squeeze over third dimension
-            max_sequence_length = tf.reduce_max(self.t_len)
-
-            time = tf.constant(0)
-
-            state = word_enc_state
-
-            inputs = tf.transpose(t_embedded, perm=[1, 0, 2])
-            input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-            input_ta = input_ta.unpack(inputs)
-
-            output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-
-            def decoder_cond(time, state, output_ta_t):
-                return tf.less(time, max_sequence_length)
-
-            def decoder_body_builder(feedback=False):
-                def decoder_body(time, old_state, output_ta_t):
-                    if feedback:
-                        def from_previous():
-                            prev_1 = tf.matmul(old_state, W_out) + b_out
-                            return tf.gather(self.embeddings, tf.argmax(prev_1, 1))
-                        x_t = tf.cond(tf.greater(time, 0), from_previous, lambda: input_ta.read(0))
-                    else:
-                        x_t = input_ta.read(time)
-
-                    # attention
-                    part2 = tf.matmul(old_state, W_a) + b_a
-                    part2 = tf.expand_dims(part2, 1)
-                    john = part1 + part2
-                    e = tf.reduce_sum(v_a * tf.tanh(john), [2])
-                    alpha = tf.nn.softmax(e)
-                    alpha = tf.to_float(mask(self.X_spaces_len)) * alpha
-                    alpha = alpha / tf.reduce_sum(alpha, [1], keep_dims=True)
-                    c = tf.reduce_sum(tf.expand_dims(alpha, 2) * tf.squeeze(hidden), [1])
-
-                    # GRU
-                    con = tf.concat(1, [x_t, old_state, c])
-                    z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
-                    r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
-                    con = tf.concat(1, [x_t, r*old_state, c])
-                    h = tf.tanh(tf.matmul(con, W_h) + b_h)
-                    new_state = (1-z)*h + z*old_state
-
-                    output_ta_t = output_ta_t.write(time, new_state)
-
-                    return (time + 1, new_state, output_ta_t)
-                return decoder_body
-
-            loop_vars = [time, state, output_ta]
-
-            _, state, output_ta = tf.while_loop(decoder_cond,
-                                                decoder_body_builder(),
-                                                loop_vars)
-            _, valid_state, valid_output_ta = tf.while_loop(decoder_cond,
-                                                            decoder_body_builder(feedback=True),
-                                                            loop_vars)
-
-            dec_state = state
-            dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
-            valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
+        dec_state, dec_out, valid_dec_out = decoder(word_enc_out, self.X_spaces_len, word_enc_state,
+                                                    t_embedded, self.t_len, self.rnn_units,
+                                                    self.rnn_units, self.embeddings, W_out, b_out)
 
         out_tensor = tf.reshape(dec_out, [-1, self.rnn_units])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
-                                  tf.expand_dims(max_sequence_length, 0),
+                                  tf.expand_dims(tf.shape(t_embedded)[1], 0),
                                   tf.expand_dims(tf.constant(self.alphabet_size), 0)])
         self.out_tensor = tf.reshape(out_tensor, out_shape)
         self.out_tensor.set_shape([None, None, self.alphabet_size])
@@ -330,4 +230,120 @@ def encoder(inputs, lengths, name, num_units, reverse=False):
         if reverse:
             enc_out = tf.reverse(enc_out, dims=[False, True, False])
 
+        enc_out.set_shape([None, None, num_units])
+
         return enc_state, enc_out
+
+def decoder(attention_input, attention_lengths, initial_state, target_input, target_input_lengths, num_units,
+            num_attn_units, embeddings, W_out, b_out, name='decoder'):
+    """
+    Keyword arguments:
+        attention_input:    the input to put attention on. expected dims: [batch_size, attention_length, attention_dims]
+        initial_state:      The initial state for the decoder RNN.
+        target_input:       The target to replicate. Expected: [batch_size, max_target_sequence_len, embedding_dims]
+        num_units:          Number of GRU units in the decoder.
+        num_attn_units:     Number of units in the alignment layer that produces the context vectors.
+    """
+    with tf.variable_scope(name):
+        target_dims = target_input.get_shape()[2]
+        attention_dims = attention_input.get_shape()[2]
+        attn_len = tf.shape(attention_input)[1]
+        max_sequence_length = tf.reduce_max(target_input_lengths)
+
+        weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
+        W_z = tf.get_variable('W_z',
+                              shape=[target_dims+num_units*2, num_units],
+                              initializer=weight_initializer)
+        W_r = tf.get_variable('W_r',
+                              shape=[target_dims+num_units*2, num_units],
+                              initializer=weight_initializer)
+        W_h = tf.get_variable('W_h',
+                              shape=[target_dims+num_units*2, num_units],
+                              initializer=weight_initializer)
+        b_z = tf.get_variable('b_z',
+                              shape=[num_units],
+                              initializer=tf.constant_initializer(1.0))
+        b_r = tf.get_variable('b_r',
+                              shape=[num_units],
+                              initializer=tf.constant_initializer(1.0))
+        b_h = tf.get_variable('b_h',
+                              shape=[num_units],
+                              initializer=tf.constant_initializer())
+
+        # for attention
+        W_a = tf.get_variable('W_a',
+                              shape=[attention_dims, num_attn_units],
+                              initializer=weight_initializer)
+        U_a = tf.get_variable('U_a',
+                              shape=[1, 1, attention_dims, num_attn_units],
+                              initializer=weight_initializer)
+        b_a = tf.get_variable('b_a',
+                              shape=[num_attn_units],
+                              initializer=tf.constant_initializer())
+        v_a = tf.get_variable('v_a',
+                              shape=[num_attn_units],
+                              initializer=weight_initializer)
+
+        # TODO: don't use convolutions!
+        # TODO: fix the bias (b_a)
+        hidden = tf.reshape(attention_input, tf.pack([-1, attn_len, 1, attention_dims]))
+        part1 = tf.nn.conv2d(hidden, U_a, [1, 1, 1, 1], "SAME")
+        part1 = tf.squeeze(part1, [2])  # squeeze out the third dimension
+
+        inputs = tf.transpose(target_input, perm=[1, 0, 2])
+        input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+        input_ta = input_ta.unpack(inputs)
+
+        def decoder_cond(time, state, output_ta_t):
+            return tf.less(time, max_sequence_length)
+
+        def decoder_body_builder(feedback=False):
+            def decoder_body(time, old_state, output_ta_t):
+                if feedback:
+                    def from_previous():
+                        prev_1 = tf.matmul(old_state, W_out) + b_out
+                        return tf.gather(embeddings, tf.argmax(prev_1, 1))
+                    x_t = tf.cond(tf.greater(time, 0), from_previous, lambda: input_ta.read(0))
+                else:
+                    x_t = input_ta.read(time)
+
+                # attention
+                part2 = tf.matmul(old_state, W_a) + b_a
+                part2 = tf.expand_dims(part2, 1)
+                john = part1 + part2
+                e = tf.reduce_sum(v_a * tf.tanh(john), [2])
+                alpha = tf.nn.softmax(e)
+                alpha = tf.to_float(mask(attention_lengths)) * alpha
+                alpha = alpha / tf.reduce_sum(alpha, [1], keep_dims=True)
+                c = tf.reduce_sum(tf.expand_dims(alpha, 2) * tf.squeeze(hidden), [1])
+
+                # GRU
+                con = tf.concat(1, [x_t, old_state, c])
+                z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
+                r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+                con = tf.concat(1, [x_t, r*old_state, c])
+                h = tf.tanh(tf.matmul(con, W_h) + b_h)
+                new_state = (1-z)*h + z*old_state
+
+                output_ta_t = output_ta_t.write(time, new_state)
+
+                return (time + 1, new_state, output_ta_t)
+            return decoder_body
+
+
+        output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+        time = tf.constant(0)
+        loop_vars = [time, initial_state, output_ta]
+
+        _, state, output_ta = tf.while_loop(decoder_cond,
+                                            decoder_body_builder(),
+                                            loop_vars)
+        _, valid_state, valid_output_ta = tf.while_loop(decoder_cond,
+                                                        decoder_body_builder(feedback=True),
+                                                        loop_vars)
+
+        dec_state = state
+        dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
+        valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
+
+        return dec_state, dec_out, valid_dec_out
