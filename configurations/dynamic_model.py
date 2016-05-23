@@ -46,19 +46,30 @@ class Model(model.Model):
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('dense_out'):
-            W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
+            W_out = tf.get_variable('W_out', [self.rnn_units*2, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
+        # forward encoding
         char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder', self.rnn_units)
         char2word = _grid_gather(char_enc_out, self.X_spaces)
         char2word.set_shape([None, None, self.rnn_units])
         word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder', self.rnn_units)
 
+        # backward encoding words
+        char2word = tf.reverse_sequence(char2word, tf.to_int64(self.X_spaces_len), 1)
+        char2word.set_shape([None, None, self.rnn_units])
+        word_enc_state_bck, word_enc_out_bck = encoder(char2word, self.X_spaces_len, 'word_encoder_backwards', self.rnn_units)
+        word_enc_out_bck = tf.reverse_sequence(word_enc_out_bck, tf.to_int64(self.X_spaces_len), 1)
+
+        word_enc_state = tf.concat(1, [word_enc_state, word_enc_state_bck])
+        word_enc_out = tf.concat(2, [word_enc_out, word_enc_out_bck])
+
+        # decoding
         dec_state, dec_out, valid_dec_out = decoder(word_enc_out, self.X_spaces_len, word_enc_state,
-                                                    t_embedded, self.t_len, self.rnn_units,
+                                                    t_embedded, self.t_len, self.rnn_units*2,
                                                     self.rnn_units, self.embeddings, W_out, b_out)
 
-        out_tensor = tf.reshape(dec_out, [-1, self.rnn_units])
+        out_tensor = tf.reshape(dec_out, [-1, self.rnn_units*2])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
                                   tf.expand_dims(tf.shape(t_embedded)[1], 0),
@@ -66,7 +77,7 @@ class Model(model.Model):
         self.out_tensor = tf.reshape(out_tensor, out_shape)
         self.out_tensor.set_shape([None, None, self.alphabet_size])
 
-        valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.rnn_units])
+        valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.rnn_units*2])
         valid_out_tensor = tf.matmul(valid_out_tensor, W_out) + b_out
         self.valid_out_tensor = tf.reshape(valid_out_tensor, out_shape)
 
