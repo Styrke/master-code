@@ -5,7 +5,7 @@ from configurations import dynamic_model
 
 class Model(dynamic_model.Model):
     # overwrite config
-    name = 'dynamic/warmup'
+    name = 'dynamic/separate-embeddings'
     iterations = 32000*5
     seq_len = 50
     save_freq = 20000

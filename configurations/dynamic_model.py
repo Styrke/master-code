@@ -42,8 +42,12 @@ class Model(model.Model):
             tf.random_normal([self.alphabet_size, self.embedd_dims],
             stddev=0.1), name='embeddings')
 
+        self.t_embeddings = tf.Variable(
+            tf.random_normal([self.alphabet_size, self.embedd_dims],
+            stddev=0.1), name='embeddings')
+
         X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
-        t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
+        t_embedded = tf.gather(self.t_embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('dense_out'):
             W_out = tf.get_variable('W_out', [self.rnn_units*2, self.alphabet_size])
@@ -67,7 +71,7 @@ class Model(model.Model):
         # decoding
         dec_state, dec_out, valid_dec_out = decoder(word_enc_out, self.X_spaces_len, word_enc_state,
                                                     t_embedded, self.t_len, self.rnn_units*2,
-                                                    self.rnn_units, self.embeddings, W_out, b_out)
+                                                    self.rnn_units, self.t_embeddings, W_out, b_out)
 
         out_tensor = tf.reshape(dec_out, [-1, self.rnn_units*2])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
