@@ -38,7 +38,7 @@ class Model(model.Model):
 
     def build(self):
         print('Building model')
-        self.embeddings = tf.Variable(
+        self.X_embeddings = tf.Variable(
             tf.random_normal([self.alphabet_size, self.embedd_dims],
             stddev=0.1), name='embeddings')
 
@@ -46,7 +46,7 @@ class Model(model.Model):
             tf.random_normal([self.alphabet_size, self.embedd_dims],
             stddev=0.1), name='embeddings')
 
-        X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
+        X_embedded = tf.gather(self.X_embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.t_embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('dense_out'):
