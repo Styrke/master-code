@@ -185,7 +185,7 @@ class Trainer:
     def validate(self, sess):
         print("Validating..")
         total_num_samples = 0
-        losses, accuracies, valid_ys, valid_ts = [], [], [], []
+        losses, accuracies, valid_y_strings, valid_t_strings = [], [], [], []
         for v_feed_dict in self.model.next_valid_feed():
             fetches = {'accuracy': self.model.valid_accuracy,
                        'ys': self.model.valid_ys,
@@ -193,25 +193,28 @@ class Trainer:
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
-            # TODO: accuracies should be weighted by batch sizes before averaging
+            # keep track of num_samples in batch and total
             samples_in_batch = res['ys'].shape[0]
             total_num_samples += samples_in_batch
-            valid_ys.append(res['ys'])
-            valid_ts.append(v_feed_dict[self.model.ts])
+
+            # convert to strings
+            valid_ys, valid_ts = res['ys'], v_feed_dict[self.model.ts]
+            str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet)
+            valid_y_strings += str_ys
+            valid_t_strings += str_ts
+
+            # collect loss and accuracy
             losses.append(res['loss']*samples_in_batch)
             accuracies.append(res['accuracy']*samples_in_batch)
 
-        # convert all predictions to strings and lists of words
-        valid_ys = np.concatenate(valid_ys, axis=0)
-        valid_ts = np.concatenate(valid_ts, axis=0)
-        str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet)
+        # convert all prediction strings to lists of words (for computing bleu)
         t_words, y_words = utils.strs_to_words(str_ts, str_ys)
 
         # compute performance metrics
         valid_loss = np.sum(losses)/total_num_samples
         valid_acc = np.sum(accuracies)/total_num_samples
         corpus_bleu = pm.corpus_bleu(t_words, y_words)
-        edit_dist = pm.mean_char_edit_distance(str_ys, str_ts)
+        edit_dist = pm.mean_char_edit_distance(valid_y_strings, valid_t_strings)
 
         # print results
         self.visualize_ys(res['ys'], v_feed_dict)
