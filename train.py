@@ -208,7 +208,7 @@ class Trainer:
             accuracies.append(res['accuracy']*samples_in_batch)
 
         # convert all prediction strings to lists of words (for computing bleu)
-        t_words, y_words = utils.strs_to_words(str_ts, str_ys)
+        t_words, y_words = utils.strs_to_words(valid_y_strings, valid_t_strings)
 
         # compute performance metrics
         valid_loss = np.sum(losses)/total_num_samples
