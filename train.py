@@ -6,7 +6,6 @@ import tensorflow as tf
 import importlib
 
 from augmentor import Augmentor
-from model import Model
 from utils import basic as utils
 import utils.performancemetrics as pm
 from utils.tfhelper import run
@@ -68,7 +67,7 @@ class Trainer:
 
     def load_config(self, config_name):
         # load the config module to use
-        config_path = 'configurations.' + config_name
+        config_path = 'configs.' + config_name
         config = importlib.import_module(config_path)
 
         # copy settings that affect the training script

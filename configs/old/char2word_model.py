@@ -2,25 +2,32 @@ import tensorflow as tf
 from tensorflow.python.ops import seq2seq
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import rnn
-import sys
-sys.path.insert(0, '..')
-import model
+
+from configs.old import model
+from utils.tfextensions import _grid_gather
 
 
 class Model(model.Model):
-    """Separate embeddings for source and target sequences."""
+    """Configuration where the model has a char2word encoder."""
+    # overwrite config
+    name = 'c2w/basic'
+    iterations = 32000*5
+    seq_len = 50
+    save_freq = 20000
+    valid_freq = 500
+
+    char_enc_units = 400
+    word_enc_units = 400
+    dec_units = 400
 
     def build(self):
         print('Building model')
-        self.x_embeddings = tf.Variable(
+        self.embeddings = tf.Variable(
             tf.random_uniform([self.alphabet_size, self.embedd_dims]),
-            name='x_embeddings')
-        self.t_embeddings = tf.Variable(
-            tf.random_uniform([self.alphabet_size, self.embedd_dims]),
-            name='t_embeddings')
+            name='embeddings')
 
-        X_embedded = tf.gather(self.x_embeddings, self.Xs, name='embed_X')
-        t_embedded = tf.gather(self.t_embeddings, self.ts_go, name='embed_t')
+        X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
+        t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('split_X_inputs'):
             X_list = tf.split(
@@ -43,27 +50,41 @@ class Model(model.Model):
             [t.set_shape([None, self.embedd_dims]) for t in t_list]
 
         with tf.variable_scope('dense_out'):
-            W_out = tf.get_variable('W_out', [self.rnn_units, self.alphabet_size])
+            W_out = tf.get_variable('W_out', [self.dec_units, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
-        cell = rnn_cell.GRUCell(self.rnn_units)
-
-        # encoder
-        enc_outputs, enc_state = rnn.rnn(
-            cell=cell,
+        # char encoder
+        char_cell = rnn_cell.GRUCell(self.char_enc_units)
+        char_enc_outputs, char_enc_state = rnn.rnn(
+            cell=char_cell,
             inputs=X_list,
             dtype=tf.float32,
             sequence_length=self.X_len,
-            scope='rnn_encoder')
+            scope='rnn_char_encoder')
 
-        tf.histogram_summary('final_encoder_state', enc_state)
+        # char2word
+        char2word = tf.transpose(tf.pack(char_enc_outputs), perm=[1, 0, 2])
+        char2word = _grid_gather(char2word, self.X_spaces)
+        char2word = tf.unpack(tf.transpose(char2word, perm=[1, 0, 2]))
+
+        [t.set_shape([None, self.char_enc_units]) for t in char2word]
+
+        # word encoder
+        word_cell = rnn_cell.GRUCell(self.word_enc_units)
+        word_enc_outputs, word_enc_state = rnn.rnn(
+            cell=word_cell,
+            inputs=char2word,
+            dtype=tf.float32,
+            sequence_length=self.X_spaces_len,
+            scope='rnn_word_encoder'
+        )
 
         # The loop function provides inputs to the decoder:
         def decoder_loop_function(prev, i):
             def feedback_on():
                 prev_1 = tf.matmul(prev, W_out) + b_out
                 # feedback is on, so feed the decoder with the previous output
-                return tf.gather(self.t_embeddings, tf.argmax(prev_1, 1))
+                return tf.gather(self.embeddings, tf.argmax(prev_1, 1))
 
             def feedback_off():
                 # feedback is off, so just feed the decoder with t's
@@ -72,11 +93,16 @@ class Model(model.Model):
             return tf.cond(self.feedback, feedback_on, feedback_off)
 
         # decoder
-        dec_out, dec_state = seq2seq.rnn_decoder(
+        att_states = tf.transpose(tf.pack(word_enc_outputs), perm=[1, 0, 2])
+        dec_cell = rnn_cell.GRUCell(self.dec_units)
+        dec_out, dec_state = seq2seq.attention_decoder(
             decoder_inputs=t_list,
-            initial_state=enc_state,
-            cell=cell,
-            loop_function=decoder_loop_function)
+            initial_state=word_enc_state,
+            attention_states=att_states,
+            cell=dec_cell,
+            loop_function=decoder_loop_function,
+            scope='attention_decoder'
+        )
 
         self.out = []
         for d in dec_out:

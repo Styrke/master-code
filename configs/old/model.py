@@ -1,3 +1,7 @@
+"""The original basic rnn encoder-decoder model based on TF's RNN
+library without attention.
+"""
+
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import seq2seq

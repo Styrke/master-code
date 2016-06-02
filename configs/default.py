@@ -1,25 +1,86 @@
-import sys
 import tensorflow as tf
-from tensorflow.python.ops import seq2seq
-from tensorflow.python.ops import rnn_cell
-from tensorflow.python.ops import rnn
+import text_loader as tl
 from tensorflow.python.ops import tensor_array_ops
 from utils.tfextensions import sequence_loss_tensor
 from utils.tfextensions import _grid_gather
 from utils.tfextensions import mask
-sys.path.insert(0, '..')
-import model
-import text_loader as tl
 
 
-class Model(model.Model):
-    """Configuration where the model has a 2-layer RNN encoer."""
-    # overwrite config
-    batch_size = 32
-    seq_len = 25
-    rnn_units = 100
-    valid_freq = 100  # Using a smaller valid set for debug so can do it more frequently.
-    # only use a single of the validation files for this debugging config
+class Model:
+    # settings that affect train.py
+    batch_size = 64
+    seq_len = 50
+    name = None  # (string) For saving logs and checkpoints. (None to disable.)
+    visualize_freq = 1000  # Visualize training X, y, and t. (0 to disable.)
+    log_freq = 10  # How often to print updates during training.
+    save_freq = 0  # How often to save checkpoints. (0 to disable.)
+    valid_freq = 500  # How often to validate.
+    iterations = 5*32000  # How many iterations to train for before stopping.
+    train_feedback = False  # Enable feedback during training?
+    tb_log_freq = 500  # How often to save logs for TensorBoard
+
+    # datasets
+    train_x_files = ['data/train/europarl-v7.da-en.en']
+    train_t_files = ['data/train/europarl-v7.da-en.da']
+    valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
+                     'data/valid/test2007.en', 'data/valid/test2008.en']
+    valid_t_files = ['data/valid/devtest2006.da', 'data/valid/test2006.da',
+                     'data/valid/test2007.da', 'data/valid/test2008.da']
+    # settings that are local to the model
+    alphabet_size = 337  # size of alphabet
+    char_encoder_units = 400  # number of units in character-level encoder
+    word_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
+    embedd_dims = 16  # size of character embeddings
+    learning_rate = 0.001
+    reg_scale = 0.001
+    clip_norm = 1
+
+    swap_schedule = {
+            0: 0.0,
+#            5000: 0.05,
+#            10000: 0.1,
+#            20000: 0.15,
+#            30000: 0.25,
+#            40000: 0.3,
+#            50000: 0.35,
+#            60000: 0.39,
+    }
+
+    # kwargs for scheduling function
+    schedule_kwargs = {
+            'warmup_iterations': 100,  # if warmup_schedule is used
+            'warmup_function':  None,  # if warmup_schedule is used
+            'regular_function': None,  # if warmup_schedule is used
+            'shuffle': True,
+            'repeat':  True,
+            'sort':    False,
+            'fuzzyness': 3
+    }
+
+    def __init__(self):
+        self.max_x_seq_len = self.max_t_seq_len = self.seq_len
+
+        # TF placeholders
+        self.setup_placeholders()
+
+        # schedule functions
+        self.train_schedule_function = tl.warmup_schedule
+        self.valid_schedule_function = None # falls back to frostings.default_schedule
+
+        print("Model instantiation");
+        self.build()
+        self.loss, self.accuracy = self.build_loss(self.out, self.out_tensor)
+        self.valid_loss, self.valid_accuracy = self.build_valid_loss()
+        self.ys = self.build_prediction(self.out_tensor)
+        self.valid_ys = self.build_valid_prediction()
+        self.build_training()
+
+        # Create TensorBoard scalar summaries
+        tf.scalar_summary('train/loss', self.loss)
+        tf.scalar_summary('train/accuracy', self.accuracy)
+
+        # setup batch generators
+        self.setup_batch_generators()
 
     def setup_placeholders(self):
         shape = [None, None]
@@ -46,19 +107,19 @@ class Model(model.Model):
         t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('dense_out'):
-            W_out = tf.get_variable('W_out', [self.rnn_units*2, self.alphabet_size])
+            W_out = tf.get_variable('W_out', [self.word_encoder_units*2, self.alphabet_size])
             b_out = tf.get_variable('b_out', [self.alphabet_size])
 
         # forward encoding
-        char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder', self.rnn_units)
+        char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder', self.char_encoder_units)
         char2word = _grid_gather(char_enc_out, self.X_spaces)
-        char2word.set_shape([None, None, self.rnn_units])
-        word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder', self.rnn_units)
+        char2word.set_shape([None, None, self.char_encoder_units])
+        word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder', self.word_encoder_units)
 
         # backward encoding words
         char2word = tf.reverse_sequence(char2word, tf.to_int64(self.X_spaces_len), 1)
-        char2word.set_shape([None, None, self.rnn_units])
-        word_enc_state_bck, word_enc_out_bck = encoder(char2word, self.X_spaces_len, 'word_encoder_backwards', self.rnn_units)
+        char2word.set_shape([None, None, self.char_encoder_units])
+        word_enc_state_bck, word_enc_out_bck = encoder(char2word, self.X_spaces_len, 'word_encoder_backwards', self.word_encoder_units)
         word_enc_out_bck = tf.reverse_sequence(word_enc_out_bck, tf.to_int64(self.X_spaces_len), 1)
 
         word_enc_state = tf.concat(1, [word_enc_state, word_enc_state_bck])
@@ -66,10 +127,10 @@ class Model(model.Model):
 
         # decoding
         dec_state, dec_out, valid_dec_out = decoder(word_enc_out, self.X_spaces_len, word_enc_state,
-                                                    t_embedded, self.t_len, self.rnn_units*2,
-                                                    self.rnn_units, self.embeddings, W_out, b_out)
+                                                    t_embedded, self.t_len, self.word_encoder_units*2,
+                                                    self.word_encoder_units, self.embeddings, W_out, b_out)
 
-        out_tensor = tf.reshape(dec_out, [-1, self.rnn_units*2])
+        out_tensor = tf.reshape(dec_out, [-1, self.word_encoder_units*2])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
                                   tf.expand_dims(tf.shape(t_embedded)[1], 0),
@@ -77,7 +138,7 @@ class Model(model.Model):
         self.out_tensor = tf.reshape(out_tensor, out_shape)
         self.out_tensor.set_shape([None, None, self.alphabet_size])
 
-        valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.rnn_units*2])
+        valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.word_encoder_units*2])
         valid_out_tensor = tf.matmul(valid_out_tensor, W_out) + b_out
         self.valid_out_tensor = tf.reshape(valid_out_tensor, out_shape)
 
@@ -111,8 +172,43 @@ class Model(model.Model):
     def build_valid_loss(self):
         return self.build_loss(self.out, self.valid_out_tensor)
 
+    def build_prediction(self, out_tensor):
+        print('  Building prediction')
+        with tf.variable_scope('prediction'):
+            # logits is a list of tensors of shape [batch_size, alphabet_size].
+            # We need shape of [batch_size, target_seq_len, alphabet_size].
+            return tf.argmax(out_tensor, dimension=2)
+
     def build_valid_prediction(self):
         return self.build_prediction(self.valid_out_tensor)
+
+    def build_training(self):
+        print('  Building training')
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
+
+        # Do gradient clipping
+        # NOTE: this is the correct, but slower clipping by global norm.
+        # Maybe it's worth trying the faster tf.clip_by_norm()
+        # (See the documentation for tf.clip_by_global_norm() for more info)
+        grads_and_vars = optimizer.compute_gradients(self.loss)
+        gradients, variables = zip(*grads_and_vars)  # unzip list of tuples
+        clipped_gradients, global_norm = (
+                tf.clip_by_global_norm(gradients, self.clip_norm) )
+        clipped_grads_and_vars = zip(clipped_gradients, variables)
+
+        # Create TensorBoard scalar summary for global gradient norm
+        tf.scalar_summary('train/global gradient norm', global_norm)
+
+        # Create TensorBoard summaries for gradients
+        # for grad, var in grads_and_vars:
+        #     # Sparse tensor updates can't be summarized, so avoid doing that:
+        #     if isinstance(grad, tf.Tensor):
+        #         tf.histogram_summary('grad_' + var.name, grad)
+
+        # make training op for applying the gradients
+        self.train_op = optimizer.apply_gradients(clipped_grads_and_vars,
+                                                  global_step=self.global_step)
 
     def setup_batch_generators(self):
         """Load the datasets"""
@@ -151,6 +247,33 @@ class Model(model.Model):
                  self.feedback: feedback,
                  self.X_spaces: batch['x_spaces'],
                  self.X_spaces_len: batch['x_spaces_len'] }
+
+    def train_dict(self, batch):
+        """ Return feed_dict for training.
+        Reuse validation feed_dict because the only difference is feedback.
+        """
+        return self.valid_dict(batch, feedback=False)
+
+    def build_feed_dict(self, batch, validate=False):
+        return self.valid_dict(batch) if validate else self.train_dict(batch)
+
+    def get_generator(self, validate=False):
+        k = 'valid' if validate else 'train'
+        return self.batch_generator[k].gen_batch
+
+    def next_train_feed(self):
+        generator = self.get_generator()
+        for t_batch in generator(self.train_schedule_function):
+            extra = { 't_len': t_batch['t_len'] }
+            yield (self.build_feed_dict(t_batch), extra)
+
+    def next_valid_feed(self):
+        generator = self.get_generator(validate=True)
+        for v_batch in generator(self.valid_schedule_function):
+            yield self.build_feed_dict(v_batch, validate=True)
+
+    def get_alphabet(self):
+        return self.batch_generator['train'].alphabet
 
 
 def encoder(inputs, lengths, name, num_units, reverse=False):

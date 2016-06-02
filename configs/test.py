@@ -1,15 +1,15 @@
-import sys
-sys.path.insert(0, '../..')
-from configurations import char2word_model
+from configs import default
 
 
-class Model(char2word_model.Model):
+class Model(default.Model):
     # overwrite config
     batch_size = 32
     seq_len = 25
-    char_enc_units = 100
-    word_enc_units = 100
-    dec_units = 100
+
+    char_encoder_units = 100
+    word_encoder_units = 100
+    embedd_dims = 64
+
     valid_freq = 100  # Using a smaller valid set for debug so can do it more frequently.
 
     # only use a single of the validation files for this debugging config
