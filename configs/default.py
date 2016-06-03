@@ -12,9 +12,9 @@ class Model:
     batch_size = 64
     seq_len = 50
     name = None  # (string) For saving logs and checkpoints. (None to disable.)
-    visualize_freq = 1000  # Visualize training X, y, and t. (0 to disable.)
-    log_freq = 10  # How often to print updates during training.
-    save_freq = 0  # How often to save checkpoints. (0 to disable.)
+    visualize_freq = 100000  # Visualize training X, y, and t. (0 to disable.)
+    log_freq = 100  # How often to print updates during training.
+    save_freq = 20000  # How often to save checkpoints. (0 to disable.)
     valid_freq = 500  # How often to validate.
     iterations = 5*32000  # How many iterations to train for before stopping.
     train_feedback = False  # Enable feedback during training?
@@ -27,13 +27,14 @@ class Model:
                      'data/valid/test2007.en', 'data/valid/test2008.en']
     valid_t_files = ['data/valid/devtest2006.da', 'data/valid/test2006.da',
                      'data/valid/test2007.da', 'data/valid/test2008.da']
+
     # settings that are local to the model
     alphabet_size = 337  # size of alphabet
     char_encoder_units = 400  # number of units in character-level encoder
     word_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
-    embedd_dims = 16  # size of character embeddings
+    embedd_dims = 256  # size of character embeddings
     learning_rate = 0.001
-    reg_scale = 0.001
+    reg_scale = 0.000001
     clip_norm = 1
 
     swap_schedule = {
@@ -42,7 +43,7 @@ class Model:
 
     # kwargs for scheduling function
     schedule_kwargs = {
-        'warmup_iterations': 100,  # if warmup_schedule is used
+        'warmup_iterations': 10000,  # if warmup_schedule is used
         'warmup_function':  None,  # if warmup_schedule is used
         'regular_function': None,  # if warmup_schedule is used
         'shuffle': True,
@@ -93,12 +94,15 @@ class Model:
 
     def build(self):
         print('Building model')
-        self.embeddings = tf.Variable(
+        self.x_embeddings = tf.Variable(
             tf.random_normal([self.alphabet_size, self.embedd_dims],
-            stddev=0.1), name='embeddings')
+            stddev=0.1), name='x_embeddings')
+        self.t_embeddings = tf.Variable(
+            tf.random_normal([self.alphabet_size, self.embedd_dims],
+            stddev=0.1), name='t_embeddings')
 
-        X_embedded = tf.gather(self.embeddings, self.Xs, name='embed_X')
-        t_embedded = tf.gather(self.embeddings, self.ts_go, name='embed_t')
+        X_embedded = tf.gather(self.x_embeddings, self.Xs, name='embed_X')
+        t_embedded = tf.gather(self.t_embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('dense_out'):
             W_out = tf.get_variable('W_out', [self.word_encoder_units*2, self.alphabet_size])
@@ -123,7 +127,7 @@ class Model:
         dec_state, dec_out, valid_dec_out = (
             attention_decoder(word_enc_out, self.X_spaces_len, word_enc_state,
                               t_embedded, self.t_len, self.word_encoder_units,
-                              self.embeddings, W_out, b_out))
+                              self.t_embeddings, W_out, b_out))
 
         out_tensor = tf.reshape(dec_out, [-1, self.word_encoder_units*2])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out

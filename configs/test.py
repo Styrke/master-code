@@ -10,6 +10,8 @@ class Model(default.Model):
     word_encoder_units = 100
     embedd_dims = 64
 
+    save_freq = 0
+    log_freq = 10
     valid_freq = 100  # Using a smaller valid set for debug so can do it more frequently.
 
     # only use a single of the validation files for this debugging config
