@@ -16,7 +16,7 @@ SAVER_PATH = {'base': 'train/',
 
 
 @click.command()
-@click.option('--config', default='test', help='Config file to use for training')
+@click.argument('config', default='test')
 class Trainer:
     """Train a translation model."""
 
