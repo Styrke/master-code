@@ -37,25 +37,18 @@ class Model:
     clip_norm = 1
 
     swap_schedule = {
-            0: 0.0,
-#            5000: 0.05,
-#            10000: 0.1,
-#            20000: 0.15,
-#            30000: 0.25,
-#            40000: 0.3,
-#            50000: 0.35,
-#            60000: 0.39,
+        0: 0.0
     }
 
     # kwargs for scheduling function
     schedule_kwargs = {
-            'warmup_iterations': 100,  # if warmup_schedule is used
-            'warmup_function':  None,  # if warmup_schedule is used
-            'regular_function': None,  # if warmup_schedule is used
-            'shuffle': True,
-            'repeat':  True,
-            'sort':    False,
-            'fuzzyness': 3
+        'warmup_iterations': 100,  # if warmup_schedule is used
+        'warmup_function':  None,  # if warmup_schedule is used
+        'regular_function': None,  # if warmup_schedule is used
+        'shuffle': True,
+        'repeat':  True,
+        'sort':    False,
+        'fuzzyness': 3
     }
 
     def __init__(self):
@@ -66,9 +59,9 @@ class Model:
 
         # schedule functions
         self.train_schedule_function = tl.warmup_schedule
-        self.valid_schedule_function = None # falls back to frostings.default_schedule
+        self.valid_schedule_function = None  # falls back to frostings.default_schedule
 
-        print("Model instantiation");
+        print("Model instantiation")
         self.build()
         self.loss, self.accuracy = self.build_loss(self.out, self.out_tensor)
         self.valid_loss, self.valid_accuracy = self.build_valid_loss()
