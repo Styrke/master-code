@@ -96,3 +96,6 @@ target/
 **/*.fdb_latexmk
 **/*.fls
 **/*.tdo
+
+# other files
+runner.sh
