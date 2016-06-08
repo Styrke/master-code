@@ -21,8 +21,8 @@ class Model:
     tb_log_freq = 500  # How often to save logs for TensorBoard
 
     # datasets
-    train_x_files = ['data/train/europarl-v7.da-en.fr']
-    train_t_files = ['data/train/europarl-v7.da-en.fr']
+    train_x_files = ['data/train/europarl-v7.fr-en.fr']
+    train_t_files = ['data/train/europarl-v7.fr-en.fr']
     valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
                      'data/valid/test2007.en', 'data/valid/test2008.en']
     valid_t_files = ['data/valid/devtest2006.fr', 'data/valid/test2006.fr',
