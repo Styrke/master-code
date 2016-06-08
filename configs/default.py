@@ -9,7 +9,7 @@ from utils.rnn import attention_decoder
 
 class Model:
     # settings that affect train.py
-    batch_size = 64
+    batch_size = 512
     seq_len = 50
     name = None  # (string) For saving logs and checkpoints. (None to disable.)
     visualize_freq = 100000  # Visualize training X, y, and t. (0 to disable.)
@@ -21,12 +21,12 @@ class Model:
     tb_log_freq = 500  # How often to save logs for TensorBoard
 
     # datasets
-    train_x_files = ['data/train/europarl-v7.da-en.en']
-    train_t_files = ['data/train/europarl-v7.da-en.da']
+    train_x_files = ['data/train/europarl-v7.da-en.fr']
+    train_t_files = ['data/train/europarl-v7.da-en.fr']
     valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
                      'data/valid/test2007.en', 'data/valid/test2008.en']
-    valid_t_files = ['data/valid/devtest2006.da', 'data/valid/test2006.da',
-                     'data/valid/test2007.da', 'data/valid/test2008.da']
+    valid_t_files = ['data/valid/devtest2006.fr', 'data/valid/test2006.fr',
+                     'data/valid/test2007.fr', 'data/valid/test2008.fr']
 
     # settings that are local to the model
     alphabet_size = 337  # size of alphabet
