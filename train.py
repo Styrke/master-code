@@ -4,6 +4,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import importlib
+from datetime import datetime
 
 from augmentor import Augmentor
 from utils import basic as utils
@@ -21,6 +22,7 @@ class Trainer:
     """Train a translation model."""
 
     def __init__(self, config):
+        self.timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         self.load_config(config)
         self.setup_reload_path()
 
@@ -35,15 +37,15 @@ class Trainer:
         if not self.name:
             return  # Nothing more to do
 
-        local_path        = os.path.join(SAVER_PATH['base'], self.name)
-        self.summary_path = os.path.join(local_path, SAVER_PATH['log'])
+        self.local_path        = os.path.join(SAVER_PATH['base'], self.name)
+        self.summary_path = os.path.join(self.local_path, SAVER_PATH['log'])
 
-        print("Will read and write from '{:s}' (checkpoints and logs)".format(local_path))
+        print("Will read and write from '{:s}' (checkpoints and logs)".format(self.local_path))
 
         # Prepare for saving checkpoints
         if self.save_freq:
             self.checkpoint_saver = tf.train.Saver()
-            checkpoint_path = os.path.join(local_path, SAVER_PATH['checkpoint'])
+            checkpoint_path = os.path.join(self.local_path, SAVER_PATH['checkpoint'])
             self.checkpoint_file_path = os.path.join(checkpoint_path, 'checkpoint')
             if not os.path.exists(checkpoint_path):
                 os.makedirs(checkpoint_path)
@@ -54,12 +56,14 @@ class Trainer:
     def setup_validation_summaries(self):
         """A hack for recording performance metrics with TensorBoard."""
         self.bleu = tf.placeholder(tf.float32)
+        self.moses_bleu = tf.placeholder(tf.float32)
         self.edit_dist = tf.placeholder(tf.float32)
 
         valid_summaries = [
             tf.scalar_summary('validation/loss', self.model.valid_loss),
             tf.scalar_summary('validation/accuracy', self.model.valid_accuracy),
             tf.scalar_summary('validation/bleu', self.bleu),
+            tf.scalar_summary('validation/moses_bleu', self.moses_bleu),
             tf.scalar_summary('validation/edit dist per char', self.edit_dist)
         ]
 
@@ -222,12 +226,32 @@ class Trainer:
         print('\t{:s}{:.5f}'.format('BLEU:'.ljust(25), corpus_bleu))
         print('\t{:s}{:.5f}'.format('Mean edit dist per char:'.ljust(25), edit_dist))
 
+        def dump_to_file(thefile, thelist):
+            tot_str = '\n'.join(thelist)
+            with open(thefile, "w") as file:
+                file.write(tot_str)
+        # TODO move this to setup
+        if self.name:
+            path = 'bleu/%s-%s' % (self.name, self.timestamp)
+        else:
+            path = 'bleu/%s-%s' % ('no-name', self.timestamp)
+        path_to_bleu =  os.path.join(SAVER_PATH['base'], path)
+        if not os.path.exists(path_to_bleu):
+            os.makedirs(path_to_bleu)
+        reference = os.path.join(path_to_bleu, 'reference.txt')
+        translated = os.path.join(path_to_bleu, 'translated.txt')
+
+        if not os.path.exists(reference):
+            dump_to_file(reference, valid_t_strings)
+        dump_to_file(translated, valid_y_strings)
+        out = pm.moses_bleu(translated, reference)
         # Write TensorBoard summaries
         if self.summarywriter:
             feed_dict = {
                 self.model.valid_loss: valid_loss,
                 self.model.valid_accuracy: valid_acc,
                 self.bleu: corpus_bleu,
+                self.moses_bleu: out,
                 self.edit_dist: edit_dist }
             fetches = [self.val_summaries, self.model.global_step]
             summaries, i = sess.run(fetches, feed_dict)

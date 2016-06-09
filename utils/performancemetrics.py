@@ -2,7 +2,17 @@ from math import exp, log
 from collections import Counter
 from nltk.util import ngrams
 from nltk.metrics.distance import edit_distance
+from subprocess import Popen, PIPE
+import subprocess
 
+def moses_bleu(translated, reference):
+    """Using moses bleu implementation multi-bleu.perl"""
+    call = ["%s %s %s %s %s" %("perl utils/multi-bleu.perl", reference, " < ", translated, "| awk '{ print $3 }' | sed 's/,//'")]
+    call1 = 'perl utils/multi-bleu.perl ' + reference + ' < ' + translated
+    subprocess.call(call1, shell=True)
+    p = Popen(call, stdout=PIPE, shell=True)
+    out = p.communicate()[0]
+    return float(out)
 
 def corpus_bleu(candidates, references, max_n=4):
     """Corpus bleu supporting a single reference per candidate."""
