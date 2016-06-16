@@ -25,5 +25,5 @@ def generate_alphabet(filenames, alphabet_file):
         pickle.dump(tuples_sorted_alphabetically, f)
     print("done ...")
 
-generate_alphabet(['train/europarl-v7.de-en.en.tok', 'train/commoncrawl.de-en.en.tok', 'train/news-commentary-v10.de-en.en.tok'], 'alphabet/de-en.en.tok.dict')
-generate_alphabet(['train/europarl-v7.de-en.de.tok', 'train/commoncrawl.de-en.de.tok', 'train/news-commentary-v10.de-en.de.tok'], 'alphabet/de-en.de.tok.dict')
+generate_alphabet(['data/train/europarl-v7.de-en.en.tok', 'data/train/commoncrawl.de-en.en.tok', 'data/train/news-commentary-v10.de-en.en.tok'], 'data/alphabet/de-en.en.tok.dict')
+generate_alphabet(['data/train/europarl-v7.de-en.de.tok', 'data/train/commoncrawl.de-en.de.tok', 'data/train/news-commentary-v10.de-en.de.tok'], 'data/alphabet/de-en.de.tok.dict')
