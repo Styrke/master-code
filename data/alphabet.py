@@ -1,10 +1,11 @@
 from collections import Counter
 import pickle
+import numpy as np
 
 
 class Alphabet(object):
     """Easily encode and decode strings using a set of characters."""
-    def __init__(self, alphabet='data/alphabet', min_occurrence=50, eos=None, unk='', sos=None):
+    def __init__(self, alphabet, max_alphabet_size, eos=None, unk='', sos=None):
         """Get alphabet dict with unique integer values for each char.
 
         By default (if argument eos=None) no EOS character will be
@@ -33,19 +34,30 @@ class Alphabet(object):
         self.eos_char = eos  # Representation of EOS when decoding
         self.sos_char = sos  # Representation of SOS when decoding
 
+        def reduce_dict_to_list(char_dict, max_size):
+            chars = list(char_dict.copy().keys())
+            freqs = list(char_dict.copy().values())
+            sorted_idx = np.argsort(freqs)
+            sorted_chars = [chars[ii] for ii in sorted_idx[::-1]]
+            max_size = min(max_size, len(sorted_chars))
+            char_list = sorted_chars[:max_size]
+            return char_list
+
         if type(alphabet) is list:
             self.char_list = alphabet
         else:
-            self.char_list = pickle.load(open(alphabet, 'br'), encoding='utf-8')
-            self.char_list = [c for c, n in self.char_list if n >= min_occurrence]
+            char_dict = pickle.load(open(alphabet, 'br'), encoding='utf-8')
+            self.char_list = reduce_dict_to_list(char_dict, max_alphabet_size)
 
         # the list apparently contains some empty character ('') twice, so we
         # have to remove duplicates while preserving the order:
         # (http://stackoverflow.com/a/480227/118173)
         seen = set()
         seen_add = seen.add
-        self.char_list = [x for x in self.char_list
+        set_list = [x for x in self.char_list
                           if not (x in seen or seen_add(x))]
+        if len(set_list) != len(self.char_list):
+            raise Exception('You have dublicates in your dictionary, exiting ...')
 
         self.encode_dict = {char: i for i, char in enumerate(self.char_list)}
         self.decode_dict = {i: char for i, char in enumerate(self.char_list)}

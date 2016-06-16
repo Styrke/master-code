@@ -26,7 +26,8 @@ class Trainer:
         self.load_config(config)
         self.setup_reload_path()
 
-        self.alphabet = self.model.get_alphabet()
+        self.alphabet_src = self.model.alphabet_src
+        self.alphabet_tar = self.model.alphabet_tar
 
         self.train()
 
@@ -93,14 +94,14 @@ class Trainer:
         sep = ":::"
         pred_len = len(max(ys, key=len)) # length of longest predicted string
         for j in range(feed_dict[self.model.Xs].shape[0]):
-            inp  = self.alphabet.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len)
-            pred = self.alphabet.decode(ys[j]).ljust(pred_len)
-            targ = self.alphabet.decode(feed_dict[self.model.ts][j])
+            inp  = self.alphabet_src.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len)
+            pred = self.alphabet_tar.decode(ys[j]).ljust(pred_len)
+            targ = self.alphabet_tar.decode(feed_dict[self.model.ts][j])
             print('{1} {0} {2} {0} {3}'.format(sep, inp, pred, targ))
 
     def train(self):
         print("Training..")
-        gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=1.0)
+        gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=0.9)
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_opts)) as sess:
             # Prepare for writing TensorBoard summaries
             if self.tb_log_freq and self.name:
@@ -202,7 +203,7 @@ class Trainer:
 
             # convert to strings
             valid_ys, valid_ts = res['ys'], v_feed_dict[self.model.ts]
-            str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet)
+            str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet_tar)
             valid_y_strings += str_ys
             valid_t_strings += str_ts
 
@@ -212,7 +213,7 @@ class Trainer:
 
         # convert all prediction strings to lists of words (for computing bleu)
         t_words, y_words = utils.strs_to_words(valid_y_strings, valid_t_strings)
-
+        
         # compute performance metrics
         valid_loss = np.sum(losses)/total_num_samples
         valid_acc = np.sum(accuracies)/total_num_samples

@@ -5,7 +5,7 @@ from utils.tfextensions import _grid_gather
 from utils.tfextensions import mask
 from utils.rnn import encoder
 from utils.rnn import attention_decoder
-
+from data.alphabet import Alphabet
 
 class Model:
     # settings that affect train.py
@@ -21,15 +21,21 @@ class Model:
     tb_log_freq = 500  # How often to save logs for TensorBoard
 
     # datasets
-    train_x_files = ['data/train/europarl-v7.fr-en.en']
-    train_t_files = ['data/train/europarl-v7.fr-en.fr']
-    valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
-                     'data/valid/test2007.en', 'data/valid/test2008.en']
-    valid_t_files = ['data/valid/devtest2006.fr', 'data/valid/test2006.fr',
-                     'data/valid/test2007.fr', 'data/valid/test2008.fr']
+    train_x_files = ['data/train/europarl-v7.de-en.en.tok',
+                     'data/train/commoncrawl.de-en.en.tok',
+                     'data/train/news-commentary-v10.de-en.en.tok']
+    train_t_files = ['data/train/europarl-v7.de-en.de.tok',
+                     'data/train/commoncrawl.de-en.de.tok',
+                     'data/train/news-commentary-v10.de-en.de.tok']
+    valid_x_files = ['data/valid/newstest2013.en.tok']
+    valid_t_files = ['data/valid/newstest2013.de.tok']
+
+    alphabet_src = Alphabet(alphabet='data/alphabet/de-en.en.tok.dict', max_alphabet_size=300, eos='*')
+    alphabet_tar = Alphabet(alphabet='data/alphabet/de-en.de.tok.dict', max_alphabet_size=300, eos='*', sos='')
 
     # settings that are local to the model
-    alphabet_size = 337  # size of alphabet
+    alphabet_src_size = 301  # size of alphabet on source side, 300+unk
+    alphabet_tar_size = 303  # size of alphabet on target side, 300+unk+src+tar
     char_encoder_units = 400  # number of units in character-level encoder
     word_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
     embedd_dims = 256  # size of character embeddings
@@ -95,18 +101,18 @@ class Model:
     def build(self):
         print('Building model')
         self.x_embeddings = tf.Variable(
-            tf.random_normal([self.alphabet_size, self.embedd_dims],
+            tf.random_normal([self.alphabet_src_size, self.embedd_dims],
             stddev=0.1), name='x_embeddings')
         self.t_embeddings = tf.Variable(
-            tf.random_normal([self.alphabet_size, self.embedd_dims],
+            tf.random_normal([self.alphabet_tar_size, self.embedd_dims],
             stddev=0.1), name='t_embeddings')
 
         X_embedded = tf.gather(self.x_embeddings, self.Xs, name='embed_X')
         t_embedded = tf.gather(self.t_embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('dense_out'):
-            W_out = tf.get_variable('W_out', [self.word_encoder_units*2, self.alphabet_size])
-            b_out = tf.get_variable('b_out', [self.alphabet_size])
+            W_out = tf.get_variable('W_out', [self.word_encoder_units*2, self.alphabet_tar_size])
+            b_out = tf.get_variable('b_out', [self.alphabet_tar_size])
 
         # forward encoding
         char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder', self.char_encoder_units)
@@ -133,9 +139,9 @@ class Model:
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
                                   tf.expand_dims(tf.shape(t_embedded)[1], 0),
-                                  tf.expand_dims(tf.constant(self.alphabet_size), 0)])
+                                  tf.expand_dims(tf.constant(self.alphabet_tar_size), 0)])
         self.out_tensor = tf.reshape(out_tensor, out_shape)
-        self.out_tensor.set_shape([None, None, self.alphabet_size])
+        self.out_tensor.set_shape([None, None, self.alphabet_tar_size])
 
         valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.word_encoder_units*2])
         valid_out_tensor = tf.matmul(valid_out_tensor, W_out) + b_out
@@ -157,7 +163,7 @@ class Model:
 
         with tf.variable_scope('loss'):
             loss = sequence_loss_tensor(out_tensor, self.ts, self.t_mask,
-                    self.alphabet_size)
+                    self.alphabet_tar_size)
 
             with tf.variable_scope('regularization'):
                 regularize = tf.contrib.layers.l2_regularizer(self.reg_scale)
@@ -174,8 +180,8 @@ class Model:
     def build_prediction(self, out_tensor):
         print('  Building prediction')
         with tf.variable_scope('prediction'):
-            # logits is a list of tensors of shape [batch_size, alphabet_size].
-            # We need shape of [batch_size, target_seq_len, alphabet_size].
+            # logits is a list of tensors of shape [batch_size, alphabet_tar_size].
+            # We need shape of [batch_size, target_seq_len, alphabet_tar_size].
             return tf.argmax(out_tensor, dimension=2)
 
     def build_valid_prediction(self):
@@ -221,6 +227,8 @@ class Model:
         self.batch_generator['train'] = tl.TextBatchGenerator(
             loader=train_loader,
             batch_size=self.batch_size,
+            alphabet_src=self.alphabet_src,
+            alphabet_tar=self.alphabet_tar,
             use_dynamic_array_sizes=True,
             **self.schedule_kwargs)
 
@@ -232,6 +240,8 @@ class Model:
         self.batch_generator['valid'] = tl.TextBatchGenerator(
             loader=valid_loader,
             batch_size=self.batch_size,
+            alphabet_src=self.alphabet_src,
+            alphabet_tar=self.alphabet_tar,
             use_dynamic_array_sizes=True)
 
     def valid_dict(self, batch, feedback=True):
@@ -270,6 +280,3 @@ class Model:
         generator = self.get_generator(validate=True)
         for v_batch in generator(self.valid_schedule_function):
             yield self.build_feed_dict(v_batch, validate=True)
-
-    def get_alphabet(self):
-        return self.batch_generator['train'].alphabet

@@ -23,7 +23,6 @@ rm -rf data/valid/*.cz
 tar -xvf data/test/test.tgz -C data/test
 mv data/test/test/* data/test
 rm -rf data/test/test
-rm -rf data/test/*-ref*
 
 python3 data/preprocess/handle_sgm.py
 rm -rf data/test/*.sgm

@@ -18,11 +18,12 @@ def generate_alphabet(filenames, alphabet_file):
                             .replace("\r", "\n")
                             .replace("\n", ""))
 
-    tuples_sorted_alphabetically = sorted(list(contents.items()), key=lambda tup: tup[0])
+    tuples_sorted_alphabetically = contents#sorted(list(contents.items()), key=lambda tup: tup[0])
 
     print("dumping %d tuples (char, num) to disk ..." %len(contents.items()))
     with open(alphabet_file, 'bw') as f:
         pickle.dump(tuples_sorted_alphabetically, f)
     print("done ...")
 
-generate_alphabet(['train/europarl-v7.fr-en.en', 'train/europarl-v7.fr-en.fr'], 'alphabet')
+generate_alphabet(['train/europarl-v7.de-en.en.tok', 'train/commoncrawl.de-en.en.tok', 'train/news-commentary-v10.de-en.en.tok'], 'alphabet/de-en.en.tok.dict')
+generate_alphabet(['train/europarl-v7.de-en.de.tok', 'train/commoncrawl.de-en.de.tok', 'train/news-commentary-v10.de-en.de.tok'], 'alphabet/de-en.de.tok.dict')

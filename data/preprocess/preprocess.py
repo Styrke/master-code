@@ -42,8 +42,8 @@ def preprocess(paths):
         print('removing: %s ...' % path)
         subprocess.call(call3, shell=True)
     return path_toks
-#print('---PREPROCESSING: train---')
-#train_paths_tok = preprocess(train_paths)
+print('---PREPROCESSING: train---')
+train_paths_tok = preprocess(train_paths)
 
 print('---PREPROCESSING: valid---')
 valid_paths_tok = preprocess(valid_paths)
