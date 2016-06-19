@@ -3,7 +3,6 @@ import numpy as np
 import os, subprocess
 
 import frostings.loader as frost
-from data.alphabet import Alphabet
 from utils.change_directory import cd
 
 PRINT_SEP = "  " # spaces to prepend to print statements
@@ -173,8 +172,8 @@ class TextBatchGenerator(frost.BatchGenerator):
     Extends BatchGenerator
     """
 
-    def __init__(self, loader, batch_size, add_feature_dim=False,
-            use_dynamic_array_sizes=False, alphabet=None, **schedule_kwargs):
+    def __init__(self, loader, batch_size, alphabet_src, alphabet_tar, add_feature_dim=False,
+            use_dynamic_array_sizes=False,  **schedule_kwargs):
         """Initialize instance of TextBatchGenerator.
 
         NOTE: The size of a produced batch can be smaller than batch_size if
@@ -196,7 +195,8 @@ class TextBatchGenerator(frost.BatchGenerator):
         super(TextBatchGenerator, self).__init__(loader, batch_size,
                 **schedule_kwargs)
 
-        self.alphabet = alphabet or Alphabet(eos='*', sos='')
+        self.alphabet_src = alphabet_src
+        self.alphabet_tar = alphabet_tar
         self.seq_len = loader.seq_len
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
@@ -208,13 +208,14 @@ class TextBatchGenerator(frost.BatchGenerator):
         Process the list of samples stored in self.samples. Return the
         result as a dict with nicely formatted numpy arrays.
         """
-        encode = self.alphabet.encode
+        encode_src = self.alphabet_src.encode
+        encode_tar = self.alphabet_tar.encode
         x, t = zip(*self.samples)  # unzip samples
         batch = dict()
 
-        batch['x_encoded'] = self._make_array(x, encode, self.seq_len)
-        batch['t_encoded'] = self._make_array(t, encode, self.seq_len)
-        batch['t_encoded_go'] = self._add_sos(batch['t_encoded'])
+        batch['x_encoded'] = self._make_array(x, encode_src, self.seq_len)
+        batch['t_encoded'] = self._make_array(t, encode_tar, self.seq_len)
+        batch['t_encoded_go'] = self._add_sos(batch['t_encoded'], self.alphabet_tar)
 
         batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len//4)
         batch['x_mask'] = self._make_array(x, self._mask, self.seq_len)
@@ -307,9 +308,9 @@ class TextBatchGenerator(frost.BatchGenerator):
         if self.add_eos_character: mask.append(1)
         return mask
 
-    def _add_sos(self, array):
+    def _add_sos(self, array, alphabet):
         """Add Start Of Sequence character to an array of sequences."""
-        sos_col = np.ones([self.latest_batch_size, 1]) * self.alphabet.sos_id
+        sos_col = np.ones([self.latest_batch_size, 1]) * alphabet.sos_id
         return np.concatenate([sos_col, array[:, :-1]], 1)
 
 
