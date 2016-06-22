@@ -11,7 +11,7 @@ class Model:
     # settings that affect train.py
     batch_size = 512
     seq_len = 50
-    name = None  # (string) For saving logs and checkpoints. (None to disable.)
+    name = 'default2'  # (string) For saving logs and checkpoints. (None to disable.)
     visualize_freq = 100000  # Visualize training X, y, and t. (0 to disable.)
     log_freq = 100  # How often to print updates during training.
     save_freq = 20000  # How often to save checkpoints. (0 to disable.)
