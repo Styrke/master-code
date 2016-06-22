@@ -61,8 +61,8 @@ class Trainer:
         self.edit_dist = tf.placeholder(tf.float32)
 
         valid_summaries = [
-            tf.scalar_summary('validation/loss', self.model.valid_loss),
-            tf.scalar_summary('validation/accuracy', self.model.valid_accuracy),
+            tf.scalar_summary('validation/loss', self.model.loss_valid),
+            tf.scalar_summary('validation/accuracy', self.model.acc_valid),
             tf.scalar_summary('validation/bleu', self.bleu),
             tf.scalar_summary('validation/moses_bleu', self.moses_bleu),
             tf.scalar_summary('validation/edit dist per char', self.edit_dist)
@@ -93,10 +93,10 @@ class Trainer:
     def visualize_ys(self, ys, feed_dict):
         sep = ":::"
         pred_len = len(max(ys, key=len)) # length of longest predicted string
-        for j in range(feed_dict[self.model.Xs].shape[0]):
-            inp  = self.alphabet_src.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len)
+        for j in range(feed_dict[self.model.placeholders['Xs']].shape[0]):
+            inp  = self.alphabet_src.decode(feed_dict[self.model.placeholders['Xs']][j]).ljust(self.seq_len)
             pred = self.alphabet_tar.decode(ys[j]).ljust(pred_len)
-            targ = self.alphabet_tar.decode(feed_dict[self.model.ts][j])
+            targ = self.alphabet_tar.decode(feed_dict[self.model.placeholders['ts']][j])
             print('{1} {0} {2} {0} {3}'.format(sep, inp, pred, targ))
 
     def train(self):
@@ -116,7 +116,7 @@ class Trainer:
 
             # prepare summary operations and summary writer
             summaries = tf.merge_all_summaries()
-            self.val_summaries = self.setup_validation_summaries()
+            #self.val_summaries = self.setup_validation_summaries()
 
             combined_time = 0.0  # total time for each print
             swap_amount = None
@@ -191,9 +191,9 @@ class Trainer:
         total_num_samples = 0
         losses, accuracies, valid_y_strings, valid_t_strings = [], [], [], []
         for v_feed_dict in self.model.next_valid_feed():
-            fetches = {'accuracy': self.model.valid_accuracy,
+            fetches = {'accuracy': self.model.acc_valid,
                        'ys': self.model.valid_ys,
-                       'loss': self.model.valid_loss}
+                       'loss': self.model.loss_valid}
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
@@ -202,7 +202,7 @@ class Trainer:
             total_num_samples += samples_in_batch
 
             # convert to strings
-            valid_ys, valid_ts = res['ys'], v_feed_dict[self.model.ts]
+            valid_ys, valid_ts = res['ys'], v_feed_dict[self.model.placeholders['ts']]
             str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet_tar)
             valid_y_strings += str_ys
             valid_t_strings += str_ts
@@ -249,12 +249,12 @@ class Trainer:
         # Write TensorBoard summaries
         if self.summarywriter:
             feed_dict = {
-                self.model.valid_loss: valid_loss,
-                self.model.valid_accuracy: valid_acc,
+                self.model.loss_valid: valid_loss,
+                self.model.acc_valid: valid_acc,
                 self.bleu: corpus_bleu,
                 self.moses_bleu: out,
                 self.edit_dist: edit_dist }
-            fetches = [self.val_summaries, self.model.global_step]
+            fetches = [self.model.global_step]#[self.val_summaries, self.model.global_step]
             summaries, i = sess.run(fetches, feed_dict)
             self.summarywriter.add_summary(summaries, i)
 
