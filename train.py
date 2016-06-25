@@ -121,17 +121,17 @@ class Trainer:
             combined_time = 0.0  # total time for each print
             swap_amount = None
             augmentor = Augmentor()
-            for t_feed_dict, extra in self.model.next_train_feed():
+            for i, t_feed_dict in enumerate(self.model.next_train_feed()):
                 # NOTE is this slower than enumerate()?
-                i = self.model.global_step.eval()
+                #i = self.model.global_step.eval()
 
-                if i in self.model.swap_schedule:
-                    swap_amount = self.model.swap_schedule[i]
-                    print("  setting swap amount to {:.4f}".format(swap_amount))
-                if swap_amount > 0.0:
-                    t_feed_dict[self.model.ts_go] = augmentor.run(
-                            t_feed_dict[self.model.ts_go], extra['t_len'],
-                            swap_amount, skip_left=1)
+                #if i in self.model.swap_schedule:
+                #    swap_amount = self.model.swap_schedule[i]
+                #    print("  setting swap amount to {:.4f}".format(swap_amount))
+                #if swap_amount > 0.0:
+                    #t_feed_dict[self.model.ts_go] = augmentor.run(
+                    #        t_feed_dict[self.model.ts_go], extra['t_len'],
+                    #        swap_amount, skip_left=1)
 
                 if self.valid_freq and i % self.valid_freq == 0:
                     self.validate(sess)
@@ -139,7 +139,7 @@ class Trainer:
                 fetches = { 'loss':      self.model.loss,
                             'ys':        self.model.ys,
                             'train_op':  self.model.train_op,
-                            'accuracy':  self.model.accuracy,
+                            'accuracy':  self.model.acc,
                             'summaries': summaries }
 
                 res, elapsed_it = self.perform_iteration(sess, fetches,
@@ -153,9 +153,9 @@ class Trainer:
                 if self.summarywriter and i % self.tb_log_freq == 0:
                     self.summarywriter.add_summary(res['summaries'], i)
 
-                if self.checkpoint_saver and i and i % self.save_freq == 0:
-                    self.checkpoint_saver.save(sess, self.checkpoint_file_path,
-                            self.model.global_step)
+                #if self.checkpoint_saver and i and i % self.save_freq == 0:
+                #    self.checkpoint_saver.save(sess, self.checkpoint_file_path,
+                #            self.model.global_step)
 
                 if self.log_freq and i % self.log_freq == 0:
                     out = "Iteration {:d}\tLoss {:f}\tAcc: {:f}\tElapsed: {:f} ({:f})"

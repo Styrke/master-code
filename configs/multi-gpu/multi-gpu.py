@@ -16,7 +16,7 @@ class Model:
     visualize_freq = 100000  # Visualize training X, y, and t. (0 to disable.)
     log_freq = 100  # How often to print updates during training.
     save_freq = 20000  # How often to save checkpoints. (0 to disable.)
-    valid_freq = 500  # How often to validate.
+    valid_freq = 0#500  # How often to validate.
     iterations = 5*32000  # How many iterations to train for before stopping.
     train_feedback = False  # Enable feedback during training?
     tb_log_freq = 500  # How often to save logs for TensorBoard
@@ -282,7 +282,7 @@ class Model:
             tower_acc_valid = []
             tower_grads = []
             for i in range(self.num_gpus):
-                with tf.device('/gpu:%d' % i):
+                with tf.device('/cpu:%d' % i):
                     with tf.name_scope('%s_%d' % ('tower', i)) as scope:
                         tower = build_tower(scope, optimizer)
                         tf.get_variable_scope().reuse_variables()
@@ -364,15 +364,18 @@ class Model:
         k = 'valid' if validate else 'train'
         return self.batch_generator[k].gen_batch
 
-    def next_train_feed(self, placeholders):
+    def next_train_feed(self):
         generator = self.get_generator()
-        for t_batch in generator(self.train_schedule_function):
-            #for g in gpu_towers:
-            #    placeholders = g['placeholder']
-            #    henning.append(self.build_feed_dict(t_batch, placeholders), extra)
-            placeholders = self.placeholders
-            extra = { 't_len': t_batch['t_len'] }
-            yield (self.build_feed_dict(t_batch, placeholders), extra)
+        tower_batch = []
+        for idx, t_batch in enumerate(generator(self.train_schedule_function)):
+            tower_batch.append(t_batch)
+            if (idx+1 % self.num_gpus) == 0:
+                tower_dicts = dict()
+                for p in self.placeholders:
+                    batch = tower_batch.pop()
+                    tower_dicts.update(self.build_feed_dict(batch, p))
+                tower_batch = []
+                yield tower_dicts
 
     def next_valid_feed(self):
         generator = self.get_generator(validate=True)
