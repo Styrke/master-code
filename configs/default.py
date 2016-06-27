@@ -31,10 +31,11 @@ class Model:
     # settings that are local to the model
     alphabet_src_size = 302  # size of alphabet
     alphabet_tar_size = 303  # size of alphabet
-    alphabet_src = Alphabet('data/alphabet/dict.fr-en.en', eos='*') 
+    alphabet_src = Alphabet('data/alphabet/dict.fr-en.en', eos='*')
     alphabet_tar = Alphabet('data/alphabet/dict.fr-en.fr', eos='*', sos='')
-    char_encoder_units = 400  # number of units in character-level encoder
-    word_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
+    char_encoder_units = 300  # number of units in character-level encoder
+    word_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
+    attn_units = 30  # num units used for attention in the decoder.
     embedd_dims = 256  # size of character embeddings
     learning_rate = 0.001
     reg_scale = 0.000001
@@ -129,7 +130,7 @@ class Model:
         # decoding
         dec_state, dec_out, valid_dec_out = (
             attention_decoder(word_enc_out, self.X_spaces_len, word_enc_state,
-                              t_embedded, self.t_len, self.word_encoder_units,
+                              t_embedded, self.t_len, self.attn_units,
                               self.t_embeddings, W_out, b_out))
 
         out_tensor = tf.reshape(dec_out, [-1, self.word_encoder_units*2])
