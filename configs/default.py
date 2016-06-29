@@ -188,7 +188,10 @@ class Model:
     def build_training(self):
         print('  Building training')
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
-        optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        learning_rate_1 = tf.constant(self.learning_rate)
+        learning_rate_2 = tf.constant(self.learning_rate/10)
+        learning_rate = tf.cond(tf.less(self.global_step, 40000), lambda: learning_rate_1, lambda: learning_rate_2)
+        optimizer = tf.train.AdamOptimizer(learning_rate)
 
         # Do gradient clipping
         # NOTE: this is the correct, but slower clipping by global norm.
