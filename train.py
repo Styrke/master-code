@@ -189,11 +189,12 @@ class Trainer:
     def validate(self, sess):
         print("Validating..")
         total_num_samples = 0
-        losses, accuracies, valid_y_strings, valid_t_strings = [], [], [], []
+        losses, accuracies, valid_y_strings, valid_t_strings, valid_x_strings, attention_tracker = [], [], [], [], [], []
         for v_feed_dict in self.model.next_valid_feed():
             fetches = {'accuracy': self.model.valid_accuracy,
                        'ys': self.model.valid_ys,
-                       'loss': self.model.valid_loss}
+                       'loss': self.model.valid_loss,
+                       'attention_tracker': self.model.valid_attention_tracker}
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
@@ -202,14 +203,17 @@ class Trainer:
             total_num_samples += samples_in_batch
 
             # convert to strings
-            valid_ys, valid_ts = res['ys'], v_feed_dict[self.model.ts]
+            valid_ys, valid_ts, valid_xs = res['ys'], v_feed_dict[self.model.ts], v_feed_dict[self.model.Xs]
             str_ts, str_ys = utils.numpy_to_str(valid_ts, valid_ys, self.alphabet_tar)
+            str_xs, _ = utils.numpy_to_str(valid_xs, valid_xs, self.alphabet_src)
             valid_y_strings += str_ys
             valid_t_strings += str_ts
+            valid_x_strings += str_xs
 
             # collect loss and accuracy
             losses.append(res['loss']*samples_in_batch)
             accuracies.append(res['accuracy']*samples_in_batch)
+            attention_tracker.append(res['attention_tracker'].transpose(1, 0, 2))
 
         # convert all prediction strings to lists of words (for computing bleu)
         t_words, y_words = utils.strs_to_words(valid_y_strings, valid_t_strings)
@@ -233,17 +237,27 @@ class Trainer:
                 file.write(tot_str)
         # TODO move this to setup
         if self.name:
-            path = 'bleu/%s-%s' % (self.name, self.timestamp)
+            path_bleu = 'bleu/%s-%s' % (self.name, self.timestamp)
+            path_attention = 'attention/%s-%s' % (self.name, self.timestamp)
         else:
-            path = 'bleu/%s-%s' % ('no-name', self.timestamp)
-        path_to_bleu =  os.path.join(SAVER_PATH['base'], path)
+            path_bleu = 'bleu/%s-%s' % ('no-name', self.timestamp)
+            path_attention = 'attention/%s-%s' % ('no-name', self.timestamp)
+        path_to_bleu =  os.path.join(SAVER_PATH['base'], path_bleu)
+        path_to_attention =  os.path.join(SAVER_PATH['base'], path_attention)
         if not os.path.exists(path_to_bleu):
             os.makedirs(path_to_bleu)
+        if not os.path.exists(path_to_attention):
+            os.makedirs(path_to_attention)
         reference = os.path.join(path_to_bleu, 'reference.txt')
         translated = os.path.join(path_to_bleu, 'translated.txt')
+        source = os.path.join(path_to_bleu, 'source.txt')
+        attention_path = os.path.join(path_to_attention, 'attention.npy')
+        np.save(attention_path, attention_tracker[0])
 
         if not os.path.exists(reference):
             dump_to_file(reference, valid_t_strings)
+        if not os.path.exists(source):
+            dump_to_file(source, valid_x_strings)
         dump_to_file(translated, valid_y_strings)
         out = pm.moses_bleu(translated, reference)
         # Write TensorBoard summaries

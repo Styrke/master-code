@@ -128,7 +128,7 @@ class Model:
         word_enc_out = tf.concat(2, [word_enc_out, word_enc_out_bck])
 
         # decoding
-        dec_state, dec_out, valid_dec_out = (
+        dec_state, dec_out, valid_dec_out, valid_attention_tracker = (
             attention_decoder(word_enc_out, self.X_spaces_len, word_enc_state,
                               t_embedded, self.t_len, self.attn_units,
                               self.t_embeddings, W_out, b_out))
@@ -138,6 +138,7 @@ class Model:
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
                                   tf.expand_dims(tf.shape(t_embedded)[1], 0),
                                   tf.expand_dims(tf.constant(self.alphabet_tar_size), 0)])
+        self.valid_attention_tracker = valid_attention_tracker.pack()
         self.out_tensor = tf.reshape(out_tensor, out_shape)
         self.out_tensor.set_shape([None, None, self.alphabet_tar_size])
 

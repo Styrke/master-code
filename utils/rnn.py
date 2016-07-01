@@ -161,11 +161,11 @@ def attention_decoder(attention_input, attention_lengths, initial_state, target_
         input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
         input_ta = input_ta.unpack(inputs)
 
-        def decoder_cond(time, state, output_ta_t):
+        def decoder_cond(time, state, output_ta_t, attention_tracker):
             return tf.less(time, max_sequence_length)
 
         def decoder_body_builder(feedback=False):
-            def decoder_body(time, old_state, output_ta_t):
+            def decoder_body(time, old_state, output_ta_t, attention_tracker):
                 if feedback:
                     def from_previous():
                         prev_1 = tf.matmul(old_state, W_out) + b_out
@@ -182,6 +182,7 @@ def attention_decoder(attention_input, attention_lengths, initial_state, target_
                 alpha = tf.nn.softmax(e)
                 alpha = tf.to_float(mask(attention_lengths)) * alpha
                 alpha = alpha / tf.reduce_sum(alpha, [1], keep_dims=True)
+                attention_tracker = attention_tracker.write(time, alpha)
                 c = tf.reduce_sum(tf.expand_dims(alpha, 2) * tf.squeeze(hidden), [1])
 
                 # GRU
@@ -194,18 +195,19 @@ def attention_decoder(attention_input, attention_lengths, initial_state, target_
 
                 output_ta_t = output_ta_t.write(time, new_state)
 
-                return (time + 1, new_state, output_ta_t)
+                return (time + 1, new_state, output_ta_t, attention_tracker)
             return decoder_body
 
 
         output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+        attention_tracker = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
         time = tf.constant(0)
-        loop_vars = [time, initial_state, output_ta]
+        loop_vars = [time, initial_state, output_ta, attention_tracker]
 
-        _, state, output_ta = tf.while_loop(decoder_cond,
+        _, state, output_ta, _ = tf.while_loop(decoder_cond,
                                             decoder_body_builder(),
                                             loop_vars)
-        _, valid_state, valid_output_ta = tf.while_loop(decoder_cond,
+        _, valid_state, valid_output_ta, valid_attention_tracker = tf.while_loop(decoder_cond,
                                                         decoder_body_builder(feedback=True),
                                                         loop_vars)
 
@@ -213,4 +215,4 @@ def attention_decoder(attention_input, attention_lengths, initial_state, target_
         dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
         valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
 
-        return dec_state, dec_out, valid_dec_out
+        return dec_state, dec_out, valid_dec_out, valid_attention_tracker
