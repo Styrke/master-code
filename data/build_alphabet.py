@@ -25,5 +25,14 @@ def generate_alphabet(filenames, alphabet_file):
         pickle.dump(tuples_sorted_alphabetically, f)
     print("done ...")
 
-generate_alphabet(['data/train/europarl-v7.fr-en.en'], 'data/alphabet/dict.fr-en.en')
-generate_alphabet(['data/train/europarl-v7.fr-en.fr'], 'data/alphabet/dict.fr-en.fr')
+generate_alphabet(['data/train/europarl-v7.fr-en.en'], 'data/alphabet/dict_europarl.fr-en.en')
+generate_alphabet(['data/train/europarl-v7.fr-en.fr'], 'data/alphabet/dict_europarl.fr-en.fr')
+
+generate_alphabet(['data/train/europarl-v7.da-en.en'], 'data/alphabet/dict_europarl.da-en.en')
+generate_alphabet(['data/train/europarl-v7.da-en.da'], 'data/alphabet/dict_europarl.da-en.da')
+
+generate_alphabet(['data/train/europarl-v7.de-en.en'], 'data/alphabet/dict_europarl.de-en.en')
+generate_alphabet(['data/train/europarl-v7.de-en.de'], 'data/alphabet/dict_europarl.de-en.de')
+
+generate_alphabet(['data/train/europarl-v7.de-en.en', 'data/train/commoncrawl.de-en.en', 'data/train/news-commentary-v10.de-en.en'], 'data/alphabet/dict_wmt.de-en.en')
+generate_alphabet(['data/train/europarl-v7.de-en.de', 'data/train/commoncrawl.de-en.de', 'data/train/news-commentary-v10.de-en.de'], 'data/alphabet/dict_wmt.de-en.de')

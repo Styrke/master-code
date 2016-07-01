@@ -21,18 +21,18 @@ class Model:
     tb_log_freq = 500  # How often to save logs for TensorBoard
 
     # datasets
-    train_x_files = ['data/train/europarl-v7.fr-en.en']
-    train_t_files = ['data/train/europarl-v7.fr-en.fr']
+    train_x_files = ['data/train/europarl-v7.de-en.en']
+    train_t_files = ['data/train/europarl-v7.de-en.de']
     valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
                      'data/valid/test2007.en', 'data/valid/test2008.en']
-    valid_t_files = ['data/valid/devtest2006.fr', 'data/valid/test2006.fr',
-                     'data/valid/test2007.fr', 'data/valid/test2008.fr']
+    valid_t_files = ['data/valid/devtest2006.de', 'data/valid/test2006.de',
+                     'data/valid/test2007.de', 'data/valid/test2008.de']
 
     # settings that are local to the model
     alphabet_src_size = 302  # size of alphabet
     alphabet_tar_size = 303  # size of alphabet
-    alphabet_src = Alphabet('data/alphabet/dict.fr-en.en', eos='*')
-    alphabet_tar = Alphabet('data/alphabet/dict.fr-en.fr', eos='*', sos='')
+    alphabet_src = Alphabet('data/alphabet/dict_europarl.de-en.en', eos='*')
+    alphabet_tar = Alphabet('data/alphabet/dict_europarl.de-en.de', eos='*', sos='')
     char_encoder_units = 300  # number of units in character-level encoder
     word_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
     attn_units = 30  # num units used for attention in the decoder.

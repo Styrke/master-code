@@ -106,7 +106,7 @@ def validate_data_existence_or_fetch(paths, data_folder="data/"):
     for path in paths:
         if not os.path.exists(path):
             print("{0}Missing data. Will fetch everything..".format(PRINT_SEP))
-            with cd(data_folder): subprocess.call(['sh','./get_europarl.sh'])
+            subprocess.call(['sh','data/get_data.sh'])
             break
 
 
