@@ -23,14 +23,22 @@ class Model:
     # datasets
     train_x_files = ['data/train/europarl-v7.de-en.en']
     train_t_files = ['data/train/europarl-v7.de-en.de']
+    #train_x_files = ['data/train/europarl-v7.de-en.en',
+    #                 'data/train/commoncrawl.de-en.en',
+    #                 'data/train/news-commentary-v10.de-en.en']
+    #train_x_files = ['data/train/europarl-v7.de-en.de',
+    #                 'data/train/commoncrawl.de-en.de',
+    #                 'data/train/news-commentary-v10.de-en.de']
     valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
                      'data/valid/test2007.en', 'data/valid/test2008.en']
     valid_t_files = ['data/valid/devtest2006.de', 'data/valid/test2006.de',
                      'data/valid/test2007.de', 'data/valid/test2008.de']
+    #valid_x_files = ['data/valid/newstest2014.deen.en']
+    #valid_t_files = ['data/valid/newstest2014.deen.de']
 
     # settings that are local to the model
-    alphabet_src_size = 302  # size of alphabet
-    alphabet_tar_size = 303  # size of alphabet
+    alphabet_src_size = 310  # size of alphabet
+    alphabet_tar_size = 310  # size of alphabet
     alphabet_src = Alphabet('data/alphabet/dict_europarl.de-en.en', eos='*')
     alphabet_tar = Alphabet('data/alphabet/dict_europarl.de-en.de', eos='*', sos='')
     char_encoder_units = 300  # number of units in character-level encoder
