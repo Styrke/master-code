@@ -7,7 +7,7 @@ class Model(default.Model):
     train_x_files = ['data/train/europarl-v7.de-en.en.tok',
                      'data/train/commoncrawl.de-en.en.tok',
                      'data/train/news-commentary-v10.de-en.en.tok']
-    train_x_files = ['data/train/europarl-v7.de-en.de.tok',
+    train_t_files = ['data/train/europarl-v7.de-en.de.tok',
                      'data/train/commoncrawl.de-en.de.tok',
                      'data/train/news-commentary-v10.de-en.de.tok']
     valid_x_files = ['data/valid/newstest2014.deen.en.tok']
