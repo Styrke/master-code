@@ -36,3 +36,9 @@ generate_alphabet(['data/train/europarl-v7.de-en.de'], 'data/alphabet/dict_europ
 
 generate_alphabet(['data/train/europarl-v7.de-en.en', 'data/train/commoncrawl.de-en.en', 'data/train/news-commentary-v10.de-en.en'], 'data/alphabet/dict_wmt.de-en.en')
 generate_alphabet(['data/train/europarl-v7.de-en.de', 'data/train/commoncrawl.de-en.de', 'data/train/news-commentary-v10.de-en.de'], 'data/alphabet/dict_wmt.de-en.de')
+
+generate_alphabet(['data/train/europarl-v7.de-en.en.norm', 'data/train/commoncrawl.de-en.en.norm', 'data/train/news-commentary-v10.de-en.en.norm'], 'data/alphabet/dict_wmt_norm.de-en.en')
+generate_alphabet(['data/train/europarl-v7.de-en.de.norm', 'data/train/commoncrawl.de-en.de.norm', 'data/train/news-commentary-v10.de-en.de.norm'], 'data/alphabet/dict_wmt_norm.de-en.de')
+
+generate_alphabet(['data/train/europarl-v7.de-en.en.tok', 'data/train/commoncrawl.de-en.en.tok', 'data/train/news-commentary-v10.de-en.en.tok'], 'data/alphabet/dict_wmt_tok.de-en.en')
+generate_alphabet(['data/train/europarl-v7.de-en.de.tok', 'data/train/commoncrawl.de-en.de.tok', 'data/train/news-commentary-v10.de-en.de.tok'], 'data/alphabet/dict_wmt_tok.de-en.de')
