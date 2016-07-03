@@ -3,7 +3,7 @@ from configs import default
 
 class Model(default.Model):
     # overwrite config
-    name = 'wmt/tok-250'
+    name = 'wmt/tok_europarl-250'
     batch_size = 128
     seq_len = 250
     valid_freq = 1500

@@ -3,7 +3,7 @@ from configs import default
 
 class Model(default.Model):
     # overwrite config
-    name = 'seqlen/size-50'
+    name = 'wmt/tok-50'
     train_x_files = ['data/train/europarl-v7.de-en.en.tok',
                      'data/train/commoncrawl.de-en.en.tok',
                      'data/train/news-commentary-v10.de-en.en.tok']
