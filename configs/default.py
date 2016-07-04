@@ -33,8 +33,10 @@ class Model:
     #                 'data/valid/test2007.en', 'data/valid/test2008.en']
     #valid_t_files = ['data/valid/devtest2006.de', 'data/valid/test2006.de',
     #                 'data/valid/test2007.de', 'data/valid/test2008.de']
-    valid_x_files = ['data/valid/newstest2014.deen.en.tok']
-    valid_t_files = ['data/valid/newstest2014.deen.de.tok']
+    valid_x_files = ['data/valid/newstest2013.en.tok']
+    valid_t_files = ['data/valid/newstest2013.de.tok']
+    test_x_files = ['data/valid/newstest2014.deen.en.tok']
+    test_t_files = ['data/valid/newstest2014.deen.de.tok']
 
     # settings that are local to the model
     alphabet_src_size = 310  # size of alphabet
@@ -73,6 +75,7 @@ class Model:
         # schedule functions
         self.train_schedule_function = tl.warmup_schedule
         self.valid_schedule_function = None  # falls back to frostings.default_schedule
+        self.test_schedule_function = None
 
         print("Model instantiation")
         self.build()
@@ -251,6 +254,19 @@ class Model:
             alphabet_tar=self.alphabet_tar,
             use_dynamic_array_sizes=True)
 
+        # load test set
+        print('Load validation set')
+        test_loader = tl.TextLoader(paths_X=self.test_x_files,
+                                     paths_t=self.test_t_files,
+                                     seq_len=self.seq_len)
+        self.batch_generator['test'] = tl.TextBatchGenerator(
+            loader=test_loader,
+            batch_size=self.batch_size,
+            alphabet_src=self.alphabet_src,
+            alphabet_tar=self.alphabet_tar,
+            use_dynamic_array_sizes=True)
+
+
     def valid_dict(self, batch, feedback=True):
         """ Return feed_dict for validation """
         return { self.Xs:     batch['x_encoded'],
@@ -273,20 +289,25 @@ class Model:
     def build_feed_dict(self, batch, validate=False):
         return self.valid_dict(batch) if validate else self.train_dict(batch)
 
-    def get_generator(self, validate=False):
-        k = 'valid' if validate else 'train'
-        return self.batch_generator[k].gen_batch
+    def get_generator(self, split):
+        assert split in ['train', 'valid', 'test']
+        return self.batch_generator[split].gen_batch
 
     def next_train_feed(self):
-        generator = self.get_generator()
+        generator = self.get_generator('train')
         for t_batch in generator(self.train_schedule_function):
             extra = { 't_len': t_batch['t_len'] }
             yield (self.build_feed_dict(t_batch), extra)
 
     def next_valid_feed(self):
-        generator = self.get_generator(validate=True)
+        generator = self.get_generator('valid')
         for v_batch in generator(self.valid_schedule_function):
             yield self.build_feed_dict(v_batch, validate=True)
+
+    def next_test_feed(self):
+        generator = self.get_generator('test')
+        for p_batch in generator(self.test_schedule_function):
+            yield self.build_feed_dict(p_batch, validate=True)
 
     def get_alphabet_src(self):
         return self.batch_generator['train'].alphabet_src
