@@ -17,9 +17,9 @@ def _filter_samples(samples, max_length_x, max_length_t):
                if len(t) > 0 and len(t) <= max_length_t-1]
     return list(set(samples))
 
-def _truncate_samples(samples, limit):
+def _truncate_samples(samples, limit_x, limit_t):
     """Truncate long sentences."""
-    return [(x[:limit], t[:limit]) for x, t in samples]
+    return [(x[:limit_x], t[:limit_t]) for x, t in samples]
 
 def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3, sort=False):
     """Yields lists of indices that make up batches.
@@ -156,8 +156,8 @@ class TextLoader(frost.Loader):
 
         print("{0}removing very long and very short samples ...".format(PRINT_SEP))
         samples_before = len(self.samples)  # Count before filtering
-        self.samples = _filter_samples(self.samples, 250, 500)
-        self.samples = _truncate_samples(self.samples, self.seq_len-1)
+        self.samples = _filter_samples(self.samples, max_length_x=250, max_length_t=500)
+        self.samples = _truncate_samples(self.samples, self.seq_len-1, self.seq_len-1)
         samples_after = len(self.samples)  # Count after filtering
 
         # Print status (number and percentage of samples left)
