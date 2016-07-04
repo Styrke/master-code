@@ -12,7 +12,7 @@ class Model:
     batch_size = 512
     seq_len = 50
     name = None  # (string) For saving logs and checkpoints. (None to disable.)
-    visualize_freq = 100000  # Visualize training X, y, and t. (0 to disable.)
+    visualize_freq = 10000  # Visualize training X, y, and t. (0 to disable.)
     log_freq = 100  # How often to print updates during training.
     save_freq = 20000  # How often to save checkpoints. (0 to disable.)
     valid_freq = 500  # How often to validate.
@@ -21,29 +21,29 @@ class Model:
     tb_log_freq = 500  # How often to save logs for TensorBoard
 
     # datasets
-    train_x_files = ['data/train/europarl-v7.de-en.en']
-    train_t_files = ['data/train/europarl-v7.de-en.de']
-    #train_x_files = ['data/train/europarl-v7.de-en.en',
-    #                 'data/train/commoncrawl.de-en.en',
-    #                 'data/train/news-commentary-v10.de-en.en']
-    #train_t_files = ['data/train/europarl-v7.de-en.de',
-    #                 'data/train/commoncrawl.de-en.de',
-    #                 'data/train/news-commentary-v10.de-en.de']
-    valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
-                     'data/valid/test2007.en', 'data/valid/test2008.en']
-    valid_t_files = ['data/valid/devtest2006.de', 'data/valid/test2006.de',
-                     'data/valid/test2007.de', 'data/valid/test2008.de']
-    #valid_x_files = ['data/valid/newstest2014.deen.en']
-    #valid_t_files = ['data/valid/newstest2014.deen.de']
+    #train_x_files = ['data/train/europarl-v7.de-en.en']
+    #train_t_files = ['data/train/europarl-v7.de-en.de']
+    train_x_files = ['data/train/europarl-v7.de-en.en.tok',
+                     'data/train/commoncrawl.de-en.en.tok',
+                     'data/train/news-commentary-v10.de-en.en.tok']
+    train_t_files = ['data/train/europarl-v7.de-en.de.tok',
+                     'data/train/commoncrawl.de-en.de.tok',
+                     'data/train/news-commentary-v10.de-en.de.tok']
+    #valid_x_files = ['data/valid/devtest2006.en', 'data/valid/test2006.en',
+    #                 'data/valid/test2007.en', 'data/valid/test2008.en']
+    #valid_t_files = ['data/valid/devtest2006.de', 'data/valid/test2006.de',
+    #                 'data/valid/test2007.de', 'data/valid/test2008.de']
+    valid_x_files = ['data/valid/newstest2014.deen.en.tok']
+    valid_t_files = ['data/valid/newstest2014.deen.de.tok']
 
     # settings that are local to the model
     alphabet_src_size = 310  # size of alphabet
     alphabet_tar_size = 310  # size of alphabet
-    alphabet_src = Alphabet('data/alphabet/dict_europarl.de-en.en', eos='*')
-    alphabet_tar = Alphabet('data/alphabet/dict_europarl.de-en.de', eos='*', sos='')
+    alphabet_src = Alphabet('data/alphabet/dict_wmt_tok.de-en.en', eos='*')
+    alphabet_tar = Alphabet('data/alphabet/dict_wmt_tok.de-en.de', eos='*', sos='')
     char_encoder_units = 300  # number of units in character-level encoder
     word_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
-    attn_units = 30  # num units used for attention in the decoder.
+    attn_units = 64  # num units used for attention in the decoder.
     embedd_dims = 256  # size of character embeddings
     learning_rate = 0.001
     reg_scale = 0.000001
