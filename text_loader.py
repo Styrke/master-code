@@ -69,6 +69,40 @@ def bucket_schedule(loader, batch_size, shuffle=False, repeat=False, fuzzyness=3
         if not repeat:
             break
 
+
+def variable_bucket_schedule(loader, threshold, fuzzyness=3):
+    sample_indices = np.array(
+        # second element in the tuple represents some order for the samples
+        # we weight the length of the input sentence greater than the
+        # target sentence (x = s[0] and t = s[1])
+        [(i, int((len(s[0])//fuzzyness) << 14) + len(s[1])//fuzzyness, len(s[0]),
+          len(s[1]))
+         for i, s in enumerate(loader.samples)])
+
+    while True:
+        np.random.shuffle(sample_indices)
+        sample_indices = sample_indices[
+            sample_indices[:, 1].argsort(kind='mergesort')]
+
+        batches = []
+        current_batch = []
+        longest_x = 0
+        longest_t = 0
+        for idx in sample_indices:
+            longest_x = max(longest_x, idx[2])
+            longest_t = max(longest_t, idx[3])
+            if (longest_x+longest_t)*(len(current_batch)+1) <= threshold:
+                current_batch.append(idx[0])
+            else:
+                batches.append(current_batch)
+                current_batch = [idx[0]]
+                longest_x = idx[2]
+                longest_t = idx[3]
+
+        batch_numbers = np.random.permutation(len(batches))
+        for idx in batch_numbers:
+            yield batches[idx]
+
 def warmup_schedule(loader, batch_size, warmup_iterations=10, warmup_function=None,
         regular_function=None, **kwargs):
     """ Yields lists of indices that make up batches.
@@ -317,26 +351,27 @@ class TextBatchGenerator(frost.BatchGenerator):
 
 
 if __name__ == '__main__':
+    from data.alphabet import Alphabet
     SEQ_LEN = 300
-    BATCH_SIZE = 32
-    KWARGS = { 'warmup_iterations': 20,
-               'regular_function': bucket_schedule,
-               'shuffle':True }
+    BATCH_SIZE = 9600
 
     text_loader = TextLoader(
-        ['data/train/europarl-v7.fr-en.en'],
-        ['data/train/europarl-v7.fr-en.fr'], SEQ_LEN)
+        ['data/train/europarl-v7.de-en.en'],
+        ['data/train/europarl-v7.de-en.de'], SEQ_LEN)
 
-    text_batch_gen = TextBatchGenerator(text_loader, BATCH_SIZE, **KWARGS)
+    alphabet_src = Alphabet('data/alphabet/dict_wmt_tok.de-en.en', eos='*')
+    alphabet_tar = Alphabet('data/alphabet/dict_wmt_tok.de-en.de', eos='*', sos='')
+
+    text_batch_gen = TextBatchGenerator(text_loader,
+                                        BATCH_SIZE,
+                                        alphabet_src,
+                                        alphabet_tar,
+                                        use_dynamic_array_sizes=True)
 
     print("running warmup for 20 iterations, and 180 iterations with bucket")
     line = ""
-    for i, batch in enumerate(text_batch_gen.gen_batch(warmup_schedule)):
-        line += str(batch['x_len'][0])
-        line += "\n" if i % 10 == 9 else "\t"
-        if i % 20 == 19:
-            print(line)
-            line = ""
+    for i, batch in enumerate(text_batch_gen.gen_batch(variable_bucket_schedule)):
+        print(batch["x_encoded"].shape, batch["t_encoded"].shape)
         if i == 200:
             break
 
