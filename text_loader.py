@@ -7,14 +7,14 @@ from utils.change_directory import cd
 
 PRINT_SEP = "  " # spaces to prepend to print statements
 
-def _filter_samples(samples, max_length):
+def _filter_samples(samples, max_length_x, max_length_t):
     """Filter out samples of extreme length."""
     # remove input sentences that are too short or too long
     samples = [(x, t) for x, t in samples
-               if len(x) > 1 and len(x) <= max_length-1]
+               if len(x) > 0 and len(x) <= max_length_x-1]
     # remove target sentences that are too short or too long
     samples = [(x, t) for x, t in samples
-               if len(t) > 1 and len(t) <= max_length-1]
+               if len(t) > 0 and len(t) <= max_length_t-1]
     return list(set(samples))
 
 def _truncate_samples(samples, limit):
@@ -156,7 +156,7 @@ class TextLoader(frost.Loader):
 
         print("{0}removing very long and very short samples ...".format(PRINT_SEP))
         samples_before = len(self.samples)  # Count before filtering
-        self.samples = _filter_samples(self.samples, float('inf'))
+        self.samples = _filter_samples(self.samples, 250, 500)
         self.samples = _truncate_samples(self.samples, self.seq_len-1)
         samples_after = len(self.samples)  # Count after filtering
 
