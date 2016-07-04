@@ -113,7 +113,7 @@ def validate_data_existence_or_fetch(paths, data_folder="data/"):
 class TextLoader(frost.Loader):
     """Load and prepare text data."""
 
-    def __init__(self, paths_X, paths_t, seq_len):
+    def __init__(self, paths_X, paths_t, seq_len_x, seq_len_t):
         """ Initialize TextLoader instance.
 
         Keyword arguments:
@@ -123,7 +123,8 @@ class TextLoader(frost.Loader):
         """
         self.paths_X = paths_X
         self.paths_t = paths_t
-        self.seq_len = seq_len
+        self.seq_len_x = seq_len_x
+        self.seq_len_t = seq_len_t
 
         validate_data_existence_or_fetch(paths_X + paths_t)
 
@@ -157,7 +158,7 @@ class TextLoader(frost.Loader):
         print("{0}removing very long and very short samples ...".format(PRINT_SEP))
         samples_before = len(self.samples)  # Count before filtering
         self.samples = _filter_samples(self.samples, max_length_x=250, max_length_t=500)
-        self.samples = _truncate_samples(self.samples, self.seq_len-1, self.seq_len-1)
+        self.samples = _truncate_samples(self.samples, limit_x=self.seq_len_x-1, limit_t=self.seq_len_t-1)
         samples_after = len(self.samples)  # Count after filtering
 
         # Print status (number and percentage of samples left)
@@ -197,7 +198,8 @@ class TextBatchGenerator(frost.BatchGenerator):
 
         self.alphabet_src = alphabet_src
         self.alphabet_tar = alphabet_tar
-        self.seq_len = loader.seq_len
+        self.seq_len_x = loader.seq_len_x
+        self.seq_len_t = loader.seq_len_t
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
         self.add_eos_character = True
@@ -213,13 +215,13 @@ class TextBatchGenerator(frost.BatchGenerator):
         x, t = zip(*self.samples)  # unzip samples
         batch = dict()
 
-        batch['x_encoded'] = self._make_array(x, encode_src, self.seq_len)
-        batch['t_encoded'] = self._make_array(t, encode_tar, self.seq_len)
+        batch['x_encoded'] = self._make_array(x, encode_src, self.seq_len_x)
+        batch['t_encoded'] = self._make_array(t, encode_tar, self.seq_len_t)
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'], self.alphabet_tar)
 
-        batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len//4)
-        batch['x_mask'] = self._make_array(x, self._mask, self.seq_len)
-        batch['t_mask'] = self._make_array(t, self._mask, self.seq_len)
+        batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len_x//4)
+        batch['x_mask'] = self._make_array(x, self._mask, self.seq_len_x)
+        batch['t_mask'] = self._make_array(t, self._mask, self.seq_len_t)
 
         batch['x_len'] = self._make_len_vec(x, self.add_eos_character)
         batch['t_len'] = self._make_len_vec(t, self.add_eos_character)
@@ -228,7 +230,7 @@ class TextBatchGenerator(frost.BatchGenerator):
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
         spaces_x = map(self._spaces, x)
-        batch['x_spaces_len'] = self._make_len_vec(spaces_x, 0, (self.seq_len//4))
+        batch['x_spaces_len'] = self._make_len_vec(spaces_x, 0, (self.seq_len_x//4))
 
         # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:

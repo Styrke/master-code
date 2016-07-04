@@ -78,7 +78,8 @@ class Trainer:
 
         # copy settings that affect the training script
         self.batch_size = config.Model.batch_size
-        self.seq_len = config.Model.seq_len
+        self.seq_len_x = config.Model.seq_len_x
+        self.seq_len_t = config.Model.seq_len_t
         self.name = config.Model.name
         self.visualize = config.Model.visualize_freq
         self.log_freq = config.Model.log_freq
@@ -95,7 +96,7 @@ class Trainer:
         sep = ":::"
         pred_len = len(max(ys, key=len)) # length of longest predicted string
         for j in range(feed_dict[self.model.Xs].shape[0]):
-            inp  = self.alphabet_src.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len)
+            inp  = self.alphabet_src.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len_x)
             pred = self.alphabet_tar.decode(ys[j]).ljust(pred_len)
             targ = self.alphabet_tar.decode(feed_dict[self.model.ts][j])
             print('{1} {0} {2} {0} {3}'.format(sep, inp, pred, targ))
