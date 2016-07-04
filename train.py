@@ -12,8 +12,9 @@ import utils.performancemetrics as pm
 from utils.tfhelper import run
 
 SAVER_PATH = {'base': 'train/',
-                     'checkpoint': 'checkpoints/',
-                     'log': 'logs/'}
+              'checkpoint': 'checkpoints/',
+              'log': 'logs/',
+              'test': 'test/'}
 
 
 @click.command()
