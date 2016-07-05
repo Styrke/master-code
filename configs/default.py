@@ -10,7 +10,8 @@ from data.alphabet import Alphabet
 class Model:
     # settings that affect train.py
     batch_size = 512
-    seq_len = 50
+    seq_len_x = 50
+    seq_len_t = 50
     name = None  # (string) For saving logs and checkpoints. (None to disable.)
     visualize_freq = 10000  # Visualize training X, y, and t. (0 to disable.)
     log_freq = 100  # How often to print updates during training.
@@ -67,7 +68,8 @@ class Model:
     }
 
     def __init__(self):
-        self.max_x_seq_len = self.max_t_seq_len = self.seq_len
+        self.max_x_seq_len = self.seq_len_x
+        self.max_t_seq_len = self.seq_len_t
 
         # TF placeholders
         self.setup_placeholders()
@@ -233,7 +235,8 @@ class Model:
         print('Load training set')
         train_loader = tl.TextLoader(paths_X=self.train_x_files,
                                      paths_t=self.train_t_files,
-                                     seq_len=self.seq_len)
+                                     seq_len_x=self.seq_len_x,
+                                     seq_len_t=self.seq_len_t)
         self.batch_generator['train'] = tl.TextBatchGenerator(
             loader=train_loader,
             batch_size=self.batch_size,
@@ -246,7 +249,8 @@ class Model:
         print('Load validation set')
         valid_loader = tl.TextLoader(paths_X=self.valid_x_files,
                                      paths_t=self.valid_t_files,
-                                     seq_len=self.seq_len)
+                                     seq_len_x=self.seq_len_x,
+                                     seq_len_t=self.seq_len_t)
         self.batch_generator['valid'] = tl.TextBatchGenerator(
             loader=valid_loader,
             batch_size=self.batch_size,
@@ -257,8 +261,9 @@ class Model:
         # load test set
         print('Load validation set')
         test_loader = tl.TextLoader(paths_X=self.test_x_files,
-                                     paths_t=self.test_t_files,
-                                     seq_len=self.seq_len)
+                                    paths_t=self.test_t_files,
+                                    seq_len_x=self.seq_len_x,
+                                    seq_len_t=self.seq_len_t)
         self.batch_generator['test'] = tl.TextBatchGenerator(
             loader=test_loader,
             batch_size=self.batch_size,
