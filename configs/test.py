@@ -9,6 +9,7 @@ class Model(default.Model):
     char_encoder_units = 100
     word_encoder_units = 100
     embedd_dims = 64
+    attn_units = 50
 
     save_freq = 0
     log_freq = 10

@@ -9,7 +9,7 @@ from data.alphabet import Alphabet
 
 class Model:
     # settings that affect train.py
-    batch_size = 512
+    batch_size = 68000
     seq_len_x = 50
     seq_len_t = 50
     name = None  # (string) For saving logs and checkpoints. (None to disable.)
@@ -44,9 +44,9 @@ class Model:
     alphabet_tar_size = 310  # size of alphabet
     alphabet_src = Alphabet('data/alphabet/dict_wmt_tok.de-en.en', eos='*')
     alphabet_tar = Alphabet('data/alphabet/dict_wmt_tok.de-en.de', eos='*', sos='')
-    char_encoder_units = 300  # number of units in character-level encoder
-    word_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
-    attn_units = 64  # num units used for attention in the decoder.
+    char_encoder_units = 400  # number of units in character-level encoder
+    word_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
+    attn_units = 300  # num units used for attention in the decoder.
     embedd_dims = 256  # size of character embeddings
     learning_rate = 0.001
     reg_scale = 0.000001
@@ -58,12 +58,6 @@ class Model:
 
     # kwargs for scheduling function
     schedule_kwargs = {
-        'warmup_iterations': 0,  # if warmup_schedule is used
-        'warmup_function':  None,  # if warmup_schedule is used
-        'regular_function': None,  # if warmup_schedule is used
-        'shuffle': True,
-        'repeat':  True,
-        'sort':    False,
         'fuzzyness': 3
     }
 
@@ -75,7 +69,7 @@ class Model:
         self.setup_placeholders()
 
         # schedule functions
-        self.train_schedule_function = tl.warmup_schedule
+        self.train_schedule_function = tl.variable_bucket_schedule
         self.valid_schedule_function = None  # falls back to frostings.default_schedule
         self.test_schedule_function = None
 

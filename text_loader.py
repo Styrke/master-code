@@ -352,12 +352,13 @@ class TextBatchGenerator(frost.BatchGenerator):
 
 if __name__ == '__main__':
     from data.alphabet import Alphabet
-    SEQ_LEN = 300
-    BATCH_SIZE = 9600
+    SEQ_LEN_X = 250
+    SEQ_LEN_T = 500
+    BATCH_SIZE = 76800
 
     text_loader = TextLoader(
         ['data/train/europarl-v7.de-en.en'],
-        ['data/train/europarl-v7.de-en.de'], SEQ_LEN)
+        ['data/train/europarl-v7.de-en.de'], SEQ_LEN_X, SEQ_LEN_T)
 
     alphabet_src = Alphabet('data/alphabet/dict_wmt_tok.de-en.en', eos='*')
     alphabet_tar = Alphabet('data/alphabet/dict_wmt_tok.de-en.de', eos='*', sos='')
