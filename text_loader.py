@@ -156,7 +156,7 @@ class TextLoader(frost.Loader):
 
         print("{0}removing very long and very short samples ...".format(PRINT_SEP))
         samples_before = len(self.samples)  # Count before filtering
-        self.samples = _filter_samples(self.samples, 250, 500)
+        self.samples = _filter_samples(self.samples, 251, 501)
         self.samples = _truncate_samples(self.samples, self.seq_len-1)
         samples_after = len(self.samples)  # Count after filtering
 
