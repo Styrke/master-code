@@ -104,7 +104,7 @@ class Trainer:
 
     def train(self):
         print("Training..")
-        gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=1.0)
+        gpu_opts = tf.GPUOptions(per_process_gpu_memory_fraction=0.985)
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_opts)) as sess:
             # Prepare for writing TensorBoard summaries
             if self.tb_log_freq and self.name:

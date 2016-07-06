@@ -83,7 +83,7 @@ def encoder(inputs, lengths, name, num_units, reverse=False):
 
         loop_vars = [time, state, output_ta]
 
-        time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars)
+        time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars, swap_memory=True)
 
         enc_state = state
         enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
@@ -206,10 +206,12 @@ def attention_decoder(attention_input, attention_lengths, initial_state, target_
 
         _, state, output_ta, _ = tf.while_loop(decoder_cond,
                                             decoder_body_builder(),
-                                            loop_vars)
+                                            loop_vars,
+                                            swap_memory=True)
         _, valid_state, valid_output_ta, valid_attention_tracker = tf.while_loop(decoder_cond,
                                                         decoder_body_builder(feedback=True),
-                                                        loop_vars)
+                                                        loop_vars,
+                                                        swap_memory=True)
 
         dec_state = state
         dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
