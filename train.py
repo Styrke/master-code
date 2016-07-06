@@ -77,7 +77,8 @@ class Trainer:
         config = importlib.import_module(config_path)
 
         # copy settings that affect the training script
-        self.batch_size = config.Model.batch_size
+        self.batch_size_train = config.Model.batch_size_train
+        self.batch_size_valid = config.Model.batch_size_valid
         self.seq_len_x = config.Model.seq_len_x
         self.seq_len_t = config.Model.seq_len_t
         self.name = config.Model.name

@@ -9,7 +9,8 @@ from data.alphabet import Alphabet
 
 class Model:
     # settings that affect train.py
-    batch_size = 68000
+    batch_size_train = 68000
+    batch_size_valid = 128
     seq_len_x = 50
     seq_len_t = 50
     name = None  # (string) For saving logs and checkpoints. (None to disable.)
@@ -233,7 +234,7 @@ class Model:
                                      seq_len_t=self.seq_len_t)
         self.batch_generator['train'] = tl.TextBatchGenerator(
             loader=train_loader,
-            batch_size=self.batch_size,
+            batch_size=self.batch_size_train,
             alphabet_src=self.alphabet_src,
             alphabet_tar=self.alphabet_tar,
             use_dynamic_array_sizes=True,
@@ -247,7 +248,7 @@ class Model:
                                      seq_len_t=self.seq_len_t)
         self.batch_generator['valid'] = tl.TextBatchGenerator(
             loader=valid_loader,
-            batch_size=self.batch_size,
+            batch_size=self.batch_size_valid,
             alphabet_src=self.alphabet_src,
             alphabet_tar=self.alphabet_tar,
             use_dynamic_array_sizes=True)
@@ -260,7 +261,7 @@ class Model:
                                     seq_len_t=self.seq_len_t)
         self.batch_generator['test'] = tl.TextBatchGenerator(
             loader=test_loader,
-            batch_size=self.batch_size,
+            batch_size=self.batch_size_valid,
             alphabet_src=self.alphabet_src,
             alphabet_tar=self.alphabet_tar,
             use_dynamic_array_sizes=True)
