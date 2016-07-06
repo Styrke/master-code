@@ -16,7 +16,7 @@ class Model:
     name = None  # (string) For saving logs and checkpoints. (None to disable.)
     visualize_freq = 10000  # Visualize training X, y, and t. (0 to disable.)
     log_freq = 100  # How often to print updates during training.
-    save_freq = 20000  # How often to save checkpoints. (0 to disable.)
+    save_freq = 1000  # How often to save checkpoints. (0 to disable.)
     valid_freq = 500  # How often to validate.
     iterations = 5*32000  # How many iterations to train for before stopping.
     train_feedback = False  # Enable feedback during training?
