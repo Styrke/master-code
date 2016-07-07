@@ -3,7 +3,7 @@ from tensorflow.python.ops import tensor_array_ops
 from utils.tfextensions import mask
 
 
-def encoder(inputs, lengths, name, num_units, reverse=False):
+def encoder(inputs, lengths, name, num_units, reverse=False, swap=False):
     with tf.variable_scope(name):
         weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
         input_units = inputs.get_shape()[2]
@@ -83,7 +83,7 @@ def encoder(inputs, lengths, name, num_units, reverse=False):
 
         loop_vars = [time, state, output_ta]
 
-        time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars, swap_memory=True)
+        time, state, output_ta = tf.while_loop(encoder_cond, encoder_body, loop_vars, swap_memory=swap)
 
         enc_state = state
         enc_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
@@ -98,7 +98,7 @@ def encoder(inputs, lengths, name, num_units, reverse=False):
 
 def attention_decoder(attention_input, attention_lengths, initial_state, target_input,
                       target_input_lengths, num_attn_units, embeddings, W_out, b_out,
-                      name='decoder'):
+                      name='decoder', swap=False):
     """Decoder with attention.
 
     Note that the number of units in the attention decoder must always
@@ -207,11 +207,11 @@ def attention_decoder(attention_input, attention_lengths, initial_state, target_
         _, state, output_ta, _ = tf.while_loop(decoder_cond,
                                             decoder_body_builder(),
                                             loop_vars,
-                                            swap_memory=True)
+                                            swap_memory=swap)
         _, valid_state, valid_output_ta, valid_attention_tracker = tf.while_loop(decoder_cond,
                                                         decoder_body_builder(feedback=True),
                                                         loop_vars,
-                                                        swap_memory=True)
+                                                        swap_memory=swap)
 
         dec_state = state
         dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
