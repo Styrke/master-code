@@ -38,8 +38,9 @@ class Predict:
         config = importlib.import_module(config_path)
 
         # copy settings that affects the prediction script
-        self.batch_size = config.Model.batch_size
-        self.seq_len = config.Model.seq_len
+        self.batch_size = config.Model.batch_size_valid
+        self.seq_len_x = config.Model.seq_len_x
+        self.seq_len_t = config.Model.seq_len_t
         self.name = config.Model.name
 
         # self.config as an alias for the model
@@ -70,7 +71,7 @@ class Predict:
         sep = ":::"
         pred_len = len(max(ys, key=len)) # length of longest predicted string
         for j in range(feed_dict[self.model.Xs].shape[0]):
-            inp  = self.alphabet_src.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len)
+            inp  = self.alphabet_src.decode(feed_dict[self.model.Xs][j]).ljust(self.seq_len_x)
             pred = self.alphabet_tar.decode(ys[j]).ljust(pred_len)
             targ = self.alphabet_tar.decode(feed_dict[self.model.ts][j])
             print('{1} {0} {2} {0} {3}'.format(sep, inp, pred, targ))
