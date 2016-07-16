@@ -1,6 +1,6 @@
-from configs.europarl import base
+from configs.char_to_char import base
 from data.alphabet import Alphabet
 
 class Model(base.Model):
     # overwrite config
-    name = 'europarl/c2w'
+    name = 'char_to_char/wmt-deen'

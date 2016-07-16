@@ -1,9 +1,9 @@
-from configs.europarl import c2w
+from configs.char2word_to_char import base
 from data.alphabet import Alphabet
 
 class Model(c2w.Model):
     # overwrite config
-    name = 'europarl/c2w-deen'
+    name = 'char2word_to_char/europarl-deen'
     # datasets
     train_x_files = ['data/train/europarl-v7.de-en.de']
     train_t_files = ['data/train/europarl-v7.de-en.en']

@@ -1,6 +1,6 @@
-from configs.char2char import char2char
+from configs.char_to_char import char_to_char
 
-class Model(char2char.Model):
+class Model(char_to_char.Model):
     # overwrite config
     seq_len_x = 250
     seq_len_t = 500
