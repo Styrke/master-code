@@ -46,7 +46,7 @@ class Trainer:
 
         # Prepare for saving checkpoints
         if self.save_freq:
-            self.checkpoint_saver = tf.train.Saver()
+            self.checkpoint_saver = tf.train.Saver(max_to_keep=self.model.max_to_keep)
             checkpoint_path = os.path.join(self.local_path, SAVER_PATH['checkpoint'])
             self.checkpoint_file_path = os.path.join(checkpoint_path, 'checkpoint')
             if not os.path.exists(checkpoint_path):

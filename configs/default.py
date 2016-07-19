@@ -21,6 +21,7 @@ class Model:
     iterations = 5*32000  # How many iterations to train for before stopping.
     train_feedback = False  # Enable feedback during training?
     tb_log_freq = 500  # How often to save logs for TensorBoard
+    max_to_keep = 100
 
     # datasets
     #train_x_files = ['data/train/europarl-v7.de-en.en']
