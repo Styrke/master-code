@@ -253,7 +253,7 @@ class TextBatchGenerator(frost.BatchGenerator):
         batch['t_encoded'] = self._make_array(t, encode_tar, self.seq_len_t)
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'], self.alphabet_tar)
 
-        batch['x_spaces'] = self._make_array(x, self._spaces, self.seq_len_x//4)
+        batch['x_h0'] = self._make_array(x, self._hierachical, self.seq_len_x//4)
         batch['x_mask'] = self._make_array(x, self._mask, self.seq_len_x)
         batch['t_mask'] = self._make_array(t, self._mask, self.seq_len_t)
 
@@ -263,8 +263,8 @@ class TextBatchGenerator(frost.BatchGenerator):
         # NOTE: The way we make batch['x_spaces_len'] here is not elegant,
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
-        spaces_x = map(self._spaces, x)
-        batch['x_spaces_len'] = self._make_len_vec(spaces_x, 0, (self.seq_len_x//4))
+        h0_x = map(self._hierachical, x)
+        batch['x_h0_len'] = self._make_len_vec(h0_x, 0, (self.seq_len_x//4))
 
         # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:
@@ -319,6 +319,17 @@ class TextBatchGenerator(frost.BatchGenerator):
         if self.use_dynamic_array_sizes:
             max_len = 100000
         return np.array([min(len(seq)+offset, max_len) for seq in sequences])
+
+    def _hierachical(self, sentence, level=0, degree=2):
+        hierachical = self._spaces(sentence)
+        if level>0:
+            for _ in range(level):
+                cur = list(range(len(hierachical)))
+                new = cur[1::degree]
+                if len(cur) % degree:
+                    new.append(cur[-1])
+                hierachical = new
+        return hierachical
 
     def _spaces(self, sentence):
         """Locate the spaces and the end of the sentence.

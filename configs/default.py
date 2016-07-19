@@ -102,8 +102,8 @@ class Model:
         self.t_mask   = tf.placeholder(tf.float32, shape=shape, name='t_mask')
 
         shape = [None, None]
-        self.X_spaces     = tf.placeholder(tf.int32, shape=shape,  name='X_spaces')
-        self.X_spaces_len = tf.placeholder(tf.int32, shape=[None], name='X_spaces_len')
+        self.X_h0     = tf.placeholder(tf.int32, shape=shape,  name='X_h0')
+        self.X_h0_len = tf.placeholder(tf.int32, shape=[None], name='X_h0_len')
 
     def build(self):
         print('Building model')
@@ -123,22 +123,22 @@ class Model:
 
         # forward encoding
         char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder', self.char_encoder_units)
-        char2word = _grid_gather(char_enc_out, self.X_spaces)
+        char2word = _grid_gather(char_enc_out, self.X_h0)
         char2word.set_shape([None, None, self.char_encoder_units])
-        word_enc_state, word_enc_out = encoder(char2word, self.X_spaces_len, 'word_encoder', self.word_encoder_units)
+        word_enc_state, word_enc_out = encoder(char2word, self.X_h0_len, 'word_encoder', self.word_encoder_units)
 
         # backward encoding words
-        char2word = tf.reverse_sequence(char2word, tf.to_int64(self.X_spaces_len), 1)
+        char2word = tf.reverse_sequence(char2word, tf.to_int64(self.X_h0_len), 1)
         char2word.set_shape([None, None, self.char_encoder_units])
-        word_enc_state_bck, word_enc_out_bck = encoder(char2word, self.X_spaces_len, 'word_encoder_backwards', self.word_encoder_units)
-        word_enc_out_bck = tf.reverse_sequence(word_enc_out_bck, tf.to_int64(self.X_spaces_len), 1)
+        word_enc_state_bck, word_enc_out_bck = encoder(char2word, self.X_h0_len, 'word_encoder_backwards', self.word_encoder_units)
+        word_enc_out_bck = tf.reverse_sequence(word_enc_out_bck, tf.to_int64(self.X_h0_len), 1)
 
         word_enc_state = tf.concat(1, [word_enc_state, word_enc_state_bck])
         word_enc_out = tf.concat(2, [word_enc_out, word_enc_out_bck])
 
         # decoding
         dec_state, dec_out, valid_dec_out, valid_attention_tracker = (
-            attention_decoder(word_enc_out, self.X_spaces_len, word_enc_state,
+            attention_decoder(word_enc_out, self.X_h0_len, word_enc_state,
                               t_embedded, self.t_len, self.attn_units,
                               self.t_embeddings, W_out, b_out))
 
@@ -278,8 +278,8 @@ class Model:
                  self.x_mask: batch['x_mask'],
                  self.t_mask: batch['t_mask'],
                  self.feedback: feedback,
-                 self.X_spaces: batch['x_spaces'],
-                 self.X_spaces_len: batch['x_spaces_len'] }
+                 self.X_h0: batch['x_h0'],
+                 self.X_h0_len: batch['x_h0_len'] }
 
     def train_dict(self, batch):
         """ Return feed_dict for training.
