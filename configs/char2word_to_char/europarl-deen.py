@@ -1,7 +1,7 @@
 from configs.char2word_to_char import base
 from data.alphabet import Alphabet
 
-class Model(c2w.Model):
+class Model(base.Model):
     # overwrite config
     name = 'char2word_to_char/europarl-deen'
     # datasets
