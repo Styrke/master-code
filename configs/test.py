@@ -3,8 +3,10 @@ from configs import default
 
 class Model(default.Model):
     # overwrite config
-    batch_size = 32
-    seq_len = 25
+    batch_size_train = 10000
+    batch_size_valid = 64
+    seq_len_x = 50
+    seq_len_t = 50
 
     char_encoder_units = 100
     word_encoder_units = 100
