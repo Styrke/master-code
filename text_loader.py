@@ -254,6 +254,7 @@ class TextBatchGenerator(frost.BatchGenerator):
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'], self.alphabet_tar)
 
         batch['x_h0'] = self._make_array(x, self._hierachical, self.seq_len_x//4)
+        batch['x_h1'] = self._make_array(x, self._hierachical1, self.seq_len_x//8)
         batch['x_mask'] = self._make_array(x, self._mask, self.seq_len_x)
         batch['t_mask'] = self._make_array(t, self._mask, self.seq_len_t)
 
@@ -264,7 +265,9 @@ class TextBatchGenerator(frost.BatchGenerator):
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
         h0_x = map(self._hierachical, x)
+        h1_x = map(self._hierachical1, x)
         batch['x_h0_len'] = self._make_len_vec(h0_x, 0, (self.seq_len_x//4))
+        batch['x_h1_len'] = self._make_len_vec(h1_x, 0, (self.seq_len_x//8))
 
         # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:
@@ -321,6 +324,17 @@ class TextBatchGenerator(frost.BatchGenerator):
         return np.array([min(len(seq)+offset, max_len) for seq in sequences])
 
     def _hierachical(self, sentence, level=0, degree=2):
+        hierachical = self._spaces(sentence)
+        if level>0:
+            for _ in range(level):
+                cur = list(range(len(hierachical)))
+                new = cur[1::degree]
+                if len(cur) % degree:
+                    new.append(cur[-1])
+                hierachical = new
+        return hierachical
+
+    def _hierachical1(self, sentence, level=1, degree=2):
         hierachical = self._spaces(sentence)
         if level>0:
             for _ in range(level):

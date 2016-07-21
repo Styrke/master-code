@@ -48,6 +48,7 @@ class Model:
     alphabet_tar = Alphabet('data/alphabet/dict_wmt_tok.de-en.de', eos='*', sos='')
     char_encoder_units = 400  # number of units in character-level encoder
     word_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
+    h1_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
     attn_units = 300  # num units used for attention in the decoder.
     embedd_dims = 256  # size of character embeddings
     learning_rate = 0.001
@@ -104,6 +105,8 @@ class Model:
         shape = [None, None]
         self.X_h0     = tf.placeholder(tf.int32, shape=shape,  name='X_h0')
         self.X_h0_len = tf.placeholder(tf.int32, shape=[None], name='X_h0_len')
+        self.X_h1     = tf.placeholder(tf.int32, shape=shape,  name='X_h1')
+        self.X_h1_len = tf.placeholder(tf.int32, shape=[None], name='X_h1_len')
 
     def build(self):
         print('Building model')
@@ -136,9 +139,30 @@ class Model:
         word_enc_state = tf.concat(1, [word_enc_state, word_enc_state_bck])
         word_enc_out = tf.concat(2, [word_enc_out, word_enc_out_bck])
 
+        # h1 gather
+        h1 = _grid_gather(word_enc_out, self.X_h1)
+        h1.set_shape([None, None, self.word_encoder_units*2])
+
+        # h1 forward encoding
+        h1_enc_state, h1_enc_out = encoder(h1, self.X_h1_len, 'h1_encoder', self.h1_encoder_units)
+
+        # h1 backward encoding
+        h1 = tf.reverse_sequence(h1, tf.to_int64(self.X_h1_len), 1)
+        h1.set_shape([None, None, self.word_encoder_units*2])
+        h1_enc_state_bck, h1_enc_out_bck = encoder(h1, self.X_h1_len, 'h1_encoder_backwards', self.h1_encoder_units)
+        h1_enc_out_bck = tf.reverse_sequence(h1_enc_out_bck, tf.to_int64(self.X_h1_len), 1)
+
+        # h1 combined
+        h1_enc_state = tf.concat(1, [h1_enc_state, h1_enc_state_bck])
+        h1_enc_out = tf.concat(2, [h1_enc_out, h1_enc_out_bck])
+
+
+
         # decoding
         dec_state, dec_out, valid_dec_out, valid_attention_tracker = (
-            attention_decoder([word_enc_out], [self.X_h0_len], [word_enc_state],
+            attention_decoder([word_enc_out, h1_enc_out],
+                              [self.X_h0_len, self.X_h1_len],
+                              [word_enc_state, h1_enc_state],
                               t_embedded, self.t_len, self.attn_units,
                               self.t_embeddings, W_out, b_out))
 
@@ -279,7 +303,9 @@ class Model:
                  self.t_mask: batch['t_mask'],
                  self.feedback: feedback,
                  self.X_h0: batch['x_h0'],
-                 self.X_h0_len: batch['x_h0_len'] }
+                 self.X_h0_len: batch['x_h0_len'], 
+                 self.X_h1: batch['x_h1'],
+                 self.X_h1_len: batch['x_h1_len'] }
 
     def train_dict(self, batch):
         """ Return feed_dict for training.
