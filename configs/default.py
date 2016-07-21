@@ -4,7 +4,7 @@ from utils.tfextensions import sequence_loss_tensor
 from utils.tfextensions import _grid_gather
 from utils.tfextensions import mask
 from utils.rnn import encoder
-from utils.rnn import attention_decoder
+from utils.rnn_hierachical import attention_decoder
 from data.alphabet import Alphabet
 
 class Model:
@@ -138,7 +138,7 @@ class Model:
 
         # decoding
         dec_state, dec_out, valid_dec_out, valid_attention_tracker = (
-            attention_decoder(word_enc_out, self.X_h0_len, word_enc_state,
+            attention_decoder([word_enc_out], [self.X_h0_len], [word_enc_state],
                               t_embedded, self.t_len, self.attn_units,
                               self.t_embeddings, W_out, b_out))
 
