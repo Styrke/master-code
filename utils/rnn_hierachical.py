@@ -4,8 +4,8 @@ from utils.tfextensions import mask
 
 
 def attention_decoder(attention_inputs, attention_lengths, initial_state, target_input,
-                      target_input_lengths, num_attn_units, embeddings, W_out, b_out,
-                      name='decoder', swap=False):
+                      target_input_lengths, num_attn_units, num_attn_rnn_units,
+                      embeddings, W_out, b_out, name='decoder', swap=False):
     """Decoder with attention.
 
     Note that the number of units in the attention decoder must always
@@ -36,13 +36,13 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
 
         weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
         W_z = tf.get_variable('W_z',
-                              shape=[target_dims+num_units*2, num_units],
+                              shape=[target_dims+num_units+num_attn_rnn_units, num_units],
                               initializer=weight_initializer)
         W_r = tf.get_variable('W_r',
-                              shape=[target_dims+num_units*2, num_units],
+                              shape=[target_dims+num_units+num_attn_rnn_units, num_units],
                               initializer=weight_initializer)
         W_h = tf.get_variable('W_h',
-                              shape=[target_dims+num_units*2, num_units],
+                              shape=[target_dims+num_units+num_attn_rnn_units, num_units],
                               initializer=weight_initializer)
         b_z = tf.get_variable('b_z',
                               shape=[num_units],
@@ -54,9 +54,10 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                               shape=[num_units],
                               initializer=tf.constant_initializer())
 
-        # for attention
+        # for attention of hierachies part
+        # h0 attention
         W_a0 = tf.get_variable('W_a0',
-                              shape=[h0_dims, num_attn_units],
+                              shape=[num_attn_rnn_units, num_attn_units],
                               initializer=weight_initializer)
         U_a0 = tf.get_variable('U_a0',
                               shape=[1, 1, h0_dims, num_attn_units],
@@ -67,8 +68,9 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         v_a0 = tf.get_variable('v_a0',
                               shape=[num_attn_units],
                               initializer=weight_initializer)
+        # h1 attention
         W_a1 = tf.get_variable('W_a1',
-                              shape=[h0_dims, num_attn_units],
+                              shape=[num_attn_rnn_units, num_attn_units],
                               initializer=weight_initializer)
         U_a1 = tf.get_variable('U_a1',
                               shape=[1, 1, h0_dims, num_attn_units],
@@ -79,6 +81,25 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         v_a1 = tf.get_variable('v_a1',
                               shape=[num_attn_units],
                               initializer=weight_initializer)
+
+        # for attention of recurrent part
+        # to make state fit
+        W_as = tf.get_variable('W_as',
+                               shape=[h0_dims, num_attn_rnn_units],
+                               initializer=weight_initializer)
+        b_as = tf.get_variable('b_as',
+                               shape=[num_attn_rnn_units],
+                               initializer=weight_initializer)
+        # hidden weights
+        W_ahh = tf.get_variable('W_ahh',
+                                shape=[num_attn_rnn_units, num_attn_rnn_units],
+                                initializer=weight_initializer)
+        W_axh = tf.get_variable('W_axh',
+                                shape=[num_attn_units, num_attn_rnn_units],
+                                initializer=weight_initializer)
+        b_ah = tf.get_variable('b_ah',
+                               shape=[num_attn_rnn_units],
+                               initializer=weight_initializer)
 
         # TODO: don't use convolutions!
         # TODO: fix the bias (b_a)
@@ -108,7 +129,8 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                     x_t = input_ta.read(time)
 
                 # attention
-                part21 = tf.matmul(old_state, W_a1) + b_a1
+                start_rnn = tf.tanh(tf.matmul(old_state, W_as) + b_as)
+                part21 = tf.matmul(start_rnn, W_a1) + b_a1
                 part21 = tf.expand_dims(part21, 1)
                 john1 = part11 + part21
                 e1 = tf.reduce_sum(v_a1 * tf.tanh(john1), [2])
@@ -118,8 +140,10 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                 #h1_tracker = h1_tracker.write(time, alpha1)
                 c1 = tf.reduce_sum(tf.expand_dims(alpha1, 2) * tf.squeeze(hidden1), [1])
 
+                rnn_step1 = tf.tanh(tf.matmul(start_rnn, W_ahh) + tf.matmul(c1, W_axh) + b_ah)
+
                 # use c1 for new attention
-                part20 = tf.matmul(c1, W_a0) + b_a0
+                part20 = tf.matmul(rnn_step1, W_a0) + b_a0
                 part20 = tf.expand_dims(part20, 1)
                 john0 = part10 + part20
                 e0 = tf.reduce_sum(v_a1 * tf.tanh(john0), [2])
@@ -127,7 +151,10 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                 alpha0 = tf.to_float(mask(h0_lengths)) * alpha0
                 alpha0 = alpha0 / tf.reduce_sum(alpha0, [1], keep_dims=True)
                 h0_tracker = h0_tracker.write(time, alpha0)
-                c = tf.reduce_sum(tf.expand_dims(alpha0, 2) * tf.squeeze(hidden0), [1])
+                c0 = tf.reduce_sum(tf.expand_dims(alpha0, 2) * tf.squeeze(hidden0), [1])
+
+                rnn_step2 = tf.tanh(tf.matmul(rnn_step1, W_ahh) + tf.matmul(c0, W_axh) + b_ah)
+                c = rnn_step2
 
                 # GRU
                 con = tf.concat(1, [x_t, old_state, c])

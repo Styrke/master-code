@@ -9,7 +9,7 @@ from data.alphabet import Alphabet
 
 class Model:
     # settings that affect train.py
-    batch_size_train = 100000
+    batch_size_train = 90000
     batch_size_valid = 128
     seq_len_x = 50
     seq_len_t = 50
@@ -46,10 +46,11 @@ class Model:
     alphabet_tar_size = 310  # size of alphabet
     alphabet_src = Alphabet('data/alphabet/dict_wmt_tok.de-en.en', eos='*')
     alphabet_tar = Alphabet('data/alphabet/dict_wmt_tok.de-en.de', eos='*', sos='')
-    char_encoder_units = 400  # number of units in character-level encoder
-    word_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
-    h1_encoder_units = 400  # num nuits in word-level encoders (both forwards and back)
-    attn_units = 300  # num units used for attention in the decoder.
+    char_encoder_units = 300  # number of units in character-level encoder
+    word_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
+    h1_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
+    attn_units = 100  # num units used for attention in the decoder.
+    attn_rnn_units = 100  # num units used for attention in the decoder.
     embedd_dims = 256  # size of character embeddings
     learning_rate = 0.001
     reg_scale = 0.000001
@@ -164,7 +165,8 @@ class Model:
                               [self.X_h0_len, self.X_h1_len],
                               [word_enc_state, h1_enc_state],
                               t_embedded, self.t_len, self.attn_units,
-                              self.t_embeddings, W_out, b_out))
+                              self.attn_rnn_units, self.t_embeddings,
+                              W_out, b_out))
 
         out_tensor = tf.reshape(dec_out, [-1, self.word_encoder_units*2])
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
