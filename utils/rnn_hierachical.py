@@ -95,7 +95,7 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                                 shape=[num_attn_rnn_units, num_attn_rnn_units],
                                 initializer=weight_initializer)
         W_axh = tf.get_variable('W_axh',
-                                shape=[num_attn_units, num_attn_rnn_units],
+                                shape=[h0_dims, num_attn_rnn_units],
                                 initializer=weight_initializer)
         b_ah = tf.get_variable('b_ah',
                                shape=[num_attn_rnn_units],
