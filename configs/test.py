@@ -1,4 +1,5 @@
 from configs import default
+from data.alphabet import Alphabet
 
 
 class Model(default.Model):
