@@ -9,7 +9,7 @@ from data.alphabet import Alphabet
 
 class Model:
     # settings that affect train.py
-    batch_size_train = 90000
+    batch_size_train = 80000
     batch_size_valid = 128
     seq_len_x = 50
     seq_len_t = 50
@@ -49,8 +49,8 @@ class Model:
     char_encoder_units = 300  # number of units in character-level encoder
     word_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
     h1_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
-    attn_units = 100  # num units used for attention in the decoder.
-    attn_rnn_units = 100  # num units used for attention in the decoder.
+    attn_units = 200  # num units used for attention in the decoder.
+    attn_rnn_units = 200  # num units used for attention in the decoder.
     embedd_dims = 256  # size of character embeddings
     learning_rate = 0.001
     reg_scale = 0.000001

@@ -2,6 +2,29 @@ import tensorflow as tf
 from tensorflow.python.ops import tensor_array_ops
 from utils.tfextensions import mask
 
+def attn(p1, inp_state, W_a, b_a, v_a, h_lengths, hidden):
+    p2 = tf.matmul(inp_state, W_a) + b_a
+    p2 = tf.expand_dims(p2, 1)
+    john = p1 + p2
+    e = tf.reduce_sum(v_a * tf.tanh(john), [2])
+    alpha = tf.nn.softmax(e)
+    alpha = tf.to_float(mask(h_lengths)) * alpha
+    alpha = alpha / tf.reduce_sum(alpha, [1], keep_dims=True)
+    c = tf.reduce_sum(tf.expand_dims(alpha, 2) * tf.squeeze(hidden), [1])
+    return c, alpha
+
+def rnn_step(old_step, inp, W_hh, W_xh, b_h):
+    next_step = tf.tanh(tf.matmul(old_step, W_hh) + tf.matmul(inp, W_xh) + b_h)
+    return next_step
+
+def gru_step(old_step, inp, W_z, W_r, W_h, b_z, b_r, b_h):
+    con = tf.concat(1, [inp, old_step])
+    z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
+    r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+    con = tf.concat(1, [inp, r*old_step])
+    h = tf.tanh(tf.matmul(con, W_h) + b_h)
+    new_step = (1-z)*h + z*old_step
+    return new_step, z, r
 
 def attention_decoder(attention_inputs, attention_lengths, initial_state, target_input,
                       target_input_lengths, num_attn_units, num_attn_rnn_units,
@@ -35,22 +58,23 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         max_sequence_length = tf.reduce_max(target_input_lengths)
 
         weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
-        W_z = tf.get_variable('W_z',
+
+        W_dz = tf.get_variable('W_dz',
                               shape=[target_dims+num_units+num_attn_rnn_units, num_units],
                               initializer=weight_initializer)
-        W_r = tf.get_variable('W_r',
+        W_dr = tf.get_variable('W_dr',
                               shape=[target_dims+num_units+num_attn_rnn_units, num_units],
                               initializer=weight_initializer)
-        W_h = tf.get_variable('W_h',
+        W_dh = tf.get_variable('W_dh',
                               shape=[target_dims+num_units+num_attn_rnn_units, num_units],
                               initializer=weight_initializer)
-        b_z = tf.get_variable('b_z',
+        b_dz = tf.get_variable('b_dz',
                               shape=[num_units],
                               initializer=tf.constant_initializer(1.0))
-        b_r = tf.get_variable('b_r',
+        b_dr = tf.get_variable('b_dr',
                               shape=[num_units],
                               initializer=tf.constant_initializer(1.0))
-        b_h = tf.get_variable('b_h',
+        b_dh = tf.get_variable('b_dh',
                               shape=[num_units],
                               initializer=tf.constant_initializer())
 
@@ -89,7 +113,7 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                                initializer=weight_initializer)
         b_as = tf.get_variable('b_as',
                                shape=[num_attn_rnn_units],
-                               initializer=weight_initializer)
+                               initializer=tf.constant_initializer())
         # hidden weights
         W_ahh = tf.get_variable('W_ahh',
                                 shape=[num_attn_rnn_units, num_attn_rnn_units],
@@ -99,7 +123,26 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                                 initializer=weight_initializer)
         b_ah = tf.get_variable('b_ah',
                                shape=[num_attn_rnn_units],
-                               initializer=weight_initializer)
+                               initializer=tf.constant_initializer())
+
+        W_az = tf.get_variable('W_az',
+                              shape=[h0_dims+num_attn_rnn_units, num_attn_rnn_units],
+                              initializer=weight_initializer)
+        W_ar = tf.get_variable('W_ar',
+                              shape=[h0_dims+num_attn_rnn_units, num_attn_rnn_units],
+                              initializer=weight_initializer)
+        W_ah = tf.get_variable('W_ah',
+                              shape=[h0_dims+num_attn_rnn_units, num_attn_rnn_units],
+                              initializer=weight_initializer)
+        b_az = tf.get_variable('b_az',
+                              shape=[num_attn_rnn_units],
+                              initializer=tf.constant_initializer(1.0))
+        b_ar = tf.get_variable('b_ar',
+                              shape=[num_attn_rnn_units],
+                              initializer=tf.constant_initializer(1.0))
+        #b_ah = tf.get_variable('b_ah',
+        #                      shape=[num_attn_rnn_units],
+        #                      initializer=tf.constant_initializer())
 
         # TODO: don't use convolutions!
         # TODO: fix the bias (b_a)
@@ -130,38 +173,21 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
 
                 # attention
                 start_rnn = tf.tanh(tf.matmul(old_state, W_as) + b_as)
-                part21 = tf.matmul(start_rnn, W_a1) + b_a1
-                part21 = tf.expand_dims(part21, 1)
-                john1 = part11 + part21
-                e1 = tf.reduce_sum(v_a1 * tf.tanh(john1), [2])
-                alpha1 = tf.nn.softmax(e1)
-                alpha1 = tf.to_float(mask(h1_lengths)) * alpha1
-                alpha1 = alpha1 / tf.reduce_sum(alpha1, [1], keep_dims=True)
-                #h1_tracker = h1_tracker.write(time, alpha1)
-                c1 = tf.reduce_sum(tf.expand_dims(alpha1, 2) * tf.squeeze(hidden1), [1])
-
-                rnn_step1 = tf.tanh(tf.matmul(start_rnn, W_ahh) + tf.matmul(c1, W_axh) + b_ah)
-
-                # use c1 for new attention
-                part20 = tf.matmul(rnn_step1, W_a0) + b_a0
-                part20 = tf.expand_dims(part20, 1)
-                john0 = part10 + part20
-                e0 = tf.reduce_sum(v_a1 * tf.tanh(john0), [2])
-                alpha0 = tf.nn.softmax(e0)
-                alpha0 = tf.to_float(mask(h0_lengths)) * alpha0
-                alpha0 = alpha0 / tf.reduce_sum(alpha0, [1], keep_dims=True)
+                c1, _ = attn(part11, start_rnn, W_a1, b_a1, v_a1, h1_lengths, hidden1)
+                #rnn_step1 = rnn_step(start_rnn, c1, W_ahh, W_axh, b_ah)
+                rnn_step1, _, _ = gru_step(start_rnn, c1, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
+                c0, alpha0 = attn(part10, rnn_step1, W_a0, b_a0, v_a0, h0_lengths, hidden0)
                 h0_tracker = h0_tracker.write(time, alpha0)
-                c0 = tf.reduce_sum(tf.expand_dims(alpha0, 2) * tf.squeeze(hidden0), [1])
-
-                rnn_step2 = tf.tanh(tf.matmul(rnn_step1, W_ahh) + tf.matmul(c0, W_axh) + b_ah)
+                #rnn_step2 = rnn_step(rnn_step1, c0, W_ahh, W_axh, b_ah)
+                rnn_step2, _, _ = gru_step(rnn_step1, c0, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
                 c = rnn_step2
 
                 # GRU
                 con = tf.concat(1, [x_t, old_state, c])
-                z = tf.sigmoid(tf.matmul(con, W_z) + b_z)
-                r = tf.sigmoid(tf.matmul(con, W_r) + b_r)
+                z = tf.sigmoid(tf.matmul(con, W_dz) + b_dz)
+                r = tf.sigmoid(tf.matmul(con, W_dr) + b_dr)
                 con = tf.concat(1, [x_t, r*old_state, c])
-                h = tf.tanh(tf.matmul(con, W_h) + b_h)
+                h = tf.tanh(tf.matmul(con, W_dh) + b_dh)
                 new_state = (1-z)*h + z*old_state
 
                 output_ta_t = output_ta_t.write(time, new_state)
