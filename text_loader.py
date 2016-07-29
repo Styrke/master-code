@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import os, subprocess
+from functools import partial
 
 import frostings.loader as frost
 from utils.change_directory import cd
@@ -208,7 +209,7 @@ class TextBatchGenerator(frost.BatchGenerator):
     """
 
     def __init__(self, loader, batch_size, alphabet_src, alphabet_tar, add_feature_dim=False,
-            use_dynamic_array_sizes=False,  **schedule_kwargs):
+            use_dynamic_array_sizes=False, num_h=1, h_degree,  **schedule_kwargs):
         """Initialize instance of TextBatchGenerator.
 
         NOTE: The size of a produced batch can be smaller than batch_size if
@@ -237,6 +238,8 @@ class TextBatchGenerator(frost.BatchGenerator):
         self.add_feature_dim = add_feature_dim
         self.use_dynamic_array_sizes = use_dynamic_array_sizes
         self.add_eos_character = True
+        self.num_h = num_h
+        self.h_degree = h_degree
 
     def _make_batch(self):
         """Process the list of samples into a nicely formatted batch.
@@ -253,8 +256,6 @@ class TextBatchGenerator(frost.BatchGenerator):
         batch['t_encoded'] = self._make_array(t, encode_tar, self.seq_len_t)
         batch['t_encoded_go'] = self._add_sos(batch['t_encoded'], self.alphabet_tar)
 
-        batch['x_h0'] = self._make_array(x, self._hierachical, self.seq_len_x//4)
-        batch['x_h1'] = self._make_array(x, self._hierachical1, self.seq_len_x//8)
         batch['x_mask'] = self._make_array(x, self._mask, self.seq_len_x)
         batch['t_mask'] = self._make_array(t, self._mask, self.seq_len_t)
 
@@ -264,10 +265,10 @@ class TextBatchGenerator(frost.BatchGenerator):
         # NOTE: The way we make batch['x_spaces_len'] here is not elegant,
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
-        h0_x = map(self._hierachical, x)
-        h1_x = map(self._hierachical1, x)
-        batch['x_h0_len'] = self._make_len_vec(h0_x, 0, (self.seq_len_x//4))
-        batch['x_h1_len'] = self._make_len_vec(h1_x, 0, (self.seq_len_x//8))
+        for i in range(self.num_h):
+            batch['x_h%d' % i] = self._make_array(x, partial(self._hierachical, level=i, degree=self.h_degree), self.seq_len_x//(4*i))
+            h_x = map(self._hierachical, x)
+            batch['x_h%d_len' % i] = self._make_len_vec(h_x, 0, (self.seq_len_x//(4*i))
 
         # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:

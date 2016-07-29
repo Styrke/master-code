@@ -41,21 +41,23 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         num_attn_units:     Number of units in the alignment layer that produces the context vectors.
     """
     with tf.variable_scope(name):
-        h0_input = attention_inputs[0]
-        h0_lengths = attention_lengths[0]
-        h0_state = initial_state[0]
-        h1_input = attention_inputs[1]
-        h1_lengths = attention_lengths[1]
-        h1_state = initial_state[1]
+        #h0_input = attention_inputs[0]
+        #h0_lengths = attention_lengths[0]
+        #h0_state = initial_state[0]
+        #h1_input = attention_inputs[1]
+        #h1_lengths = attention_lengths[1]
+        #h1_state = initial_state[1]
         target_dims = target_input.get_shape()[2]
-        h0_dims = h0_input.get_shape()[2]
-        num_units = h0_dims
-        h0_len = tf.shape(h0_input)[1]
-        target_dims = target_input.get_shape()[2]
-        h1_dims = h1_input.get_shape()[2]
-        num_units = h1_dims
-        h1_len = tf.shape(h1_input)[1]
         max_sequence_length = tf.reduce_max(target_input_lengths)
+
+        h_dims = dict()
+        num_units = dict()
+        h_len = dict()
+
+        for i in range(num_h):
+            h_dims[i] = h_input[i].get_shape()[2]
+            num_units[i] = h_dims[i]
+            h_len[i] = tf.shape(h_input[i])[1]
 
         weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
 
@@ -79,32 +81,45 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                               initializer=tf.constant_initializer())
 
         # for attention of hierachies part
-        # h0 attention
-        W_a0 = tf.get_variable('W_a0',
-                              shape=[num_attn_rnn_units, num_attn_units],
-                              initializer=weight_initializer)
-        U_a0 = tf.get_variable('U_a0',
-                              shape=[1, 1, h0_dims, num_attn_units],
-                              initializer=weight_initializer)
-        b_a0 = tf.get_variable('b_a0',
-                              shape=[num_attn_units],
-                              initializer=tf.constant_initializer())
-        v_a0 = tf.get_variable('v_a0',
-                              shape=[num_attn_units],
-                              initializer=weight_initializer)
-        # h1 attention
-        W_a1 = tf.get_variable('W_a1',
-                              shape=[num_attn_rnn_units, num_attn_units],
-                              initializer=weight_initializer)
-        U_a1 = tf.get_variable('U_a1',
-                              shape=[1, 1, h0_dims, num_attn_units],
-                              initializer=weight_initializer)
-        b_a1 = tf.get_variable('b_a1',
-                              shape=[num_attn_units],
-                              initializer=tf.constant_initializer())
-        v_a1 = tf.get_variable('v_a1',
-                              shape=[num_attn_units],
-                              initializer=weight_initializer)
+        W_a = dict()
+        U_a = dict()
+        b_a = dict()
+        v_a = dict()
+
+        W_a[0] = tf.get_variable('W_a0',
+                                   shape=[num_attn_rnn_units, num_attn_units],
+                                   initializer=weight_initializer)
+        U_a[0] = tf.get_variable('U_a0',
+                                   shape=[1, 1, h_dims[0], num_attn_units],
+                                   initializer=weight_initializer)
+        b_a[0] = tf.get_variable('b_a0',
+                                   shape=[num_attn_units],
+                                   initializer=tf.constant_initializer())
+        v_a[0] = tf.get_variable('v_a0',
+                                   shape=[num_attn_units],
+                                   initializer=weight_initializer)
+
+       # h0 attention
+
+       for i in range(num_h):
+           if same_attention_weights:
+               W_a[i] = W_a[0] # Just reusing the same weights
+               U_a[i] = U_a[0]
+               b_a[i] = b_a[0]
+               v_a[i] = v_a[0]
+           else:
+                W_a[i] = tf.get_variable(('W_a%d' % i),
+                                         shape=[num_attn_rnn_units, num_attn_units],
+                                         initializer=weight_initializer)
+                U_a[i] = tf.get_variable(('U_a%d' % i),
+                                         shape=[1, 1, h_dims[i], num_attn_units],
+                                         initializer=weight_initializer)
+                b_a[i] = tf.get_variable(('b_a%d' % i),
+                                         shape=[num_attn_units],
+                                         initializer=tf.constant_initializer())
+                v_a[i] = tf.get_variable(('v_a%d' % i),
+                                         shape=[num_attn_units],
+                                         initializer=weight_initializer)
 
         # for attention of recurrent part
         # to make state fit
@@ -119,20 +134,20 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                                 shape=[num_attn_rnn_units, num_attn_rnn_units],
                                 initializer=weight_initializer)
         W_axh = tf.get_variable('W_axh',
-                                shape=[h0_dims, num_attn_rnn_units],
+                                shape=[h_dims[0], num_attn_rnn_units],
                                 initializer=weight_initializer)
         b_ah = tf.get_variable('b_ah',
                                shape=[num_attn_rnn_units],
                                initializer=tf.constant_initializer())
 
         W_az = tf.get_variable('W_az',
-                              shape=[h0_dims+num_attn_rnn_units, num_attn_rnn_units],
+                              shape=[h_dims[0]+num_attn_rnn_units, num_attn_rnn_units],
                               initializer=weight_initializer)
         W_ar = tf.get_variable('W_ar',
-                              shape=[h0_dims+num_attn_rnn_units, num_attn_rnn_units],
+                              shape=[h_dims[0]+num_attn_rnn_units, num_attn_rnn_units],
                               initializer=weight_initializer)
         W_ah = tf.get_variable('W_ah',
-                              shape=[h0_dims+num_attn_rnn_units, num_attn_rnn_units],
+                              shape=[h_dims[0]+num_attn_rnn_units, num_attn_rnn_units],
                               initializer=weight_initializer)
         b_az = tf.get_variable('b_az',
                               shape=[num_attn_rnn_units],
@@ -146,19 +161,18 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
 
         # TODO: don't use convolutions!
         # TODO: fix the bias (b_a)
-        hidden0 = tf.reshape(h0_input, tf.pack([-1, h0_len, 1, h0_dims]))
-        part10 = tf.nn.conv2d(hidden0, U_a0, [1, 1, 1, 1], "SAME")
-        part10 = tf.squeeze(part10, [2])  # squeeze out the third dimension
-
-        hidden1 = tf.reshape(h1_input, tf.pack([-1, h1_len, 1, h1_dims]))
-        part11 = tf.nn.conv2d(hidden1, U_a1, [1, 1, 1, 1], "SAME")
-        part11 = tf.squeeze(part11, [2])  # squeeze out the third dimension
+        hidden = dict()
+        part1 = dict()
+        for i in range(num_h):
+            hidden[i] = tf.reshape(h_input[i], tf.pack([-1, h_len[i], 1, h_dims[i]))
+            part1[i] = tf.nn.conv2d(hidden[i], U_a[i], [1, 1, 1, 1], "SAME")
+            part1[i] = tf.squeeze(part1[i], [2]) # squeeze out the third dimension
 
         inputs = tf.transpose(target_input, perm=[1, 0, 2])
         input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
         input_ta = input_ta.unpack(inputs)
 
-        def decoder_cond(time, state, output_ta_t, h0_tracker):
+        def decoder_cond(time, state, output_ta_t, h_tracker):
             return tf.less(time, max_sequence_length)
 
         def decoder_body_builder(feedback=False):
@@ -173,14 +187,15 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
 
                 # attention
                 start_rnn = tf.tanh(tf.matmul(old_state, W_as) + b_as)
-                c1, _ = attn(part11, start_rnn, W_a1, b_a1, v_a1, h1_lengths, hidden1)
-                #rnn_step1 = rnn_step(start_rnn, c1, W_ahh, W_axh, b_ah)
-                rnn_step1, _, _ = gru_step(start_rnn, c1, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
-                c0, alpha0 = attn(part10, rnn_step1, W_a0, b_a0, v_a0, h0_lengths, hidden0)
-                h0_tracker = h0_tracker.write(time, alpha0)
-                #rnn_step2 = rnn_step(rnn_step1, c0, W_ahh, W_axh, b_ah)
-                rnn_step2, _, _ = gru_step(rnn_step1, c0, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
-                c = rnn_step2
+                prev_hidden = start_rnn
+                for i in reversed(range(num_h)):
+                    ac, alpha = attn(part1[i], prev_hidden, W_a[i], b_a[i], h_lengths[i], hidden[i])
+                    prev_hidden, az, ar = gru_step(prev_hidden, ac, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
+                    a_tracker[i] = a_tracker[i].write(time, alpha)
+                    az_tracker[i] = az_tracker[i].write(time, az)
+                    ar_tracker[i] = ar_tracker[i].write(time, ar)
+
+                c = prev_hidden # will get last hidden out
 
                 # GRU
                 con = tf.concat(1, [x_t, old_state, c])
@@ -192,20 +207,27 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
 
                 output_ta_t = output_ta_t.write(time, new_state)
 
-                return (time + 1, new_state, output_ta_t, h0_tracker)
+                return (time + 1, new_state, output_ta_t, a_tracker, az_tracker, ar_tracker)
             return decoder_body
 
 
         output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-        h0_tracker = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-        time = tf.constant(0)
-        loop_vars = [time, h0_state, output_ta, h0_tracker]
+        a_tracker = dict()
+        az_tracker = dict()
+        ar_tracker = dict()
+        for i in range(num_h):
+            a_tracker[i] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+            az_tracker[i] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+            ar_tracker[i] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
 
-        _, state, output_ta, _ = tf.while_loop(decoder_cond,
+        time = tf.constant(0)
+        loop_vars = [time, h_state, output_ta, a_tracker, ar_tracker, az_tracker]
+
+        _, state, output_ta, _, _, _ = tf.while_loop(decoder_cond,
                                             decoder_body_builder(),
                                             loop_vars,
                                             swap_memory=swap)
-        _, valid_state, valid_output_ta, valid_h0_tracker = tf.while_loop(decoder_cond,
+        _, valid_state, valid_output_ta, valid_a_tracker, valid_az_tracker, valid_ar_tracker = tf.while_loop(decoder_cond,
                                                         decoder_body_builder(feedback=True),
                                                         loop_vars,
                                                         swap_memory=swap)
@@ -214,4 +236,4 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
         valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
 
-        return dec_state, dec_out, valid_dec_out, valid_h0_tracker
+        return dec_state, dec_out, valid_dec_out, valid_a_tracker, valid_ar_tracker, valid_az_tracker

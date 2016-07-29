@@ -42,13 +42,14 @@ class Model:
     test_t_files = ['data/valid/newstest2014.deen.de.tok']
 
     # settings that are local to the model
+    num_h = 1
+    h_degree = 3
     alphabet_src_size = 310  # size of alphabet
     alphabet_tar_size = 310  # size of alphabet
     alphabet_src = Alphabet('data/alphabet/dict_wmt_tok.de-en.en', eos='*')
     alphabet_tar = Alphabet('data/alphabet/dict_wmt_tok.de-en.de', eos='*', sos='')
     char_encoder_units = 300  # number of units in character-level encoder
-    word_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
-    h1_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
+    h_encoder_units = 300  # num nuits in word-level encoders (both forwards and back)
     attn_units = 200  # num units used for attention in the decoder.
     attn_rnn_units = 200  # num units used for attention in the decoder.
     embedd_dims = 256  # size of character embeddings
@@ -106,8 +107,12 @@ class Model:
         shape = [None, None]
         self.X_h0     = tf.placeholder(tf.int32, shape=shape,  name='X_h0')
         self.X_h0_len = tf.placeholder(tf.int32, shape=[None], name='X_h0_len')
-        self.X_h1     = tf.placeholder(tf.int32, shape=shape,  name='X_h1')
-        self.X_h1_len = tf.placeholder(tf.int32, shape=[None], name='X_h1_len')
+        # not including h0 because char encoder is wierd with only forward n such.
+        self.X_h      = dict()
+        self.X_h_len  = dict()
+        for i in range(1, self.num_h):
+            self.X_h["%d" % i] = tf.placeholder(tf.int32, shape=shape,  name=('X_h%d' % i))
+            self.X_h_len["%d" % i] = tf.placeholder(tf.int32, shape=[None], name=('X_h%d_len' % i))
 
     def build(self):
         print('Building model')
@@ -122,53 +127,51 @@ class Model:
         t_embedded = tf.gather(self.t_embeddings, self.ts_go, name='embed_t')
 
         with tf.variable_scope('dense_out'):
-            W_out = tf.get_variable('W_out', [self.word_encoder_units*2, self.alphabet_tar_size])
+            W_out = tf.get_variable('W_out', [self.h_encoder_units*2, self.alphabet_tar_size])
             b_out = tf.get_variable('b_out', [self.alphabet_tar_size])
 
         # forward encoding
         char_enc_state, char_enc_out = encoder(X_embedded, self.X_len, 'char_encoder', self.char_encoder_units)
         char2word = _grid_gather(char_enc_out, self.X_h0)
         char2word.set_shape([None, None, self.char_encoder_units])
-        word_enc_state, word_enc_out = encoder(char2word, self.X_h0_len, 'word_encoder', self.word_encoder_units)
+        word_enc_state, word_enc_out = encoder(char2word, self.X_h0_len, 'word_encoder', self.h_encoder_units)
 
         # backward encoding words
         char2word = tf.reverse_sequence(char2word, tf.to_int64(self.X_h0_len), 1)
         char2word.set_shape([None, None, self.char_encoder_units])
-        word_enc_state_bck, word_enc_out_bck = encoder(char2word, self.X_h0_len, 'word_encoder_backwards', self.word_encoder_units)
+        word_enc_state_bck, word_enc_out_bck = encoder(char2word, self.X_h0_len, 'word_encoder_backwards', self.h_encoder_units)
         word_enc_out_bck = tf.reverse_sequence(word_enc_out_bck, tf.to_int64(self.X_h0_len), 1)
 
         word_enc_state = tf.concat(1, [word_enc_state, word_enc_state_bck])
         word_enc_out = tf.concat(2, [word_enc_out, word_enc_out_bck])
 
         # h1 gather
-        h1 = _grid_gather(word_enc_out, self.X_h1)
-        h1.set_shape([None, None, self.word_encoder_units*2])
 
-        # h1 forward encoding
-        h1_enc_state, h1_enc_out = encoder(h1, self.X_h1_len, 'h1_encoder', self.h1_encoder_units)
+        h_enc_state = dict()
+        h_enc_state['0'] = word_enc_state
+        h_enc_out = dict()
+        h_enc_out['0'] = word_enc_out
 
-        # h1 backward encoding
-        h1 = tf.reverse_sequence(h1, tf.to_int64(self.X_h1_len), 1)
-        h1.set_shape([None, None, self.word_encoder_units*2])
-        h1_enc_state_bck, h1_enc_out_bck = encoder(h1, self.X_h1_len, 'h1_encoder_backwards', self.h1_encoder_units)
-        h1_enc_out_bck = tf.reverse_sequence(h1_enc_out_bck, tf.to_int64(self.X_h1_len), 1)
-
-        # h1 combined
-        h1_enc_state = tf.concat(1, [h1_enc_state, h1_enc_state_bck])
-        h1_enc_out = tf.concat(2, [h1_enc_out, h1_enc_out_bck])
-
+        for i in range(1, num_h):
+            gathered_out = _grid_gather(h_enc_out["%d" % (i-1)], self.X_h["%d" % i])
+            gathered_out.set_shape([None, None, self.h_encoder_units*2])
+            h_forward_state, h_forward_out = encoder(gathered_out, self.X_h_len["%d" % i], ("h%d_encoder" % d), self.h1_encoder_units)
+            gathered_out = tf.reverse_sequence(gathered_out, tf.to_int64(self.X_h_len["%d" % i]), 1)
+            gathered_out.set_shape([None, None, self.h_encoder_units*2])
+            h_backwards_state, h_backwards_out = encoder(gathered_out, self.X_h_len["%d" % i], ("h%d_encoder_backwards" % d), self.h1_encoder_units)
+            h_backwards_out = tf.reverse_sequence(h_backwards_out, tf.to_int64(self.X_h_len["%d" % i]), 1)
+            h_enc_state["%d" % i] = tf.concat(1, [h_forward_state, h_backward_state])
+            h_enc_out["%d" % i] = tf.concat(2, [h_forward_out, h_backwards_out])
 
 
         # decoding
         dec_state, dec_out, valid_dec_out, valid_attention_tracker = (
-            attention_decoder([word_enc_out, h1_enc_out],
-                              [self.X_h0_len, self.X_h1_len],
-                              [word_enc_state, h1_enc_state],
+            attention_decoder(h_enc_out, self.X_h_len, h_enc_state, self.num_h,
                               t_embedded, self.t_len, self.attn_units,
                               self.attn_rnn_units, self.t_embeddings,
                               W_out, b_out))
 
-        out_tensor = tf.reshape(dec_out, [-1, self.word_encoder_units*2])
+        out_tensor = tf.reshape(dec_out, [-1, self.h_encoder_units*2]) # a hack for num_units
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),
                                   tf.expand_dims(tf.shape(t_embedded)[1], 0),
@@ -177,7 +180,7 @@ class Model:
         self.out_tensor = tf.reshape(out_tensor, out_shape)
         self.out_tensor.set_shape([None, None, self.alphabet_tar_size])
 
-        valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.word_encoder_units*2])
+        valid_out_tensor = tf.reshape(valid_dec_out, [-1, self.h_encoder_units*2])
         valid_out_tensor = tf.matmul(valid_out_tensor, W_out) + b_out
         self.valid_out_tensor = tf.reshape(valid_out_tensor, out_shape)
 
@@ -265,6 +268,8 @@ class Model:
             alphabet_src=self.alphabet_src,
             alphabet_tar=self.alphabet_tar,
             use_dynamic_array_sizes=True,
+            num_h=self.num_h,
+            h_degree=self.h_degree,
             **self.schedule_kwargs)
 
         # load validation set
@@ -278,6 +283,8 @@ class Model:
             batch_size=self.batch_size_valid,
             alphabet_src=self.alphabet_src,
             alphabet_tar=self.alphabet_tar,
+            num_h=self.num_h,
+            h_degree=self.h_degree,
             use_dynamic_array_sizes=True)
 
         # load test set
@@ -291,23 +298,29 @@ class Model:
             batch_size=self.batch_size_valid,
             alphabet_src=self.alphabet_src,
             alphabet_tar=self.alphabet_tar,
+            num_h=self.num_h,
+            h_degree=self.h_degree,
             use_dynamic_array_sizes=True)
 
 
     def valid_dict(self, batch, feedback=True):
         """ Return feed_dict for validation """
-        return { self.Xs:     batch['x_encoded'],
-                 self.ts:     batch['t_encoded'],
-                 self.ts_go:  batch['t_encoded_go'],
-                 self.X_len:  batch['x_len'],
-                 self.t_len:  batch['t_len'],
-                 self.x_mask: batch['x_mask'],
-                 self.t_mask: batch['t_mask'],
-                 self.feedback: feedback,
-                 self.X_h0: batch['x_h0'],
-                 self.X_h0_len: batch['x_h0_len'], 
-                 self.X_h1: batch['x_h1'],
-                 self.X_h1_len: batch['x_h1_len'] }
+        my_dict = { self.Xs:     batch['x_encoded'],
+                    self.ts:     batch['t_encoded'],
+                    self.ts_go:  batch['t_encoded_go'],
+                    self.X_len:  batch['x_len'],
+                    self.t_len:  batch['t_len'],
+                    self.x_mask: batch['x_mask'],
+                    self.t_mask: batch['t_mask'],
+                    self.feedback: feedback,
+                    self.X_h0: batch['x_h0'],
+                    self.X_h0_len: batch['x_h0_len'] }
+
+        for i in range(1, self.num_h):
+            my_dict[self.X_h["%d" % i]] = batch['x_h%d' % d]
+            my_dict[self.X_h_len["%d" % i]] = batch['x_h%d_len' % d]
+
+        return my_dict
 
     def train_dict(self, batch):
         """ Return feed_dict for training.
