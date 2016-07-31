@@ -192,12 +192,14 @@ class Trainer:
     def validate(self, sess):
         print("Validating..")
         total_num_samples = 0
-        losses, accuracies, valid_y_strings, valid_t_strings, valid_x_strings, attention_tracker = [], [], [], [], [], []
+        losses, accuracies, valid_y_strings, valid_t_strings, valid_x_strings, valid_a, valid_az, valid_ar= [], [], [], [], [], {}, {}, {}
         for v_feed_dict in self.model.next_valid_feed():
             fetches = {'accuracy': self.model.valid_accuracy,
                        'ys': self.model.valid_ys,
-                       'loss': self.model.valid_loss,
-                       'attention_tracker': self.model.valid_attention_tracker}
+                       'loss': self.model.valid_loss }
+                       #'valid_a': self.model.valid_a,
+                       #'valid_az': self.model.valid_a,
+                       #'valid_ar': self.model.valid_a }
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
@@ -216,7 +218,17 @@ class Trainer:
             # collect loss and accuracy
             losses.append(res['loss']*samples_in_batch)
             accuracies.append(res['accuracy']*samples_in_batch)
-            attention_tracker.append(res['attention_tracker'].transpose(1, 0, 2))
+
+            # initiating dictionaries for hierarchical attention tracking
+            #if valid_a == {}:
+            #    valid_a[i] = res['valid_a'][i].transpose(1, 0, 2)
+            #    valid_az[i] = res['valid_az'][i].transpose(1, 0, 2)
+            #    valid_ar[i] = res['valid_ar'][i].transpose(1, 0, 2)
+            # only implemented first batch for this so far
+            #else:
+            #    valid_a[i].append(res['valid_a'][i].transpose(1, 0, 2))
+            #    valid_az[i].append(res['valid_az'][i].transpose(1, 0, 2))
+            #    valid_ar[i].append(res['valid_ar'][i].transpose(1, 0, 2))
 
         # convert all prediction strings to lists of words (for computing bleu)
         t_words, y_words = utils.strs_to_words(valid_y_strings, valid_t_strings)
@@ -241,21 +253,35 @@ class Trainer:
         # TODO move this to setup
         if self.name:
             path_bleu = 'bleu/%s-%s' % (self.name, self.timestamp)
-            path_attention = 'attention/%s-%s' % (self.name, self.timestamp)
+            path_a = 'attention/%s-%s' % (self.name, self.timestamp)
+            path_az = 'gru-z-gate/%s-%s' % (self.name, self.timestamp)
+            path_ar = 'gru-r-gate/%s-%s' % (self.name, self.timestamp)
         else:
             path_bleu = 'bleu/%s-%s' % ('no-name', self.timestamp)
-            path_attention = 'attention/%s-%s' % ('no-name', self.timestamp)
+            path_a = 'attention/%s-%s' % ('no-name', self.timestamp)
+            path_az = 'gru-z-gate/%s-%s' % ('no-name', self.timestamp)
+            path_ar = 'gru-r-gate/%s-%s' % ('no-name', self.timestamp)
         path_to_bleu =  os.path.join(SAVER_PATH['base'], path_bleu)
-        path_to_attention =  os.path.join(SAVER_PATH['base'], path_attention)
+        path_to_a =  os.path.join(SAVER_PATH['base'], path_a)
+        path_to_az =  os.path.join(SAVER_PATH['base'], path_az)
+        path_to_ar =  os.path.join(SAVER_PATH['base'], path_ar)
         if not os.path.exists(path_to_bleu):
             os.makedirs(path_to_bleu)
-        if not os.path.exists(path_to_attention):
-            os.makedirs(path_to_attention)
+        if not os.path.exists(path_to_a):
+            os.makedirs(path_to_a)
+        if not os.path.exists(path_to_az):
+            os.makedirs(path_to_az)
+        if not os.path.exists(path_to_ar):
+            os.makedirs(path_to_ar)
         reference = os.path.join(path_to_bleu, 'reference.txt')
         translated = os.path.join(path_to_bleu, 'translated.txt')
         source = os.path.join(path_to_bleu, 'source.txt')
-        attention_path = os.path.join(path_to_attention, 'attention.npy')
-        np.save(attention_path, attention_tracker[0])
+        a_path = os.path.join(path_to_a, 'a.npy')
+        az_path = os.path.join(path_to_az, 'az.npy')
+        ar_path = os.path.join(path_to_ar, 'ar.npy')
+        #np.save(a_path, valid_a)
+        #np.save(az_path, valid_az)
+        #np.save(ar_path, valid_ar)
 
         if not os.path.exists(reference):
             dump_to_file(reference, valid_t_strings)

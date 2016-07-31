@@ -209,7 +209,7 @@ class TextBatchGenerator(frost.BatchGenerator):
     """
 
     def __init__(self, loader, batch_size, alphabet_src, alphabet_tar, add_feature_dim=False,
-            use_dynamic_array_sizes=False, num_h=1, h_degree,  **schedule_kwargs):
+            use_dynamic_array_sizes=False, num_h=1, h_degree=2,  **schedule_kwargs):
         """Initialize instance of TextBatchGenerator.
 
         NOTE: The size of a produced batch can be smaller than batch_size if
@@ -266,9 +266,10 @@ class TextBatchGenerator(frost.BatchGenerator):
         # because we compute self._spaces for the second time on the same batch
         # of samples. Think of a way to fix this!
         for i in range(self.num_h):
-            batch['x_h%d' % i] = self._make_array(x, partial(self._hierachical, level=i, degree=self.h_degree), self.seq_len_x//(4*i))
-            h_x = map(self._hierachical, x)
-            batch['x_h%d_len' % i] = self._make_len_vec(h_x, 0, (self.seq_len_x//(4*i))
+            _hierarchical = partial(self._hierarchical, level=i, degree=self.h_degree)
+            batch['x_h%d' % i] = self._make_array(x, _hierarchical, self.seq_len_x//(4*(i+1)))
+            h_x = map(_hierarchical, x)
+            batch['x_h%d_len' % i] = self._make_len_vec(h_x, 0, (self.seq_len_x//(4*(i+1))))
 
         # Maybe add feature dimension as last part of each array shape:
         if self.add_feature_dim:
@@ -324,18 +325,7 @@ class TextBatchGenerator(frost.BatchGenerator):
             max_len = 100000
         return np.array([min(len(seq)+offset, max_len) for seq in sequences])
 
-    def _hierachical(self, sentence, level=0, degree=2):
-        hierachical = self._spaces(sentence)
-        if level>0:
-            for _ in range(level):
-                cur = list(range(len(hierachical)))
-                new = cur[1::degree]
-                if len(cur) % degree:
-                    new.append(cur[-1])
-                hierachical = new
-        return hierachical
-
-    def _hierachical1(self, sentence, level=1, degree=2):
+    def _hierarchical(self, sentence, level=0, degree=2):
         hierachical = self._spaces(sentence)
         if level>0:
             for _ in range(level):

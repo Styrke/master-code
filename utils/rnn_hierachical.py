@@ -26,9 +26,10 @@ def gru_step(old_step, inp, W_z, W_r, W_h, b_z, b_r, b_h):
     new_step = (1-z)*h + z*old_step
     return new_step, z, r
 
-def attention_decoder(attention_inputs, attention_lengths, initial_state, target_input,
+def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
                       target_input_lengths, num_attn_units, num_attn_rnn_units,
-                      embeddings, W_out, b_out, name='decoder', swap=False):
+                      embeddings, W_out, b_out, name='decoder',
+                      same_attention_weights=False, swap=False):
     """Decoder with attention.
 
     Note that the number of units in the attention decoder must always
@@ -49,7 +50,7 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         #h1_state = initial_state[1]
         target_dims = target_input.get_shape()[2]
         max_sequence_length = tf.reduce_max(target_input_lengths)
-
+        print(h_lengths)
         h_dims = dict()
         num_units = dict()
         h_len = dict()
@@ -62,22 +63,22 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         weight_initializer = tf.truncated_normal_initializer(stddev=0.1)
 
         W_dz = tf.get_variable('W_dz',
-                              shape=[target_dims+num_units+num_attn_rnn_units, num_units],
+                              shape=[target_dims+num_units[0]+num_attn_rnn_units, num_units[0]],
                               initializer=weight_initializer)
         W_dr = tf.get_variable('W_dr',
-                              shape=[target_dims+num_units+num_attn_rnn_units, num_units],
+                              shape=[target_dims+num_units[0]+num_attn_rnn_units, num_units[0]],
                               initializer=weight_initializer)
         W_dh = tf.get_variable('W_dh',
-                              shape=[target_dims+num_units+num_attn_rnn_units, num_units],
+                              shape=[target_dims+num_units[0]+num_attn_rnn_units, num_units[0]],
                               initializer=weight_initializer)
         b_dz = tf.get_variable('b_dz',
-                              shape=[num_units],
+                              shape=[num_units[0]],
                               initializer=tf.constant_initializer(1.0))
         b_dr = tf.get_variable('b_dr',
-                              shape=[num_units],
+                              shape=[num_units[0]],
                               initializer=tf.constant_initializer(1.0))
         b_dh = tf.get_variable('b_dh',
-                              shape=[num_units],
+                              shape=[num_units[0]],
                               initializer=tf.constant_initializer())
 
         # for attention of hierachies part
@@ -99,15 +100,15 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                                    shape=[num_attn_units],
                                    initializer=weight_initializer)
 
-       # h0 attention
+        # h0 attention
 
-       for i in range(num_h):
-           if same_attention_weights:
-               W_a[i] = W_a[0] # Just reusing the same weights
-               U_a[i] = U_a[0]
-               b_a[i] = b_a[0]
-               v_a[i] = v_a[0]
-           else:
+        for i in range(1, num_h):
+            if same_attention_weights:
+                W_a[i] = W_a[0] # Just reusing the same weights
+                U_a[i] = U_a[0]
+                b_a[i] = b_a[0]
+                v_a[i] = v_a[0]
+            else:
                 W_a[i] = tf.get_variable(('W_a%d' % i),
                                          shape=[num_attn_rnn_units, num_attn_units],
                                          initializer=weight_initializer)
@@ -124,7 +125,7 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         # for attention of recurrent part
         # to make state fit
         W_as = tf.get_variable('W_as',
-                               shape=[h0_dims, num_attn_rnn_units],
+                               shape=[h_dims[0], num_attn_rnn_units],
                                initializer=weight_initializer)
         b_as = tf.get_variable('b_as',
                                shape=[num_attn_rnn_units],
@@ -164,7 +165,7 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         hidden = dict()
         part1 = dict()
         for i in range(num_h):
-            hidden[i] = tf.reshape(h_input[i], tf.pack([-1, h_len[i], 1, h_dims[i]))
+            hidden[i] = tf.reshape(h_input[i], tf.pack([-1, h_len[i], 1, h_dims[i]]))
             part1[i] = tf.nn.conv2d(hidden[i], U_a[i], [1, 1, 1, 1], "SAME")
             part1[i] = tf.squeeze(part1[i], [2]) # squeeze out the third dimension
 
@@ -172,11 +173,11 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
         input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
         input_ta = input_ta.unpack(inputs)
 
-        def decoder_cond(time, state, output_ta_t, h_tracker):
+        def decoder_cond(time, state, output_ta_t):#, a_tracker, az_tracker, ar_tracker):
             return tf.less(time, max_sequence_length)
 
         def decoder_body_builder(feedback=False):
-            def decoder_body(time, old_state, output_ta_t, h0_tracker):
+            def decoder_body(time, old_state, output_ta_t):#, a_tracker, az_tracker, ar_tracker):
                 if feedback:
                     def from_previous():
                         prev_1 = tf.matmul(old_state, W_out) + b_out
@@ -189,11 +190,11 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
                 start_rnn = tf.tanh(tf.matmul(old_state, W_as) + b_as)
                 prev_hidden = start_rnn
                 for i in reversed(range(num_h)):
-                    ac, alpha = attn(part1[i], prev_hidden, W_a[i], b_a[i], h_lengths[i], hidden[i])
+                    ac, alpha = attn(p1=part1[i], inp_state=prev_hidden, W_a=W_a[i], b_a=b_a[i], v_a=v_a[i], h_lengths=h_lengths[i], hidden=hidden[i])
                     prev_hidden, az, ar = gru_step(prev_hidden, ac, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
-                    a_tracker[i] = a_tracker[i].write(time, alpha)
-                    az_tracker[i] = az_tracker[i].write(time, az)
-                    ar_tracker[i] = ar_tracker[i].write(time, ar)
+                    #a_tracker[i] = a_tracker[i].write(time, alpha)
+                    #az_tracker[i] = az_tracker[i].write(time, az)
+                    #ar_tracker[i] = ar_tracker[i].write(time, ar)
 
                 c = prev_hidden # will get last hidden out
 
@@ -207,7 +208,7 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
 
                 output_ta_t = output_ta_t.write(time, new_state)
 
-                return (time + 1, new_state, output_ta_t, a_tracker, az_tracker, ar_tracker)
+                return (time + 1, new_state, output_ta_t)#, a_tracker, az_tracker, ar_tracker)
             return decoder_body
 
 
@@ -221,19 +222,26 @@ def attention_decoder(attention_inputs, attention_lengths, initial_state, target
             ar_tracker[i] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
 
         time = tf.constant(0)
-        loop_vars = [time, h_state, output_ta, a_tracker, ar_tracker, az_tracker]
+        loop_vars = [time, h_state[0], output_ta]#, a_tracker, ar_tracker, az_tracker]
 
-        _, state, output_ta, _, _, _ = tf.while_loop(decoder_cond,
-                                            decoder_body_builder(),
-                                            loop_vars,
-                                            swap_memory=swap)
-        _, valid_state, valid_output_ta, valid_a_tracker, valid_az_tracker, valid_ar_tracker = tf.while_loop(decoder_cond,
-                                                        decoder_body_builder(feedback=True),
-                                                        loop_vars,
-                                                        swap_memory=swap)
+        _, state, output_ta = (#, _, _, _ = 
+            tf.while_loop(decoder_cond,
+                          decoder_body_builder(),
+                          loop_vars,
+                          swap_memory=swap))
+        _, valid_state, valid_output_ta = (#, valid_a_tracker, valid_az_tracker, valid_ar_tracker 
+            tf.while_loop(decoder_cond,
+                decoder_body_builder(feedback=True),
+                loop_vars,
+                swap_memory=swap))
 
         dec_state = state
         dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
         valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
 
-        return dec_state, dec_out, valid_dec_out, valid_a_tracker, valid_ar_tracker, valid_az_tracker
+        #for i in range(num_h):
+        #    valid_a_tracker[i] = valid_a_tracker[i].pack()
+        #    valid_az_tracker[i] = valid_az_tracker[i].pack()
+        #    valid_ar_tracker[i] = valid_ar_tracker[i].pack()
+
+        return dec_state, dec_out, valid_dec_out#, valid_a_tracker, valid_ar_tracker, valid_az_tracker

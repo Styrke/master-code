@@ -4,7 +4,7 @@ from data.alphabet import Alphabet
 
 class Model(default.Model):
     # overwrite config
-    batch_size_train = 50000
+    batch_size_train = 10000
     batch_size_valid = 64
     seq_len_x = 50
     seq_len_t = 50
