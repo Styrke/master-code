@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
   && apt-get clean \ 
   && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --upgrade http://ci.tensorflow.org/view/Nightly/job/nigntly-matrix-linux-gpu/TF_BUILD_CONTAINER_TYPE=GPU,TF_BUILD_IS_OPT=OPT,TF_BUILD_IS_PIP=PIP,TF_BUILD_PYTHON_VERSION=PYTHON3,label=gpu-working/lastSuccessfulBuild/artifact/pip_test/whl/tensorflow-0.8.0-cp34-cp34m-linux_x86_64.whl
+RUN pip3 install --upgrade https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.10.0rc0-cp34-cp34m-linux_x86_64.whl 
 # unable to install from requirements file -- installing manually
 RUN pip3 install numpy scipy matplotlib sklearn click nltk pandas
 

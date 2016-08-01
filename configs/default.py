@@ -9,7 +9,7 @@ from data.alphabet import Alphabet
 
 class Model:
     # settings that affect train.py
-    batch_size_train = 80000
+    batch_size_train = 85000
     batch_size_valid = 128
     seq_len_x = 50
     seq_len_t = 50
@@ -165,7 +165,7 @@ class Model:
 
 
         # decoding
-        dec_state, dec_out, valid_dec_out = (#, self.valid_a, self.valid_az, self.valid_ar = (
+        dec_state, dec_out, valid_dec_out, *self.valid_a_list = (#self.valid_a, self.valid_az, self.valid_ar = (
             attention_decoder(h_input=h_enc_out,
                               h_lengths=self.X_h_len,
                               h_state=h_enc_state,
@@ -177,7 +177,30 @@ class Model:
                               embeddings=self.t_embeddings,
                               W_out=W_out,
                               b_out=b_out))
+        self.valid_a_list = self.valid_a_list[0] # I know, it's hacked ...
 
+        assert self.num_h in [1, 5]
+        if self.num_h == 1:
+            self.valid_a0 = self.valid_a_list[0]
+            self.valid_az0 = self.valid_a_list[1]
+            self.valid_ar0 = self.valid_a_list[2]
+
+        if self.num_h == 5:
+            self.valid_a0 = self.valid_a_list[0]
+            self.valid_az0 = self.valid_a_list[1]
+            self.valid_ar0 = self.valid_a_list[2]
+            self.valid_a1 = self.valid_a_list[3]
+            self.valid_az1 = self.valid_a_list[4]
+            self.valid_ar1 = self.valid_a_list[5]
+            self.valid_a2 = self.valid_a_list[6]
+            self.valid_az2 = self.valid_a_list[7]
+            self.valid_ar2 = self.valid_a_list[8]
+            self.valid_a3 = self.valid_a_list[9]
+            self.valid_az3 = self.valid_a_list[10]
+            self.valid_ar3 = self.valid_a_list[11]
+            self.valid_a4 = self.valid_a_list[12]
+            self.valid_az4 = self.valid_a_list[13]
+            self.valid_ar4 = self.valid_a_list[14]
         out_tensor = tf.reshape(dec_out, [-1, self.h_encoder_units*2]) # a hack for num_units
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),

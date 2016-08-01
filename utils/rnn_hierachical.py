@@ -173,11 +173,11 @@ def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
         input_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
         input_ta = input_ta.unpack(inputs)
 
-        def decoder_cond(time, state, output_ta_t):#, a_tracker, az_tracker, ar_tracker):
+        def decoder_cond(time, state, output_ta_t, *args):#, a_tracker, az_tracker, ar_tracker):
             return tf.less(time, max_sequence_length)
 
         def decoder_body_builder(feedback=False):
-            def decoder_body(time, old_state, output_ta_t):#, a_tracker, az_tracker, ar_tracker):
+            def decoder_body(time, old_state, output_ta_t, *args):#, a_tracker, az_tracker, ar_tracker):
                 if feedback:
                     def from_previous():
                         prev_1 = tf.matmul(old_state, W_out) + b_out
@@ -185,14 +185,16 @@ def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
                     x_t = tf.cond(tf.greater(time, 0), from_previous, lambda: input_ta.read(0))
                 else:
                     x_t = input_ta.read(time)
-
+                args = list(args)
                 # attention
                 start_rnn = tf.tanh(tf.matmul(old_state, W_as) + b_as)
                 prev_hidden = start_rnn
                 for i in reversed(range(num_h)):
                     ac, alpha = attn(p1=part1[i], inp_state=prev_hidden, W_a=W_a[i], b_a=b_a[i], v_a=v_a[i], h_lengths=h_lengths[i], hidden=hidden[i])
                     prev_hidden, az, ar = gru_step(prev_hidden, ac, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
-                    #a_tracker[i] = a_tracker[i].write(time, alpha)
+                    #args[i*3] = args[i*3].write(time, alpha)
+                    #args[i*3+1] = args[i*3+1].write(time, az)
+                    #args[i*3+2] = args[i*3+2].write(time, ar)
                     #az_tracker[i] = az_tracker[i].write(time, az)
                     #ar_tracker[i] = ar_tracker[i].write(time, ar)
 
@@ -208,28 +210,26 @@ def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
 
                 output_ta_t = output_ta_t.write(time, new_state)
 
-                return (time + 1, new_state, output_ta_t)#, a_tracker, az_tracker, ar_tracker)
+                return (time + 1, new_state, output_ta_t) + tuple(args)#, a_tracker, az_tracker, ar_tracker)
             return decoder_body
 
 
         output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-        a_tracker = dict()
-        az_tracker = dict()
-        ar_tracker = dict()
+        a_list = []
         for i in range(num_h):
-            a_tracker[i] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-            az_tracker[i] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-            ar_tracker[i] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+            a_list.append(tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True))
+            a_list.append(tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True))
+            a_list.append(tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True))
 
         time = tf.constant(0)
-        loop_vars = [time, h_state[0], output_ta]#, a_tracker, ar_tracker, az_tracker]
+        loop_vars = [time, h_state[0], output_ta] + a_list
 
-        _, state, output_ta = (#, _, _, _ = 
+        _, state, output_ta, *_ = (#, _, _, _ = 
             tf.while_loop(decoder_cond,
                           decoder_body_builder(),
                           loop_vars,
                           swap_memory=swap))
-        _, valid_state, valid_output_ta = (#, valid_a_tracker, valid_az_tracker, valid_ar_tracker 
+        _, valid_state, valid_output_ta, *valid_a_data = (#, valid_a_tracker, valid_az_tracker, valid_ar_tracker 
             tf.while_loop(decoder_cond,
                 decoder_body_builder(feedback=True),
                 loop_vars,
@@ -239,9 +239,13 @@ def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
         dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
         valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
 
-        #for i in range(num_h):
-        #    valid_a_tracker[i] = valid_a_tracker[i].pack()
-        #    valid_az_tracker[i] = valid_az_tracker[i].pack()
-        #    valid_ar_tracker[i] = valid_ar_tracker[i].pack()
+        valid_a_tracker = dict()
+        valid_az_tracker = dict()
+        valid_ar_tracker = dict()
 
-        return dec_state, dec_out, valid_dec_out#, valid_a_tracker, valid_ar_tracker, valid_az_tracker
+        for i in range(num_h):
+            valid_a_tracker[i] = valid_a_data[i*3].pack()
+            valid_az_tracker[i] = valid_a_data[i*3+1].pack()
+            valid_ar_tracker[i] = valid_a_data[i*3+2].pack()
+
+        return dec_state, dec_out, valid_dec_out, valid_a_data#valid_a_tracker, valid_ar_tracker, valid_az_tracker

@@ -196,10 +196,29 @@ class Trainer:
         for v_feed_dict in self.model.next_valid_feed():
             fetches = {'accuracy': self.model.valid_accuracy,
                        'ys': self.model.valid_ys,
-                       'loss': self.model.valid_loss }
-                       #'valid_a': self.model.valid_a,
-                       #'valid_az': self.model.valid_a,
-                       #'valid_ar': self.model.valid_a }
+                       'loss': self.model.valid_loss, 
+                      }
+            added_dict = dict()
+            if self.num_h == 1:
+                added_dict['valid_a0'] = self.valid_a0
+                added_dict['valid_az0'] = self.valid_az0
+                added_dict['valid_ar0'] = self.valid_ar0
+            if self.num_h == 5:
+                added_dict['valid_a0'] = self.valid_a0
+                added_dict['valid_az0'] = self.valid_az0
+                added_dict['valid_ar0'] = self.valid_ar0
+                added_dict['valid_a1'] = self.valid_a1
+                added_dict['valid_az1'] = self.valid_az1
+                added_dict['valid_ar1'] = self.valid_ar1
+                added_dict['valid_a2'] = self.valid_a2
+                added_dict['valid_az2'] = self.valid_az2
+                added_dict['valid_ar2'] = self.valid_ar2
+                added_dict['valid_a3'] = self.valid_a3
+                added_dict['valid_az3'] = self.valid_az3
+                added_dict['valid_ar3'] = self.valid_ar3
+                added_dict['valid_a4'] = self.valid_a4
+                added_dict['valid_az4'] = self.valid_az4
+                added_dict['valid_ar4'] = self.valid_ar4
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
@@ -220,10 +239,16 @@ class Trainer:
             accuracies.append(res['accuracy']*samples_in_batch)
 
             # initiating dictionaries for hierarchical attention tracking
-            #if valid_a == {}:
-            #    valid_a[i] = res['valid_a'][i].transpose(1, 0, 2)
-            #    valid_az[i] = res['valid_az'][i].transpose(1, 0, 2)
-            #    valid_ar[i] = res['valid_ar'][i].transpose(1, 0, 2)
+            if valid_a == {}:
+                if self.num_h == 1:
+                    valid_a[0] = res['valid_a0'].transpose(1, 0, 2)
+                    valid_az[0] = res['valid_az0'].transpose(1, 0, 2)
+                    valid_ar[0] = res['valid_ar0'].transpose(1, 0, 2)
+                if self.num_h == 5:
+                    for i in self.num_h:
+                        valid_a[i] = res['valid_a%d' % i].transpose(1, 0, 2)
+                        valid_az[i] = res['valid_az%d' % i].transpose(1, 0, 2)
+                        valid_ar[i] = res['valid_ar%d' % i].transpose(1, 0, 2)
             # only implemented first batch for this so far
             #else:
             #    valid_a[i].append(res['valid_a'][i].transpose(1, 0, 2))
