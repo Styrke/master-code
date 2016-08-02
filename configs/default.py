@@ -181,26 +181,26 @@ class Model:
 
         assert self.num_h in [1, 5]
         if self.num_h == 1:
-            self.valid_a0 = self.valid_a_list[0]
-            self.valid_az0 = self.valid_a_list[1]
-            self.valid_ar0 = self.valid_a_list[2]
+            self.valid_a0 = self.valid_a_list[0].pack()
+            self.valid_az0 = self.valid_a_list[1].pack()
+            self.valid_ar0 = self.valid_a_list[2].pack()
 
         if self.num_h == 5:
-            self.valid_a0 = self.valid_a_list[0]
-            self.valid_az0 = self.valid_a_list[1]
-            self.valid_ar0 = self.valid_a_list[2]
-            self.valid_a1 = self.valid_a_list[3]
-            self.valid_az1 = self.valid_a_list[4]
-            self.valid_ar1 = self.valid_a_list[5]
-            self.valid_a2 = self.valid_a_list[6]
-            self.valid_az2 = self.valid_a_list[7]
-            self.valid_ar2 = self.valid_a_list[8]
-            self.valid_a3 = self.valid_a_list[9]
-            self.valid_az3 = self.valid_a_list[10]
-            self.valid_ar3 = self.valid_a_list[11]
-            self.valid_a4 = self.valid_a_list[12]
-            self.valid_az4 = self.valid_a_list[13]
-            self.valid_ar4 = self.valid_a_list[14]
+            self.valid_a0 = self.valid_a_list[0].pack()
+            self.valid_az0 = self.valid_a_list[1].pack()
+            self.valid_ar0 = self.valid_a_list[2].pack()
+            self.valid_a1 = self.valid_a_list[3].pack()
+            self.valid_az1 = self.valid_a_list[4].pack()
+            self.valid_ar1 = self.valid_a_list[5].pack()
+            self.valid_a2 = self.valid_a_list[6].pack()
+            self.valid_az2 = self.valid_a_list[7].pack()
+            self.valid_ar2 = self.valid_a_list[8].pack()
+            self.valid_a3 = self.valid_a_list[9].pack()
+            self.valid_az3 = self.valid_a_list[10].pack()
+            self.valid_ar3 = self.valid_a_list[11].pack()
+            self.valid_a4 = self.valid_a_list[12].pack()
+            self.valid_az4 = self.valid_a_list[13].pack()
+            self.valid_ar4 = self.valid_a_list[14].pack()
         out_tensor = tf.reshape(dec_out, [-1, self.h_encoder_units*2]) # a hack for num_units
         out_tensor = tf.matmul(out_tensor, W_out) + b_out
         out_shape = tf.concat(0, [tf.expand_dims(tf.shape(self.X_len)[0], 0),

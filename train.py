@@ -125,6 +125,12 @@ class Trainer:
             swap_amount = None
             augmentor = Augmentor()
             for t_feed_dict, extra in self.model.next_train_feed():
+                john = t_feed_dict
+                print(john['x_h0'].shape)
+                print(john['x_h1'].shape)
+                print(john['x_h2'].shape)
+                print(john['x_h3'].shape)
+                print(john['x_h4'].shape)
                 # NOTE is this slower than enumerate()?
                 i = self.model.global_step.eval()
 
@@ -199,26 +205,27 @@ class Trainer:
                        'loss': self.model.valid_loss, 
                       }
             added_dict = dict()
-            if self.num_h == 1:
-                added_dict['valid_a0'] = self.valid_a0
-                added_dict['valid_az0'] = self.valid_az0
-                added_dict['valid_ar0'] = self.valid_ar0
-            if self.num_h == 5:
-                added_dict['valid_a0'] = self.valid_a0
-                added_dict['valid_az0'] = self.valid_az0
-                added_dict['valid_ar0'] = self.valid_ar0
-                added_dict['valid_a1'] = self.valid_a1
-                added_dict['valid_az1'] = self.valid_az1
-                added_dict['valid_ar1'] = self.valid_ar1
-                added_dict['valid_a2'] = self.valid_a2
-                added_dict['valid_az2'] = self.valid_az2
-                added_dict['valid_ar2'] = self.valid_ar2
-                added_dict['valid_a3'] = self.valid_a3
-                added_dict['valid_az3'] = self.valid_az3
-                added_dict['valid_ar3'] = self.valid_ar3
-                added_dict['valid_a4'] = self.valid_a4
-                added_dict['valid_az4'] = self.valid_az4
-                added_dict['valid_ar4'] = self.valid_ar4
+            if self.model.num_h == 1:
+                added_dict['valid_a0'] = self.model.valid_a0
+                added_dict['valid_az0'] = self.model.valid_az0
+                added_dict['valid_ar0'] = self.model.valid_ar0
+            if self.model.num_h == 5:
+                added_dict['valid_a0'] = self.model.valid_a0
+                added_dict['valid_az0'] = self.model.valid_az0
+                added_dict['valid_ar0'] = self.model.valid_ar0
+                added_dict['valid_a1'] = self.model.valid_a1
+                added_dict['valid_az1'] = self.model.valid_az1
+                added_dict['valid_ar1'] = self.model.valid_ar1
+                added_dict['valid_a2'] = self.model.valid_a2
+                added_dict['valid_az2'] = self.model.valid_az2
+                added_dict['valid_ar2'] = self.model.valid_ar2
+                added_dict['valid_a3'] = self.model.valid_a3
+                added_dict['valid_az3'] = self.model.valid_az3
+                added_dict['valid_ar3'] = self.model.valid_ar3
+                added_dict['valid_a4'] = self.model.valid_a4
+                added_dict['valid_az4'] = self.model.valid_az4
+                added_dict['valid_ar4'] = self.model.valid_ar4
+            fetches.update(added_dict)
 
             res, time = self.perform_iteration(sess, fetches, v_feed_dict)
 
@@ -240,12 +247,12 @@ class Trainer:
 
             # initiating dictionaries for hierarchical attention tracking
             if valid_a == {}:
-                if self.num_h == 1:
+                if self.model.num_h == 1:
                     valid_a[0] = res['valid_a0'].transpose(1, 0, 2)
                     valid_az[0] = res['valid_az0'].transpose(1, 0, 2)
                     valid_ar[0] = res['valid_ar0'].transpose(1, 0, 2)
-                if self.num_h == 5:
-                    for i in self.num_h:
+                if self.model.num_h == 5:
+                    for i in range(self.model.num_h):
                         valid_a[i] = res['valid_a%d' % i].transpose(1, 0, 2)
                         valid_az[i] = res['valid_az%d' % i].transpose(1, 0, 2)
                         valid_ar[i] = res['valid_ar%d' % i].transpose(1, 0, 2)
@@ -304,9 +311,9 @@ class Trainer:
         a_path = os.path.join(path_to_a, 'a.npy')
         az_path = os.path.join(path_to_az, 'az.npy')
         ar_path = os.path.join(path_to_ar, 'ar.npy')
-        #np.save(a_path, valid_a)
-        #np.save(az_path, valid_az)
-        #np.save(ar_path, valid_ar)
+        np.save(a_path, valid_a)
+        np.save(az_path, valid_az)
+        np.save(ar_path, valid_ar)
 
         if not os.path.exists(reference):
             dump_to_file(reference, valid_t_strings)

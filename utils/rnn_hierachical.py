@@ -192,9 +192,9 @@ def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
                 for i in reversed(range(num_h)):
                     ac, alpha = attn(p1=part1[i], inp_state=prev_hidden, W_a=W_a[i], b_a=b_a[i], v_a=v_a[i], h_lengths=h_lengths[i], hidden=hidden[i])
                     prev_hidden, az, ar = gru_step(prev_hidden, ac, W_az, W_ar, W_ah, b_az, b_ar, b_ah)
-                    #args[i*3] = args[i*3].write(time, alpha)
-                    #args[i*3+1] = args[i*3+1].write(time, az)
-                    #args[i*3+2] = args[i*3+2].write(time, ar)
+                    args[i*3] = args[i*3].write(time, alpha)
+                    args[i*3+1] = args[i*3+1].write(time, az)
+                    args[i*3+2] = args[i*3+2].write(time, ar)
                     #az_tracker[i] = az_tracker[i].write(time, az)
                     #ar_tracker[i] = ar_tracker[i].write(time, ar)
 
@@ -239,13 +239,13 @@ def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
         dec_out = tf.transpose(output_ta.pack(), perm=[1, 0, 2])
         valid_dec_out = tf.transpose(valid_output_ta.pack(), perm=[1, 0, 2])
 
-        valid_a_tracker = dict()
-        valid_az_tracker = dict()
-        valid_ar_tracker = dict()
+        #valid_a_tracker = dict()
+        #valid_az_tracker = dict()
+        #valid_ar_tracker = dict()
 
-        for i in range(num_h):
-            valid_a_tracker[i] = valid_a_data[i*3].pack()
-            valid_az_tracker[i] = valid_a_data[i*3+1].pack()
-            valid_ar_tracker[i] = valid_a_data[i*3+2].pack()
+        #for i in range(num_h):
+        #    valid_a_tracker[i] = valid_a_data[i*3].pack()
+        #    valid_az_tracker[i] = valid_a_data[i*3+1].pack()
+        #    valid_ar_tracker[i] = valid_a_data[i*3+2].pack()
 
         return dec_state, dec_out, valid_dec_out, valid_a_data#valid_a_tracker, valid_ar_tracker, valid_az_tracker
