@@ -125,12 +125,6 @@ class Trainer:
             swap_amount = None
             augmentor = Augmentor()
             for t_feed_dict, extra in self.model.next_train_feed():
-                john = t_feed_dict
-                print(john['x_h0'].shape)
-                print(john['x_h1'].shape)
-                print(john['x_h2'].shape)
-                print(john['x_h3'].shape)
-                print(john['x_h4'].shape)
                 # NOTE is this slower than enumerate()?
                 i = self.model.global_step.eval()
 

@@ -330,7 +330,7 @@ class TextBatchGenerator(frost.BatchGenerator):
         if level>0:
             for _ in range(level):
                 cur = list(range(len(hierachical)))
-                new = cur[1::degree]
+                new = cur[(degree-1)::degree]
                 if len(cur) % degree:
                     new.append(cur[-1])
                 hierachical = new
