@@ -9,7 +9,7 @@ from data.alphabet import Alphabet
 
 class Model:
     # settings that affect train.py
-    batch_size_train = 80000
+    batch_size_train = 45000
     batch_size_valid = 128
     seq_len_x = 50
     seq_len_t = 50

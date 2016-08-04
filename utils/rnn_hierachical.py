@@ -215,11 +215,15 @@ def attention_decoder(h_input, h_lengths, h_state, num_h, target_input,
 
 
         output_ta = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
-        a_list = []
+        if num_h == 1:
+            a_list = [1, 1, 1]
+        if num_h == 5:
+            a_list = [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5]
+
         for i in range(num_h):
-            a_list.append(tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True))
-            a_list.append(tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True))
-            a_list.append(tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True))
+            a_list[i*3+0] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+            a_list[i*3+1] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
+            a_list[i*3+2] = tensor_array_ops.TensorArray(tf.float32, size=1, dynamic_size=True)
 
         time = tf.constant(0)
         loop_vars = [time, h_state[0], output_ta] + a_list

@@ -122,7 +122,7 @@ class Trainer:
             self.val_summaries = self.setup_validation_summaries()
 
             combined_time = 0.0  # total time for each print
-            swap_amount = None
+            swap_amount = 0.0
             augmentor = Augmentor()
             for t_feed_dict, extra in self.model.next_train_feed():
                 # NOTE is this slower than enumerate()?
