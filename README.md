@@ -4,6 +4,10 @@ This is the code repository that accompany the master's thesis by [Alexander Ros
 
 The goal of the project was to train recurrent neural netowrks to translate text between different languages.
 
+We wrote up the highlights of the work in an article. [Read the abstract](https://arxiv.org/abs/1610.06550) and [download the pdf](https://arxiv.org/pdf/1610.06550.pdf).
+
+If you want the unabridged story, [download the full thesis as pdf](final.pdf).
+
 ## Setup
 
 The code was made to be run in a docker container (see the [`setup/`` directory](setup/)) but should run equally well on any setup with the right dependencies installed.
